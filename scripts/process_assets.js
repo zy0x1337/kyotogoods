@@ -36,21 +36,33 @@ function findAlphaBounds(data, width, height) {
   return { top, bottom };
 }
 
-// Vollstaendige Alpha-Bounding-Box. sharp.trim() ist bei weichen Defringe-Kanten
-// unzuverlaessig (laesst Rest-Padding stehen), daher rechnen wir selbst.
-function findAlphaBox(data, width, height, threshold = 10) {
-  let x0 = width, y0 = height, x1 = -1, y1 = -1;
+// Robuste Alpha-Bounding-Box. sharp.trim() ist bei weichen Defringe-Kanten
+// unzuverlaessig, und ein einzelnes Streupixel aus dem Render (JPEG-Artefakt,
+// Rest einer Signatur) blaeht eine naive Box auf die halbe Leinwand auf. Daher:
+// pro Zeile/Spalte zaehlen und nur Reihen akzeptieren, die genug deckende Pixel
+// haben.
+function findAlphaBox(data, width, height, alphaMin = 80) {
+  const rows = new Uint32Array(height);
+  const cols = new Uint32Array(width);
+
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
-      if (data[(y * width + x) * 4 + 3] > threshold) {
-        if (x < x0) x0 = x;
-        if (x > x1) x1 = x;
-        if (y < y0) y0 = y;
-        if (y > y1) y1 = y;
+      if (data[(y * width + x) * 4 + 3] > alphaMin) {
+        rows[y]++;
+        cols[x]++;
       }
     }
   }
-  if (x1 < 0) return null;
+
+  // Eine Reihe zaehlt, wenn mindestens 0.5% ihrer Laenge deckend ist
+  const minRow = Math.max(3, Math.round(width * 0.005));
+  const minCol = Math.max(3, Math.round(height * 0.005));
+
+  let y0 = -1, y1 = -1, x0 = -1, x1 = -1;
+  for (let y = 0; y < height; y++) if (rows[y] >= minRow) { if (y0 < 0) y0 = y; y1 = y; }
+  for (let x = 0; x < width; x++) if (cols[x] >= minCol) { if (x0 < 0) x0 = x; x1 = x; }
+
+  if (y0 < 0 || x0 < 0) return null;
   return { left: x0, top: y0, width: x1 - x0 + 1, height: y1 - y0 + 1 };
 }
 
@@ -97,6 +109,7 @@ async function processImages() {
 
   const offsets = {};
   const cavities = {};
+  const produced = new Set();
 
   for (const file of files) {
     const filePath = path.join(RAW_DIR, file);
@@ -214,6 +227,17 @@ async function processImages() {
     .map(id => `  ${id}: ${offsets[id]}`)
     .join(',\n');
 
+  // Manifest: was liegt am Ende wirklich in OUT_DIR? Der Client laedt optionale
+  // Assets (bgl_ Layer, hoehere BG-Tiers) nur, wenn sie hier stehen -- sonst
+  // liefert der Dev-Server das HTML-Fallback und der Loader stolpert darueber.
+  for (const f of fs.readdirSync(OUT_DIR)) {
+    if (path.extname(f).toLowerCase() === '.png') produced.add(path.parse(f).name);
+  }
+
+  const assetLines = [...produced].sort()
+    .map(id => `  '${id}'`)
+    .join(',\n');
+
   const cavityLines = Object.keys(cavities).sort()
     .map(id => `  ${id}: ${cavities[id]}`)
     .join(',\n');
@@ -227,6 +251,11 @@ ${lines}
 export const BG_CAVITY_RATIOS: Record<string, number> = {
 ${cavityLines}
 };
+
+// Alle Texturen, die tatsaechlich in public/assets/items/ liegen.
+export const AVAILABLE_ASSETS: ReadonlySet<string> = new Set([
+${assetLines}
+]);
 `;
 
   fs.writeFileSync(OFFSETS_FILE, tsContent, 'utf-8');

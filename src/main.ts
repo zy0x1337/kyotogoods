@@ -1,5 +1,7 @@
+import '@fontsource/zen-maru-gothic/latin-500.css';
+import '@fontsource/zen-maru-gothic/latin-700.css';
 import Phaser from 'phaser';
-import { ITEM_BOTTOM_OFFSETS, BG_CAVITY_RATIOS } from './item_offsets.generated';
+import { ITEM_BOTTOM_OFFSETS, BG_CAVITY_RATIOS, AVAILABLE_ASSETS } from './item_offsets.generated';
 
 // ==========================================
 // 1. CMF DESIGN SYSTEM & ITEM REGISTRY
@@ -17,6 +19,20 @@ export const KYOTO = {
   cream: 0xFDFBF7,
   sageGreen: 0x8FA89B
 };
+
+// Zen Maru Gothic: gerundete japanische Gothic-Schrift, passt zum weichen
+// Art-Toy-CMF der Goods. Wird lokal gebundelt (offline-tauglich fuer Capacitor).
+const FONT_FAMILY = '"Zen Maru Gothic", "Hiragino Maru Gothic ProN", sans-serif';
+
+// Kleine Grossbuchstaben-Labels ueber den Werten
+function labelStyle(size: number, color: string): Phaser.Types.GameObjects.Text.TextStyle {
+  return { fontFamily: FONT_FAMILY, fontSize: `${size}px`, color, fontStyle: '500' };
+}
+
+// Werte und Ueberschriften
+function valueStyle(size: number, color: string): Phaser.Types.GameObjects.Text.TextStyle {
+  return { fontFamily: FONT_FAMILY, fontSize: `${size}px`, color, fontStyle: '700' };
+}
 
 const DESIGN_WIDTH = 420;
 const DESIGN_HEIGHT = 760;
@@ -912,8 +928,16 @@ export class PreloadScene extends Phaser.Scene {
   }
 
   preload() {
-    // Stille Fehlerbehandlung für optionale Hintergrund-Tiers
-    this.load.on('loaderror', () => {});
+    // Optionale Assets werden nur angefragt, wenn sie im generierten Manifest
+    // stehen. Der Vite-Dev-Server liefert fuer fehlende Dateien das HTML-Fallback
+    // mit Status 200 -- der Loader wuerde daran haengenbleiben.
+    const loadOptional = (key: string) => {
+      if (AVAILABLE_ASSETS.has(key)) this.load.image(key, `assets/items/${key}.png`);
+    };
+
+    this.load.on('loaderror', (file: Phaser.Loader.File) => {
+      console.warn(`[assets] konnte ${file.key} nicht laden`);
+    });
 
     // 1. Goods
     Object.keys(ITEMS).forEach(id => {
@@ -921,8 +945,8 @@ export class PreloadScene extends Phaser.Scene {
     });
 
     // 2. Environment & UI – Hintergrund-Tiers (höhere Tiers können fehlen, Fallback auf bg_kissa_niche)
-    BG_TIERS.forEach(t => this.load.image(t.key, `assets/items/${t.key}.png`));
-    BG_LAYERS.forEach(l => this.load.image(l.key, `assets/items/${l.key}.png`));
+    BG_TIERS.forEach(t => loadOptional(t.key));
+    BG_LAYERS.forEach(l => loadOptional(l.key));
     this.load.image('shelf_wood', 'assets/items/shelf_wood.png');
     this.load.image('fx_match_burst', 'assets/items/fx_match_burst.png');
     this.load.image('ui_card_kuro', 'assets/items/ui_card_kuro.png');
@@ -1157,9 +1181,7 @@ export class GameScene extends Phaser.Scene {
     // Schwebender Punkte-Indikator
     const effectScale = getLayoutScale(this.scale.width);
     const floatTxt = this.add.text(worldX, worldY - 16 * effectScale, `MATCH!\n+${pointsGained}`, {
-      fontSize: `${17 * effectScale}px`,
-      color: '#F4D58A',
-      fontStyle: 'bold',
+      ...valueStyle(17 * effectScale, '#F4D58A'),
       align: 'center',
       stroke: '#1E2022',
       strokeThickness: 3 * effectScale,
@@ -1266,17 +1288,14 @@ function addCardNineSlice(
   const texW = src.width;
   const texH = src.height;
 
-  // Rahmenbreite der Textur: 30% der kuerzeren Seite, aber nie mehr als die
-  // Haelfte einer Achse (sonst ueberlappen die Slices).
-  const inset = Math.floor(Math.min(texW, texH) * 0.3);
-  const sideX = Math.min(inset, Math.floor(texW / 2) - 1);
-  const sideY = Math.min(inset, Math.floor(texH / 2) - 1);
+  // Rahmenbreite der Textur: 22% der kuerzeren Seite. Die Insets werden zusaetzlich
+  // an der Zielgroesse gedeckelt -- sonst erzwingt eine fast quadratische Textur
+  // eine Mindesthoehe und die Karte waechst ueber ihre Box hinaus.
+  const inset = Math.floor(Math.min(texW, texH) * 0.22);
+  const sideX = Math.max(1, Math.min(inset, Math.floor(texW / 2) - 1, Math.floor((w - 2) / 2)));
+  const sideY = Math.max(1, Math.min(inset, Math.floor(texH / 2) - 1, Math.floor((h - 2) / 2)));
 
-  // Zielmasse nie unter die Rahmengroesse druecken, sonst ueberlappen die Slices
-  const drawW = Math.max(w, sideX * 2 + 2);
-  const drawH = Math.max(h, sideY * 2 + 2);
-
-  const ns = scene.add.nineslice(x, y, key, undefined, drawW, drawH, sideX, sideX, sideY, sideY);
+  const ns = scene.add.nineslice(x, y, key, undefined, w, h, sideX, sideX, sideY, sideY);
   ns.setOrigin(0.5);
   return ns;
 }
@@ -1294,35 +1313,39 @@ export class UIScene extends Phaser.Scene {
     const { width, height } = this.scale;
     const uiScale = getLayoutScale(width);
 
-    // Header Plaque
+    // Header-Plakette: SCORE links, Level mittig, MOVES rechts. Label und Wert
+    // sitzen gestapelt auf der vertikalen Mitte der Karte, damit der Text
+    // innerhalb des Rahmens bleibt und nicht auf dessen Kante klebt.
+    const headerH = 66 * uiScale;
     const headerW = width - 32 * uiScale;
-    const headerH = 60 * uiScale;
     const headerX = 16 * uiScale;
-    const headerY = 24 * uiScale;
-    const headerCard = addCardNineSlice(this, headerX + headerW / 2, headerY + headerH / 2, headerW, headerH, 'ui_card_kuro');
+    const headerY = 22 * uiScale;
+    const headerCx = headerX + headerW / 2;
+    const headerCy = headerY + headerH / 2;
+
+    const headerCard = addCardNineSlice(this, headerCx, headerCy, headerW, headerH, 'ui_card_kuro');
     if (!headerCard) {
       const headerBg = this.add.graphics();
-      headerBg.fillStyle(KYOTO.kuroSteel, 0.08).fillRoundedRect(headerX, headerY, headerW, headerH, 14 * uiScale);
-      headerBg.lineStyle(1.5 * uiScale, KYOTO.hinoki, 0.5).strokeRoundedRect(headerX, headerY, headerW, headerH, 14 * uiScale);
+      headerBg.fillStyle(KYOTO.kuroSteel, 0.92).fillRoundedRect(headerX, headerY, headerW, headerH, 14 * uiScale);
+      headerBg.lineStyle(1.5 * uiScale, KYOTO.brass, 0.55).strokeRoundedRect(headerX, headerY, headerW, headerH, 14 * uiScale);
     }
 
-    this.scoreTxt = this.add.text(32 * uiScale, 42 * uiScale, 'SCORE: 0', {
-      fontSize: `${18 * uiScale}px`,
-      color: '#1E2022',
-      fontStyle: 'bold'
-    });
+    // Innenabstand zum Rahmen der Karte
+    const pad = 26 * uiScale;
+    const labelY = headerCy - 13 * uiScale;
+    const valueY = headerCy + 5 * uiScale;
 
-    this.add.text(width / 2, 42 * uiScale, `BAR ${State.currentLevel}`, {
-      fontSize: `${14 * uiScale}px`,
-      color: '#8C7A5E',
-      fontStyle: 'bold'
-    }).setOrigin(0.5, 0);
+    const LABEL = '#C49A5A';
+    const VALUE = '#FDFBF7';
 
-    this.movesTxt = this.add.text(width - 32 * uiScale, 42 * uiScale, `MOVES: ${State.moves}`, {
-      fontSize: `${18 * uiScale}px`,
-      color: '#4A6B47',
-      fontStyle: 'bold'
-    }).setOrigin(1, 0);
+    this.add.text(headerX + pad, labelY, 'SCORE', labelStyle(9 * uiScale, LABEL)).setOrigin(0, 0.5);
+    this.scoreTxt = this.add.text(headerX + pad, valueY, '0', valueStyle(20 * uiScale, VALUE)).setOrigin(0, 0.5);
+
+    this.add.text(headerCx, labelY, 'TEA BAR', labelStyle(9 * uiScale, LABEL)).setOrigin(0.5);
+    this.add.text(headerCx, valueY, `${State.currentLevel}`, valueStyle(20 * uiScale, VALUE)).setOrigin(0.5);
+
+    this.add.text(headerX + headerW - pad, labelY, 'MOVES', labelStyle(9 * uiScale, LABEL)).setOrigin(1, 0.5);
+    this.movesTxt = this.add.text(headerX + headerW - pad, valueY, `${State.moves}`, valueStyle(20 * uiScale, VALUE)).setOrigin(1, 0.5);
 
     // Booster Tray. Breite folgt der Buttonreihe, damit kein Button ueber den
     // Rand der Karte hinausragt.
@@ -1361,7 +1384,7 @@ export class UIScene extends Phaser.Scene {
         btn.add(sprite);
       } else {
         const bg = this.add.graphics().fillStyle(KYOTO.kuroSteel, 0.9).fillRoundedRect(-32 * uiScale, -22 * uiScale, 64 * uiScale, 44 * uiScale, 10 * uiScale);
-        const txt = this.add.text(0, 0, b.label, { fontSize: `${11 * uiScale}px`, color: '#FDFBF7', fontStyle: 'bold' }).setOrigin(0.5);
+        const txt = this.add.text(0, 0, b.label, valueStyle(10 * uiScale, '#FDFBF7')).setOrigin(0.5);
         btn.add([bg, txt]);
       }
 
@@ -1372,17 +1395,18 @@ export class UIScene extends Phaser.Scene {
     });
 
     const onMove = (m: number) => {
-      this.movesTxt.setText(`MOVES: ${m}`);
+      this.movesTxt.setText(`${m}`);
       if (m <= 5) {
-        this.movesTxt.setColor('#6E373B');
-        this.tweens.add({ targets: this.movesTxt, scale: 1.15, yoyo: true, duration: 100 });
+        this.movesTxt.setColor('#E8A0A5');
+        this.tweens.add({ targets: this.movesTxt, scale: 1.2, yoyo: true, duration: 110, ease: 'Sine.easeOut' });
       } else {
-        this.movesTxt.setColor('#4A6B47');
+        this.movesTxt.setColor(VALUE);
       }
     };
 
     const onScore = ({ score }: { score: number }) => {
-      this.scoreTxt.setText(`SCORE: ${score}`);
+      this.scoreTxt.setText(`${score}`);
+      this.tweens.add({ targets: this.scoreTxt, scale: 1.18, yoyo: true, duration: 130, ease: 'Sine.easeOut' });
     };
 
     this.game.events.on(GameEvents.MOVE_EXECUTED, onMove);
@@ -1419,11 +1443,7 @@ export class WinModalScene extends Phaser.Scene {
     const bg = this.add.graphics().fillStyle(KYOTO.cream, 1).fillRoundedRect(-140, -130, 280, 260, 16);
     bg.lineStyle(2, KYOTO.hinoki, 0.7).strokeRoundedRect(-140, -130, 280, 260, 16);
 
-    const title = this.add.text(0, -85, `TEA BAR ${State.currentLevel} CLEARED`, {
-      fontSize: '18px',
-      color: '#1E2022',
-      fontStyle: 'bold'
-    }).setOrigin(0.5);
+    const title = this.add.text(0, -85, `TEA BAR ${State.currentLevel} CLEARED`, valueStyle(18, '#1E2022')).setOrigin(0.5);
 
     // 3-Sterne Bewertung
     const movesRatio = State.moves / State.initialMoves;
@@ -1442,19 +1462,12 @@ export class WinModalScene extends Phaser.Scene {
       }
     });
 
-    const score = this.add.text(0, 5, `SCORE: ${State.score}`, {
-      fontSize: '20px',
-      color: '#4A6B47',
-      fontStyle: 'bold'
-    }).setOrigin(0.5);
+    const scoreLabel = this.add.text(0, -6, 'SCORE', labelStyle(10, '#8C7A5E')).setOrigin(0.5);
+    const score = this.add.text(0, 14, `${State.score}`, valueStyle(24, '#4A6B47')).setOrigin(0.5);
 
     const btn = this.add.container(0, 65);
     const btnBg = this.add.graphics().fillStyle(KYOTO.matcha, 1).fillRoundedRect(-65, -20, 130, 40, 10);
-    const btnTxt = this.add.text(0, 0, 'NEXT BAR', {
-      fontSize: '14px',
-      color: '#FFFFFF',
-      fontStyle: 'bold'
-    }).setOrigin(0.5);
+    const btnTxt = this.add.text(0, 0, 'NEXT BAR', valueStyle(14, '#FFFFFF')).setOrigin(0.5);
 
     btn.add([btnBg, btnTxt]).setSize(130, 40).setInteractive({ useHandCursor: true });
     btn.on('pointerdown', () => {
@@ -1463,7 +1476,7 @@ export class WinModalScene extends Phaser.Scene {
       this.scene.get('GameScene').scene.restart();
     });
 
-    card.add([bg, title, score, btn]).setScale(0);
+    card.add([bg, title, scoreLabel, score, btn]).setScale(0);
     this.tweens.add({ targets: card, scale: 1, duration: 250, ease: 'Back.easeOut' });
   }
 }
@@ -1471,15 +1484,31 @@ export class WinModalScene extends Phaser.Scene {
 // ==========================================
 // 6. ENGINE BOOTSTRAP
 // ==========================================
-new Phaser.Game({
-  type: Phaser.AUTO,
-  parent: 'game-container',
-  width: DESIGN_WIDTH,
-  height: DESIGN_HEIGHT,
-  backgroundColor: '#F3EFEA',
-  scale: {
-    mode: Phaser.Scale.RESIZE,
-    autoCenter: Phaser.Scale.CENTER_BOTH
-  },
-  scene: [PreloadScene, GameScene, UIScene, WinModalScene]
-});
+function boot() {
+  const game = new Phaser.Game({
+    type: Phaser.AUTO,
+    parent: 'game-container',
+    width: DESIGN_WIDTH,
+    height: DESIGN_HEIGHT,
+    backgroundColor: '#F3EFEA',
+    scale: {
+      mode: Phaser.Scale.RESIZE,
+      autoCenter: Phaser.Scale.CENTER_BOTH
+    },
+    scene: [PreloadScene, GameScene, UIScene, WinModalScene]
+  });
+
+  // Debug-Handle fuer die Layout-Pruefung im Browser
+  if (import.meta.env.DEV) (window as unknown as { __game: Phaser.Game }).__game = game;
+}
+
+// Phaser rastert Text beim Erzeugen in die Canvas. Startet das Spiel bevor die
+// Webfont geladen ist, bleibt der erste Frame in der Fallback-Schrift stehen.
+if (document.fonts && document.fonts.load) {
+  Promise.all([
+    document.fonts.load('500 16px "Zen Maru Gothic"'),
+    document.fonts.load('700 16px "Zen Maru Gothic"')
+  ]).then(boot).catch(boot);
+} else {
+  boot();
+}

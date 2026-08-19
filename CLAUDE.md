@@ -9,7 +9,17 @@
 
 ---
 
-## 2. Nano Banana Pro Asset Generation Catalog
+## 2. Typografie
+
+Schrift: **Zen Maru Gothic** (`@fontsource/zen-maru-gothic`, nur Latin 500 + 700 importiert). Gerundete japanische Gothic — passt zum weichen Art-Toy-CMF der Goods und bleibt bei kleinen Zahlen lesbar. Wird lokal gebundelt, also offline-tauglich im Capacitor-Build.
+
+- `FONT_FAMILY`, `labelStyle(size, color)`, `valueStyle(size, color)` in `src/main.ts` — kein `this.add.text` ohne einen dieser Helper.
+- `labelStyle` = Weight 500, Versalien, klein, Messing `#C49A5A`. `valueStyle` = Weight 700, Werte in Creme `#FDFBF7` auf dunklem Grund.
+- Der Spielstart wartet auf `document.fonts.load(...)`. Phaser rastert Text beim Erzeugen in die Canvas — ohne das Warten bliebe der erste Frame in der Fallback-Schrift stehen.
+
+---
+
+## 3. Nano Banana Pro Asset Generation Catalog
 
 ### Master Negative Prompt (Append to all runs)
 hyper-realistic, high gloss reflections, shiny liquid specular, crumbs, baked floor shadows, blurry edges, gradient background, photorealism, text, watermark, logo, perspective tilt, 3d render artifacts
@@ -107,12 +117,12 @@ Format: Portrait 9:16 mobile canvas with a centered square effect and generous w
 
 ---
 
-## 3. Prompt- & Asset-Workflow
+## 4. Prompt- & Asset-Workflow
 
-Der komplette Weg von einem Prompt aus Abschnitt 2 bis zum fertigen Asset im Spiel.
+Der komplette Weg von einem Prompt aus Abschnitt 3 bis zum fertigen Asset im Spiel.
 
 ### Schritt 1 — Rendern
-Prompt aus Abschnitt 2 nehmen, **Master Negative Prompt anhängen**, in Nano Banana Pro rendern.
+Prompt aus Abschnitt 3 nehmen, **Master Negative Prompt anhängen**, in Nano Banana Pro rendern.
 Immer **Portrait 9:16** wählen — auch für quadratische Objekte. Das Modell liefert sonst Landscape und der Alpha-Crop schneidet Kanten ab.
 Bei Layern und Karten den passenden Anchor mitgeben (siehe Prompt-Eintrag), sonst driftet der Farbton weg.
 
@@ -136,11 +146,20 @@ Items müssen zusätzlich in `ITEM_IDS` (`scripts/process_assets.js:13`) stehen,
 ```
 npm run process:assets
 ```
-Schreibt nach `public/assets/items/` und regeneriert `src/item_offsets.generated.ts`.
-Beide Generate-Werte (Bottom-Offsets, Cavity-Ratios) werden **am fertigen PNG** gemessen — nie im Code hardcoden.
+Schreibt nach `public/assets/items/` und regeneriert `src/item_offsets.generated.ts` mit drei Exports:
+
+- `ITEM_BOTTOM_OFFSETS` — sichtbare Unterkante je Item
+- `BG_CAVITY_RATIOS` — lichte Nischenweite je Hintergrund
+- `AVAILABLE_ASSETS` — alles, was tatsächlich in `public/assets/items/` liegt
+
+Alle drei werden **am fertigen PNG** gemessen bzw. gelistet — nie im Code hardcoden.
+`AVAILABLE_ASSETS` steuert das Laden optionaler Assets: der Vite-Dev-Server liefert für fehlende Dateien das HTML-Fallback mit Status 200, der Phaser-Loader würde daran hängenbleiben.
+
+Der Alpha-Crop zählt deckende Pixel pro Zeile/Spalte und ignoriert Reihen unter 0,5 % Deckung. Ein einzelnes Streupixel aus dem Render (JPEG-Artefakt, Rest einer Signatur) hatte die Box von `ui_card_kuro` sonst auf die doppelte Höhe aufgebläht — die Karte füllte im Spiel nur die obere Hälfte ihrer Box und der Text rutschte darunter.
 
 ### Schritt 4 — Registrieren
-Neue Keys in `PreloadScene.preload()` (`src/main.ts`) laden. `bgl_`-Layer laufen automatisch, sobald sie in `BG_LAYERS` stehen — fehlende Texturen werden still übersprungen, das Spiel bricht also nicht, wenn nur ein Teil der Layer existiert.
+Pflicht-Assets in `PreloadScene.preload()` (`src/main.ts`) mit `this.load.image(...)` laden, optionale mit `loadOptional(key)`.
+`bgl_`-Layer und höhere BG-Tiers brauchen gar nichts: sie stehen in `BG_LAYERS` bzw. `BG_TIERS` und werden geladen, sobald sie im Manifest auftauchen. Fehlt ein Layer, wird er still übersprungen.
 
 ### Schritt 5 — Prüfen
 ```
@@ -153,7 +172,7 @@ Checkliste im Browser:
 - Ein Zug fliegt in einer Parabel zum Zielslot, nicht seitlich herein
 
 ### Schritt 6 — Prompt zurückschreiben
-Den tatsächlich verwendeten Prompt in Abschnitt 2 aktualisieren, inkl. Versionsnotiz, warum die Vorgängerversion ersetzt wurde. Der Katalog ist die einzige Quelle für Re-Renders.
+Den tatsächlich verwendeten Prompt in Abschnitt 3 aktualisieren, inkl. Versionsnotiz, warum die Vorgängerversion ersetzt wurde. Der Katalog ist die einzige Quelle für Re-Renders.
 
 ### Offene Punkte
 - `ui_card_kuro` ist noch v1 (nahezu quadratisch) — Header wirkt als dünnes schwarzes Band. Prompt 12 rendern.
