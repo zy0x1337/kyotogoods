@@ -37,15 +37,23 @@ function valueStyle(size: number, color: string): Phaser.Types.GameObjects.Text.
 
 const DESIGN_WIDTH = 420;
 const DESIGN_HEIGHT = 760;
-const ITEM_SIZE = 72;
+// Kantenlaenge eines Goods auf dem Regal. Die Bottom-Offsets aus der Pipeline
+// sind in ITEM_OFFSET_BASE gerechnet (ITEM_DISPLAY_SIZE dort) -- wird die
+// Anzeigegroesse geaendert, muss der Offset denselben Faktor bekommen.
+const ITEM_OFFSET_BASE = 72;
+const ITEM_SIZE = 58;
+const ITEM_OFFSET_SCALE = ITEM_SIZE / ITEM_OFFSET_BASE;
 const SHELF_PLATFORM_TOP_Y = 38;
 const DEFAULT_ITEM_BOTTOM_OFFSET = 36;
 const BG_CAVITY_RATIO = 0.6458;
 
-// Anteil der lichten Nischenweite, den ein Regalbrett einnimmt. Knapp ueber 1,
-// damit die Enden unter den Rahmenpfosten verschwinden und das Brett wie
-// eingelassen wirkt statt frei in der Nische zu schweben.
-const SHELF_CAVITY_FILL = 1.1;
+// Anteil der lichten Nischenweite, den ein Regalbrett einnimmt.
+//
+// Am Asset gemessen: das ausgestanzte Loch endet an der inneren Schattenkante
+// des Putzpanels, das sichtbare Holz beginnt 6 von 402 px weiter aussen -- also
+// Faktor 1.015. Damit stossen die Messingstifte an den Brettenden genau an den
+// Rahmen, statt darunter zu verschwinden. Dafuer sind die Stifte ja da.
+const SHELF_CAVITY_FILL = 1.015;
 
 // Hintergrund-Tiers: pro Level-Gruppe eine breiter werdende Nische. Das
 // cavityRatio wird von scripts/process_assets.js am fertigen PNG gemessen.
@@ -97,7 +105,7 @@ const BG_LAYERS: BgLayer[] = [
   { key: 'bgl_cat',      mode: 'sprite', depth: -52, motion: 'bob', amount: 4, period: 2600,
     xRatio: 0.085, yRatio: 0.965, widthRatio: 0.14, flipX: true },
   { key: 'bgl_dog',      mode: 'sprite', depth: -52, motion: 'bob', amount: 5, period: 3100,
-    xRatio: 0.915, yRatio: 0.965, widthRatio: 0.17 },
+    xRatio: 0.87, yRatio: 0.965, widthRatio: 0.17 },
   // Laternen haengen an Schnueren, die an der Oberkante beginnen -- das Schwingen
   // dreht die Ebene deshalb um ihren oberen Rand, nicht um die Bildmitte.
   { key: 'bgl_lanterns', mode: 'cover',  depth: -50, motion: 'sway', amount: 1.2, period: 5200 },
@@ -132,7 +140,7 @@ function getItemRestY(itemId: string, itemScale: number, platformY: number): num
   const bottomOffset = ITEM_BOTTOM_OFFSETS[itemId] ?? DEFAULT_ITEM_BOTTOM_OFFSET;
   // Der Offset gilt fuer die volle Anzeigegroesse und muss mitschrumpfen,
   // sonst schwebt ein verkleinertes Item ueber dem Brett.
-  return platformY - bottomOffset * getItemSizeFactor(itemId) * itemScale;
+  return platformY - bottomOffset * ITEM_OFFSET_SCALE * getItemSizeFactor(itemId) * itemScale;
 }
 
 export interface ItemDef {
@@ -623,9 +631,11 @@ export class GoodsItem extends Phaser.GameObjects.Container {
       g.fillStyle(d.detailColor, 1);
       g.fillRect(-4, -4, 8, 8);
     } else if (d.shape === 'bell') {
-      g.fillCircle(0, -4, 14);
+      // Glocke steht auf einem Ring, haengt nicht -- die Goods stehen im Regal.
+      g.fillCircle(0, -2, 14);
+      g.fillRect(-14, -2, 28, 12);
       g.fillStyle(d.detailColor, 1);
-      g.fillRect(-3, 10, 6, 14);
+      g.fillRoundedRect(-16, 10, 32, 8, 4);
     } else {
       g.fillRoundedRect(-14, -18, 28, 36, 8);
       g.fillStyle(d.detailColor, 1);
@@ -710,20 +720,12 @@ export class Shelf extends Phaser.GameObjects.Container {
     this.add(shadow);
 
     if (this.scene.textures.exists('shelf_wood')) {
-      // NineSlice statt Strecken: die Enden des Bretts behalten ihre Groesse,
-      // nur die Mitte wird auf die Regalbreite gezogen.
-      const tex = this.scene.textures.get('shelf_wood').getSourceImage();
-      const sideX = Math.max(1, Math.min(Math.floor(tex.width * 0.12), Math.floor(w / 2) - 1));
-
-      // Vertikale Insets muessen > 0 sein: mit 0 faellt Phaser auf einen
-      // Three-Slice zurueck und ignoriert die uebergebene Hoehe. Unten bleibt
-      // die Vorderkante des Bretts unskaliert stehen.
-      const platformRatio = SHELF_PLATFORM_RATIOS['shelf_wood'] ?? 0.9;
-      const lipH = Math.round(tex.height * (1 - platformRatio));
-      const topH = Math.max(1, Math.min(Math.floor(tex.height * 0.1), Math.floor(h / 2) - 1));
-      const botH = Math.max(1, Math.min(lipH, Math.floor(h / 2) - 1));
-
-      const shelfImg = this.scene.add.nineslice(0, 0, 'shelf_wood', undefined, w, h, sideX, sideX, topH, botH);
+      // Gleichmaessig skaliertes Bild statt NineSlice. Die Enden des Bretts
+      // tragen die Messingstifte, und NineSlice zeichnet seine Endkappen in
+      // Texturgroesse -- bei einem Brett, das auf 45 % skaliert wird, waeren die
+      // Stifte doppelt so gross wie das Holz daneben. h folgt ohnehin dem
+      // Seitenverhaeltnis, es wird also nichts verzerrt.
+      const shelfImg = this.scene.add.image(0, 0, 'shelf_wood').setDisplaySize(w, h);
       shelfImg.setOrigin(0.5);
       this.add(shelfImg);
     } else {

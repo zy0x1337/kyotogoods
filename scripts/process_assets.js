@@ -451,6 +451,98 @@ function trimShadowEdges(data, width, box, threshold = 0.9) {
 // Defringe -> exakter Alpha-Crop. Liefert eine sharp-Pipeline auf dem reinen
 // Inhalt. Mit singleObject wird vorher auf die groesste zusammenhaengende
 // Flaeche eingegrenzt, damit ein zweites Objekt im Render nichts verschiebt.
+// Entfernt den Chroma-Spill entlang der Silhouette und glaettet die Alphakante.
+//
+// Zwei getrennte Probleme, beide sichtbar als "unsaubere Kante":
+// 1. Die Chroma-Flaeche strahlt im Render auf das Motiv ab. Das Keying trennt
+//    zwar sauber, aber der aeussere Saum des Objekts bleibt rosa -- am
+//    Chasen-Sockel, unter dem Chashaku-Loeffel, am Rand des Koro.
+// 2. Bei hartem Schwellwert entsteht stellenweise eine Treppe statt einer
+//    weichen Kante.
+//
+// Der Despill laeuft nur in einem schmalen Band entlang der Kante und nimmt
+// nach innen ab. Global angewandt wuerde er gewollt bunte Flaechen entfaerben --
+// die azuki-roten Pfeile auf btn_shuffle liegen genau im selben Farbbereich.
+function cleanEdges(data, width, height, key, radius = 5) {
+  const n = width * height;
+  const dist = new Int16Array(n).fill(-1);
+  let queue = [];
+
+  for (let i = 0; i < n; i++) {
+    if (data[i * 4 + 3] < 128) { dist[i] = 0; queue.push(i); }
+  }
+  if (queue.length === 0 || queue.length === n) return;
+
+  for (let d = 0; d < radius && queue.length; d++) {
+    const next = [];
+    for (const i of queue) {
+      const x = i % width, y = (i / width) | 0;
+      if (x > 0 && dist[i - 1] < 0) { dist[i - 1] = d + 1; next.push(i - 1); }
+      if (x < width - 1 && dist[i + 1] < 0) { dist[i + 1] = d + 1; next.push(i + 1); }
+      if (y > 0 && dist[i - width] < 0) { dist[i - width] = d + 1; next.push(i - width); }
+      if (y < height - 1 && dist[i + width] < 0) { dist[i + width] = d + 1; next.push(i + width); }
+    }
+    queue = next;
+  }
+
+  if (key && key.chroma) {
+    // Der Kanal, in dem der Chroma-Hintergrund am dunkelsten ist, ist der
+    // Referenzwert -- bei Magenta das Gruen. Was in den beiden anderen Kanaelen
+    // darueber liegt, ist Spill und wird abgezogen.
+    const kc = [key.r, key.g, key.b];
+    const lo = kc.indexOf(Math.min(...kc));
+    const [h1, h2] = [0, 1, 2].filter(c => c !== lo);
+
+    for (let i = 0; i < n; i++) {
+      const o = i * 4;
+      if (data[o + 3] < 8) continue;
+      // Am Rand voll, in der Flaeche abgeschwaecht: die Chroma-Flaeche strahlt
+      // auch ins Innere ab (unter dem Chashaku-Loeffel), aber dort steht der
+      // Spill mit der Eigenfarbe des Motivs in Konkurrenz.
+      const d = dist[i];
+      const w = d > 0 && d <= radius ? 1 - (d - 1) / radius * 0.25 : 0.75;
+      const excess = Math.min(data[o + h1], data[o + h2]) - data[o + lo];
+      if (excess <= 0) continue;
+      data[o + h1] = Math.round(data[o + h1] - w * excess);
+      data[o + h2] = Math.round(data[o + h2] - w * excess);
+    }
+  }
+
+  // Alphakante glaetten: 3x3-Mittel, aber nur dort, wo im Umfeld sowohl
+  // deckende als auch transparente Pixel liegen. Flaechen bleiben unberuehrt.
+  const alpha = new Uint8Array(n);
+  for (let i = 0; i < n; i++) alpha[i] = data[i * 4 + 3];
+
+  for (let y = 1; y < height - 1; y++) {
+    for (let x = 1; x < width - 1; x++) {
+      const i = y * width + x;
+      let sum = 0, min = 255, max = 0;
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          const a = alpha[i + dy * width + dx];
+          sum += a;
+          if (a < min) min = a;
+          if (a > max) max = a;
+        }
+      }
+      if (max - min < 200) continue;
+      data[i * 4 + 3] = Math.round((alpha[i] + sum / 9) / 2);
+    }
+  }
+}
+
+// Schreibt eine fertig skalierte Pipeline und laeuft davor einmal ueber die
+// Kante. Bewusst am Ende der Kette: bei voller Renderaufloesung waere das Band
+// entlang der Silhouette 15x breiter als noetig und entsprechend langsam.
+async function writeClean(pipeline, targetPath, key, radius = 5) {
+  const { data, info } = await pipeline.ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  cleanEdges(data, info.width, info.height, key, radius);
+  await sharp(data, { raw: { width: info.width, height: info.height, channels: 4 } })
+    .png({ compressionLevel: 9 })
+    .toFile(targetPath);
+  return { data, info };
+}
+
 async function cropToContent(filePath, strategy = 'union', trimShadow = false, softEdge = 0) {
   const { data, info } = await sharp(filePath).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
   const key = detectKeyColor(data, info.width, info.height);
@@ -464,14 +556,14 @@ async function cropToContent(filePath, strategy = 'union', trimShadow = false, s
   const rawBox = findAlphaBox(data, info.width, info.height, 80, region);
   const raw = { width: info.width, height: info.height, channels: 4 };
 
-  if (!rawBox) return { pipeline: sharp(data, { raw }), box: { left: 0, top: 0, width: info.width, height: info.height } };
+  if (!rawBox) return { pipeline: sharp(data, { raw }), box: { left: 0, top: 0, width: info.width, height: info.height }, key };
 
   let box = trimShadow ? trimShadowEdges(data, info.width, rawBox) : rawBox;
   if (softEdge > 0) box = trimSoftEdges(data, info.width, box, softEdge);
   const cut = (rawBox.height - box.height) + (rawBox.width - box.width);
   if (cut > 0) console.log(`    Schattenrand entfernt: ${rawBox.width}x${rawBox.height} -> ${box.width}x${box.height}`);
 
-  return { pipeline: sharp(data, { raw }).extract(box), box };
+  return { pipeline: sharp(data, { raw }).extract(box), box, key };
 }
 
 // Misst die lichte Weite der Nische im Hintergrund-Render. Die dunkle Innenkante
@@ -562,26 +654,20 @@ async function processImages() {
         // Wiese, ein gebackener Papierschatten darunter liest sich dort als
         // heller Fleck. Die Koerper sind durchgehend warm getoent, das
         // Kanten-Trimming kann sie nicht anknabbern.
-        const { pipeline, box } = await cropToContent(filePath, 'union', true);
+        const { pipeline, box, key } = await cropToContent(filePath, 'union', true);
         const targetH = 512;
         const targetW = Math.max(32, Math.round(box.width * (targetH / box.height)));
-        await pipeline
-          .resize(targetW, targetH, { fit: 'fill' })
-          .png({ compressionLevel: 9 })
-          .toFile(targetPath);
+        await writeClean(pipeline.resize(targetW, targetH, { fit: 'fill' }), targetPath, key);
         console.log(`  ${baseName}: sprite ${box.width}x${box.height} -> ${targetW}x${targetH}`);
         continue;
       }
 
       // Band-Layer: auf den Inhalt beschnitten, volle Breite, unten buendig.
       if (BGL_BANDS.includes(baseName)) {
-        const { pipeline, box } = await cropToContent(filePath, 'union', false, 0.9);
+        const { pipeline, box, key } = await cropToContent(filePath, 'union', false, 0.9);
         const targetW = 720;
         const targetH = Math.max(16, Math.round(box.height * (targetW / box.width)));
-        await pipeline
-          .resize(targetW, targetH, { fit: 'fill' })
-          .png({ compressionLevel: 9 })
-          .toFile(targetPath);
+        await writeClean(pipeline.resize(targetW, targetH, { fit: 'fill' }), targetPath, key, 3);
         console.log(`  ${baseName}: band ${box.width}x${box.height} -> ${targetW}x${targetH}`);
         continue;
       }
@@ -639,15 +725,11 @@ async function processImages() {
     if (baseName.startsWith('shelf_')) {
       // Nicht mehr auf ein festes Format ziehen: die Hoehe folgt der Breite im
       // Seitenverhaeltnis des Renders, sonst wird die Maserung gestaucht.
-      const { pipeline, box } = await cropToContent(filePath, 'widest', true);
+      const { pipeline, box, key } = await cropToContent(filePath, 'widest', true);
       const targetW = 608;
       const targetH = Math.max(32, Math.round(box.height * (targetW / box.width)));
-      await pipeline
-        .resize(targetW, targetH, { fit: 'fill' })
-        .png({ compressionLevel: 9 })
-        .toFile(targetPath);
-
-      const { data: sd, info: si } = await sharp(targetPath).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+      const { data: sd, info: si } = await writeClean(
+        pipeline.resize(targetW, targetH, { fit: 'fill' }), targetPath, key, 3);
       shelfPlatforms[baseName] = measurePlatformRatio(sd, si.width, si.height);
       console.log(`  ${baseName}: ${targetW}x${targetH}, Auflage bei ${shelfPlatforms[baseName]}`);
       continue;
@@ -657,34 +739,29 @@ async function processImages() {
     // NineSlice im Spiel exakt an der Kante der Karte ansetzt. Hoehe auf 128
     // normalisiert, Breite proportional (kein Verzerren des Rahmens).
     if (baseName.startsWith('ui_card_')) {
-      const { pipeline, box } = await cropToContent(filePath, 'widest', true);
+      const { pipeline, box, key } = await cropToContent(filePath, 'widest', true);
       const targetH = 128;
       const targetW = Math.max(64, Math.round(box.width * (targetH / box.height)));
-      await pipeline
-        .resize(targetW, targetH, { fit: 'fill' })
-        .png({ compressionLevel: 9 })
-        .toFile(targetPath);
+      await writeClean(pipeline.resize(targetW, targetH, { fit: 'fill' }), targetPath, key, 3);
       console.log(`  ${baseName}: content ${box.width}x${box.height} -> ${targetW}x${targetH}`);
       continue;
     }
 
     // FALL 4: Match-FX (exakter Alpha-Crop, quadratischer Sprite)
     if (baseName.startsWith('fx_')) {
-      const { pipeline } = await cropToContent(filePath);
-      await pipeline
-        .resize(256, 256, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
-        .png({ compressionLevel: 9 })
-        .toFile(targetPath);
+      const { pipeline, key } = await cropToContent(filePath);
+      await writeClean(
+        pipeline.resize(256, 256, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } }),
+        targetPath, key);
       continue;
     }
 
     // FALL 4b: Booster-Buttons & Icons (exakter Alpha-Crop, quadratisch zentriert)
     if (baseName.startsWith('btn_') || baseName.startsWith('ui_')) {
-      const { pipeline } = await cropToContent(filePath);
-      await pipeline
-        .resize(256, 256, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
-        .png({ compressionLevel: 9 })
-        .toFile(targetPath);
+      const { pipeline, key } = await cropToContent(filePath);
+      await writeClean(
+        pipeline.resize(256, 256, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } }),
+        targetPath, key);
       continue;
     }
 
@@ -693,13 +770,10 @@ async function processImages() {
 
     // Defringing + exakter Alpha-Crop + Resize auf 256x256. Die finale Textur ist
     // die einzige verlaessliche Quelle fuer die sichtbare Unterkante im Spiel.
-    const { pipeline } = await cropToContent(filePath);
+    const { pipeline, key } = await cropToContent(filePath);
     const processed = pipeline
       .resize(TARGET_SIZE, TARGET_SIZE, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } });
-    const { data: processedData, info: processedInfo } = await processed
-      .ensureAlpha()
-      .raw()
-      .toBuffer({ resolveWithObject: true });
+    const { data: processedData, info: processedInfo } = await writeClean(processed, targetPath, key);
     const bounds = findAlphaBounds(processedData, processedInfo.width, processedInfo.height);
     const offsetDesign = bounds.bottom >= 0
       ? parseFloat(((bounds.bottom + 1 - processedInfo.height / 2) * (ITEM_DISPLAY_SIZE / processedInfo.height)).toFixed(2))
@@ -707,12 +781,6 @@ async function processImages() {
 
     offsets[baseName] = offsetDesign;
     console.log(`  ${baseName}: finalBottom=${bounds.bottom}px → ${offsetDesign}px design`);
-
-    await sharp(processedData, {
-      raw: { width: processedInfo.width, height: processedInfo.height, channels: processedInfo.channels }
-    })
-      .png({ compressionLevel: 9 })
-      .toFile(targetPath);
   }
 
   // Fehlende Items auf Default setzen

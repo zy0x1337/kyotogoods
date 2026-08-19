@@ -60,17 +60,23 @@ hyper-realistic, high gloss reflections, shiny liquid specular, crumbs, baked fl
 ### Regalbrett-Prompt (v2)
 v1 war ein flaches Brett: ein reiner Helligkeitsverlauf von 231 auf 198 ohne Tiefenkante, die dunkle Lippe nur in den letzten 16 px. Vor dem hellen Shoji-Panel verschwand es fast. v2 zeigt die Materialstärke, damit die Goods sichtbar **auf** dem Brett stehen statt davor zu schweben.
 
-Das Brett wird im Spiel als NineSlice auf die Regalbreite gezogen: **die Mitte muss eine ruhige, wiederholbare Fläche sein**, alle Details gehören an die beiden Enden. Die Auflagelinie wird von der Pipeline am Asset vermessen (`SHELF_PLATFORM_RATIOS`) — die Kantenhöhe darf sich also frei ändern.
+Das Brett wird im Spiel **gleichmäßig skaliert** gezeichnet, nicht per NineSlice. NineSlice zeichnet seine Endkappen in Texturgröße; bei einem Brett, das auf rund 45 % herunterskaliert wird, wären die Messingstifte an den Enden doppelt so groß wie das Holz daneben. Die Höhe folgt dem Seitenverhältnis der Textur, es wird also nichts verzerrt — die Mitte muss deshalb **nicht** wiederholbar sein.
+
+Die Stifte an den Enden sind die Befestigung: das Brett wird so breit gezogen, dass sie den Rahmen berühren. `SHELF_CAVITY_FILL` in `src/main.ts` ist dafür am Asset gemessen — das ausgestanzte Loch endet an der inneren Schattenkante des Putzpanels, das sichtbare Holz beginnt 6 von 402 px weiter außen, also Faktor 1.015.
+
+Die Auflagelinie wird von der Pipeline am Asset vermessen (`SHELF_PLATFORM_RATIOS`) — die Kantenhöhe darf sich also frei ändern.
 Magenta-Hintergrund, weil blondes Hinoki hell ist.
 
 **shelf_wood:**
 Single long horizontal shelf board of warm blonde hinoki wood seen from slightly above, aspect ratio 5:1, the flat top surface clearly visible as a lighter plane and the front edge showing a distinct band of material thickness in a deeper toasted walnut tone, a slim brushed brass pin support at each far end, completely plain and unornamented along the middle, straight clean silhouette with softly eased corners, Japanese modern kissa aesthetic, tactile matte finish with zero gloss, art toy product render, orthographic front view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
 
 ### Item-Neuauflagen (v2)
-Sechs Goods lesen sich auf dem Regal schlecht. Die Ursachen sind bei allen ähnlich: zu filigran, zu breit, oder eine Silhouette, die bei 72 px nichts mehr aussagt.
+Sieben Goods lesen sich auf dem Regal schlecht. Die Ursachen sind bei allen ähnlich: zu filigran, zu breit, oder eine Silhouette, die bei 72 px nichts mehr aussagt.
+
+Ein Goods wird mit `ITEM_SIZE` (58 px Design) gezeichnet. Die Bottom-Offsets der Pipeline rechnen in `ITEM_OFFSET_BASE` (72 px) — wird die Anzeigegröße geändert, muss der Offset denselben Faktor bekommen, sonst schweben die Goods über dem Brett.
 
 Für dieses Spiel zählt vor allem die **Silhouette**: drei gleiche Objekte zu erkennen ist die ganze Mechanik. Also kompakt, ungefähr quadratisch, dicke Formen, klare Umrisslinie — und jedes Item muss sich schon am Umriss von den anderen unterscheiden. Nichts hängt, alles steht auf einer Standfläche.
-Magenta-Hintergrund für alle sechs (auch die dunklen — der Abstand zu Magenta ist bei Gusseisen und Messing groß genug).
+Magenta-Hintergrund für alle sieben (auch die dunklen — der Abstand zu Magenta ist bei Gusseisen und Messing groß genug).
 
 **chasen_whisk** *(v1 las sich wie ein Käfig oder eine Lampe, nicht wie ein Teebesen):*
 Stylized bamboo matcha whisk standing upright on its base, compact and chunky proportions roughly as wide as it is tall, a short cylindrical pale hinoki handle carrying a dense rounded dome of many fine carved tines, the tines reading as one solid rounded mass rather than separate loops, Japanese modern kissa aesthetic, unglazed biscuit and tactile matte wood CMF, art toy product render, orthographic front view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
@@ -89,6 +95,9 @@ Small solid cube of shou sugi ban charred cedar standing on a shelf, clearly thr
 
 **brass_sphere** *(v1 hing an einer Kette — die Goods stehen aber im Regal):*
 Faceted brushed brass sphere resting in a shallow charcoal ceramic ring stand, no chain and no suspension, large clean hexagonal facets with a few small pierced dots, compact proportions roughly as wide as it is tall, warm satin brass with zero mirror reflection, Japanese modern kissa aesthetic, art toy product render, orthographic front view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
+
+**cast_iron_bell** *(v1 hing frei in der Luft — wie `brass_sphere`; die Goods stehen aber im Regal):*
+Small cast iron furin wind bell resting upright on a low charcoal ceramic ring stand, no cord and no suspension, squat rounded dome silhouette roughly as wide as it is tall, matte charcoal black sand-cast finish with visible grain and a thin brushed brass rim band, a short pale paper tanzaku strip tucked against the base rather than dangling, Japanese modern kissa aesthetic, art toy product render, orthographic front view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
 
 ### Niche Background Prompts (3 Tiers)
 Each tier maintains the same Japanese kissa aesthetic: warm hinoki wood frame, matte white plaster interior, soft ambient lighting from above. The inner cavity width increases per tier to visually distinguish level groups.
@@ -231,6 +240,15 @@ Alle drei werden **am fertigen PNG** gemessen bzw. gelistet — nie im Code hard
 
 **Schattenränder.** Der weiche Schlagschatten der Renders liegt auf weißem Papier und kommt deshalb als hellgrauer, voll deckender Streifen an — die Alpha-Logik greift dort nicht, und auf dem Putz-Hintergrund des Spiels liest er sich als Glühen unter dem Objekt. `trimShadowEdges` schrumpft die Box kantenweise, solange eine Randreihe zu ≥ 90 % aus unbunten hellen Pixeln besteht. Das läuft **nur für `ui_card_` und `shelf_`** — flache Rechtecke, bei denen der Streifen auffällt. Global angewandt hat es flache helle Items zerlegt (ein Bambuslöffel schrumpfte von 301 auf 64 px Höhe), weil blasses Holz demselben Muster entspricht.
 
+**Chroma-Spill und Kantenglättung.** `cleanEdges` läuft als letzter Schritt auf dem fertig skalierten Bild (`writeClean`), bewusst nicht bei voller Renderauflösung — das Band entlang der Silhouette wäre dort 15× breiter als nötig.
+
+Zwei Dinge werden dort erledigt:
+
+- **Despill.** Die Chroma-Fläche strahlt im Render auf das Motiv ab. Das Keying trennt sauber, aber der Saum bleibt rosa — am Chasen-Sockel, unter dem Chashaku-Löffel, am Rand des Kōro. Der Kanal, in dem der Hintergrund am dunkelsten ist (bei Magenta das Grün), ist der Referenzwert; was in den beiden anderen darüber liegt, wird abgezogen. Am Rand voll, in der Fläche zu 75 % — der Spill reicht bis ins Innere, steht dort aber mit der Eigenfarbe des Motivs in Konkurrenz. Für gewollt warme Töne ist das ungefährlich: Messing und das azuki-rote Relief der Buttons haben `b < g` und werden vom Kriterium gar nicht erfasst (gemessener Anteil bei `btn_shuffle`: 0 %).
+- **Alphaglättung.** 3×3-Mittel, aber nur wo im Umfeld sowohl deckende als auch transparente Pixel liegen. Flächen bleiben unberührt. Damit sind harte Alphastufen (Treppen) über alle Assets hinweg auf 0 gefallen, gemessen als „deckendes Pixel mit direkt transparentem Nachbarn": `shou_sugi_block` 268 → 0, `gotoku_trivet` 62 → 0.
+
+Was der Despill **nicht** kann: eine Farbe reparieren, die schon falsch aus dem Modell kommt. Wenn ein ganzes Objekt im falschen Ton rendert, hilft nur ein neuer Render.
+
 Anschließend zählt der Crop deckende Pixel pro Zeile/Spalte und ignoriert Reihen unter 0,5 % Deckung. Ohne das hatte ein einzelnes Streupixel (JPEG-Artefakt, Rest einer Signatur) die Box von `ui_card_kuro` auf die doppelte Höhe aufgebläht.
 
 Das Log meldet `N relevante Objekte im Render` — steht da mehr als 1, hat der Render Ballast und die Strategie hat geraten. Dann lieber neu rendern.
@@ -260,8 +278,8 @@ Das Loch ist danach die exakte lichte Nische und wird als `BG_CAVITY_RECTS` expo
 Im Gehäuse liegt ein Shoji-Panel (Deckkraft 0.55) zwischen Garten und Regalbrettern. Ohne das milchige Papier stehen die Goods direkt auf Himmel und Hügeln und verlieren ihren Kontrast; bei 0.9 war der Garten dahinter komplett weg.
 
 ### Offene Punkte
-- **Sechs Item-Neuauflagen offen** (Abschnitt oben): `chasen_whisk`, `chashaku_scoop`, `gotoku_trivet`, `incense_burner`, `shou_sugi_block`, `brass_sphere`.
-- **`bgl_cat` hat einen Magenta-Stich.** Die Chroma-Fläche hat auf das cremefarbene Fell abgestrahlt; der Despill greift nur bei gering gesättigten Pixeln und lässt die Flecken deshalb rosé. Neu rendern — entweder mit größerem Abstand zwischen Figur und Hintergrund oder gegen ein Chroma, das nicht in Richtung Azuki spillt.
+- **`brass_sphere` rendert rosé statt Messing, `chasen_whisk` lachsfarben statt blondes Hinoki.** Das ist kein Spill, sondern die Eigenfarbe im Render — der Despill greift nicht (`min(r,b) - g` ist dort negativ bzw. null). Beide gegen **Weiß** neu rendern: es sind mittelhelle, kräftig getönte Motive, für die die Magenta-Regel gar nicht gilt, und Magenta färbt gerade warme Oberflächen ein.
+- **`bgl_cat` ist nach dem Despill brauchbar**, behält aber einen leichten Rosé-Ton in den Flecken. Nur nachziehen, wenn es im Spiel stört.
 - `bgl_niche_frame` v2 mit runden Ecken (Prompt 23) noch offen.
 - `bg_kissa_niche_mid` hat dieselbe gemessene Nischenweite wie `bg_kissa_niche` — nur relevant, falls der Fallback ohne `bgl_niche_frame` gebraucht wird.
 - `ui_card_kuro` / `ui_card_hinoki` fertig, werden aber **nicht gezeichnet** — der Header steht frei über der Szene. `addCardNineSlice` bleibt im Code.
