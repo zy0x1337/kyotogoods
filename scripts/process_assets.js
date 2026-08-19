@@ -80,7 +80,26 @@ async function processImages() {
       continue;
     }
 
-    // FALL 3: Goods & UI-Icons (Freistellen, 256x256, Bottom-Offset berechnen)
+    // FALL 3: UI-Karten (Freistellen, 512x128 Breitformat)
+    if (baseName.startsWith('ui_card_')) {
+      const image = sharp(filePath).ensureAlpha();
+      const { data, info } = await image.raw().toBuffer({ resolveWithObject: true });
+
+      for (let i = 0; i < data.length; i += 4) {
+        const dist = Math.sqrt((255 - data[i]) ** 2 + (255 - data[i + 1]) ** 2 + (255 - data[i + 2]) ** 2);
+        if (dist < 18) data[i + 3] = 0;
+        else if (dist < 38) data[i + 3] = Math.floor(((dist - 18) / 20) * 255);
+      }
+
+      await sharp(data, { raw: { width: info.width, height: info.height, channels: 4 } })
+        .trim()
+        .resize(512, 128, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+        .png({ compressionLevel: 9 })
+        .toFile(targetPath);
+      continue;
+    }
+
+    // FALL 4: Goods & UI-Icons (Freistellen, 256x256, Bottom-Offset berechnen)
     if (!ITEM_IDS.includes(baseName)) continue;
 
     const image = sharp(filePath).ensureAlpha();
