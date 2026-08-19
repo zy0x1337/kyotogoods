@@ -677,4 +677,4 @@ new Phaser.Game({
     autoCenter: Phaser.Scale.CENTER_BOTH
   },
   scene: [PreloadScene, GameScene, UIScene, WinModalScene]
-});(
+});
