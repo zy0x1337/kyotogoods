@@ -66,6 +66,30 @@ Magenta-Hintergrund, weil blondes Hinoki hell ist.
 **shelf_wood:**
 Single long horizontal shelf board of warm blonde hinoki wood seen from slightly above, aspect ratio 5:1, the flat top surface clearly visible as a lighter plane and the front edge showing a distinct band of material thickness in a deeper toasted walnut tone, a slim brushed brass pin support at each far end, completely plain and unornamented along the middle, straight clean silhouette with softly eased corners, Japanese modern kissa aesthetic, tactile matte finish with zero gloss, art toy product render, orthographic front view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
 
+### Item-Neuauflagen (v2)
+Sechs Goods lesen sich auf dem Regal schlecht. Die Ursachen sind bei allen ähnlich: zu filigran, zu breit, oder eine Silhouette, die bei 72 px nichts mehr aussagt.
+
+Für dieses Spiel zählt vor allem die **Silhouette**: drei gleiche Objekte zu erkennen ist die ganze Mechanik. Also kompakt, ungefähr quadratisch, dicke Formen, klare Umrisslinie — und jedes Item muss sich schon am Umriss von den anderen unterscheiden. Nichts hängt, alles steht auf einer Standfläche.
+Magenta-Hintergrund für alle sechs (auch die dunklen — der Abstand zu Magenta ist bei Gusseisen und Messing groß genug).
+
+**chasen_whisk** *(v1 las sich wie ein Käfig oder eine Lampe, nicht wie ein Teebesen):*
+Stylized bamboo matcha whisk standing upright on its base, compact and chunky proportions roughly as wide as it is tall, a short cylindrical pale hinoki handle carrying a dense rounded dome of many fine carved tines, the tines reading as one solid rounded mass rather than separate loops, Japanese modern kissa aesthetic, unglazed biscuit and tactile matte wood CMF, art toy product render, orthographic front view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
+
+**chashaku_scoop** *(v1 war ein extrem breiter dünner Stab quer über einer Rolle — bei Spielgröße nur noch ein Strich):*
+Bamboo tea scoop chashaku resting in a small upright stand, compact composition roughly as wide as it is tall, the scoop angled diagonally rather than horizontally so its curved bowl and thick handle both read clearly, pale blonde bamboo with a chalk white ceramic block base, Japanese modern kissa aesthetic, tactile matte CMF, art toy product render, orthographic front view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
+
+**gotoku_trivet** *(v1 wirkte wie eine gezackte Krone):*
+Squat round cast iron trivet gotoku with three short stubby rounded posts rising from a thick ring base, compact and heavy proportions, matte charcoal black sand-cast finish with visible grain, blunt rounded tips instead of sharp spikes, Japanese modern kissa aesthetic, art toy product render, orthographic front view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
+
+**incense_burner** *(v1 war ein generischer Messingkegel auf einer Scheibe):*
+Small round incense burner koro in matte charcoal ceramic with a domed brushed brass lid pierced by a few round vent holes, squat rounded bell-like silhouette sitting on three tiny feet, a single thin wisp of sculpted smoke curling from the top, Japanese modern kissa aesthetic, tactile matte CMF with zero gloss, art toy product render, orthographic front view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
+
+**shou_sugi_block** *(v1 war eine flache Kachel und las sich wie ein UI-Element, nicht wie ein Objekt):*
+Small solid cube of shou sugi ban charred cedar standing on a shelf, clearly three-dimensional with the top face and one side face visible, deep matte charcoal black with a cracked alligator-skin char texture, a single small brushed brass inlay disc on the front face, softly eased edges, Japanese modern kissa aesthetic, art toy product render, orthographic three-quarter front view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
+
+**brass_sphere** *(v1 hing an einer Kette — die Goods stehen aber im Regal):*
+Faceted brushed brass sphere resting in a shallow charcoal ceramic ring stand, no chain and no suspension, large clean hexagonal facets with a few small pierced dots, compact proportions roughly as wide as it is tall, warm satin brass with zero mirror reflection, Japanese modern kissa aesthetic, art toy product render, orthographic front view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
+
 ### Niche Background Prompts (3 Tiers)
 Each tier maintains the same Japanese kissa aesthetic: warm hinoki wood frame, matte white plaster interior, soft ambient lighting from above. The inner cavity width increases per tier to visually distinguish level groups.
 Format: Portrait 9:16 mobile canvas. Anchor: `raw_renders/bg_kissa_niche.jpeg`.
@@ -236,6 +260,8 @@ Das Loch ist danach die exakte lichte Nische und wird als `BG_CAVITY_RECTS` expo
 Im Gehäuse liegt ein Shoji-Panel (Deckkraft 0.55) zwischen Garten und Regalbrettern. Ohne das milchige Papier stehen die Goods direkt auf Himmel und Hügeln und verlieren ihren Kontrast; bei 0.9 war der Garten dahinter komplett weg.
 
 ### Offene Punkte
-- **`bgl_cat` und die drei `btn_*` müssen gegen Magenta neu gerendert werden** (Prompts 14–16 und 22). Auf Weiß sind sie nicht sauber freistellbar — Kerbe in der Katzenstirn, fehlendes Stück an `btn_undo`, dadurch ungleich große Buttons. Die Pipeline erkennt den Chroma-Hintergrund von selbst.
-- `bg_kissa_niche_mid` hat dieselbe gemessene Nischenweite wie `bg_kissa_niche` — nur noch relevant, falls der Fallback ohne `bgl_niche_frame` wieder gebraucht wird.
-- `ui_card_kuro` / `ui_card_hinoki` sind fertig, werden aber aktuell **nicht gezeichnet** — der Header steht frei über der Szene. `addCardNineSlice` bleibt im Code, falls die Platten zurückkommen.
+- **Sechs Item-Neuauflagen offen** (Abschnitt oben): `chasen_whisk`, `chashaku_scoop`, `gotoku_trivet`, `incense_burner`, `shou_sugi_block`, `brass_sphere`.
+- **`bgl_cat` hat einen Magenta-Stich.** Die Chroma-Fläche hat auf das cremefarbene Fell abgestrahlt; der Despill greift nur bei gering gesättigten Pixeln und lässt die Flecken deshalb rosé. Neu rendern — entweder mit größerem Abstand zwischen Figur und Hintergrund oder gegen ein Chroma, das nicht in Richtung Azuki spillt.
+- `bgl_niche_frame` v2 mit runden Ecken (Prompt 23) noch offen.
+- `bg_kissa_niche_mid` hat dieselbe gemessene Nischenweite wie `bg_kissa_niche` — nur relevant, falls der Fallback ohne `bgl_niche_frame` gebraucht wird.
+- `ui_card_kuro` / `ui_card_hinoki` fertig, werden aber **nicht gezeichnet** — der Header steht frei über der Szene. `addCardNineSlice` bleibt im Code.

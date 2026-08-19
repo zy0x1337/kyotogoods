@@ -43,7 +43,7 @@ export const BG_FRAME_RECTS: Record<string, { x: number; y: number; w: number; h
 
 // Auflageflaeche eines Regalbretts als Anteil seiner Bildhoehe.
 export const SHELF_PLATFORM_RATIOS: Record<string, number> = {
-  shelf_wood: 0.9071
+  shelf_wood: 0.6769
 };
 
 // Alle Texturen, die tatsaechlich in public/assets/items/ liegen.

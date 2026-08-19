@@ -266,43 +266,81 @@ function fillInteriorHoles(data, width, height, alphaMax = 250) {
 // eine Konnektivitaetsanalyse koennen das trennen. Gegen ein saettigungsstarkes
 // Chroma ist die Trennung dagegen eindeutig.
 function detectKeyColor(data, width, height) {
-  const samples = [];
-  const inset = 4;
-  for (const [x, y] of [
-    [inset, inset], [width - 1 - inset, inset],
-    [inset, height - 1 - inset], [width - 1 - inset, height - 1 - inset],
-    [Math.floor(width / 2), inset], [Math.floor(width / 2), height - 1 - inset]
-  ]) {
+  // Median ueber den ganzen Bildrand statt sechs Stichproben: einzelne Ecken
+  // koennen vom Motiv oder von der Vignette verzogen sein.
+  const ch = [[], [], []];
+  const take = (x, y) => {
     const i = (y * width + x) * 4;
-    samples.push([data[i], data[i + 1], data[i + 2]]);
-  }
+    for (let c = 0; c < 3; c++) ch[c].push(data[i + c]);
+  };
+  for (let x = 0; x < width; x += 5) { take(x, 2); take(x, height - 3); }
+  for (let y = 0; y < height; y += 5) { take(2, y); take(width - 3, y); }
 
-  const avg = [0, 1, 2].map(c => samples.reduce((a, p) => a + p[c], 0) / samples.length);
-  const spread = Math.max(...avg) - Math.min(...avg);
+  const med = ch.map(a => { a.sort((p, q) => p - q); return a[Math.floor(a.length / 2)]; });
+  const spread = Math.max(...med) - Math.min(...med);
 
-  // Alle Ecken nah beieinander?
-  const uniform = samples.every(p =>
-    Math.abs(p[0] - avg[0]) < 30 && Math.abs(p[1] - avg[1]) < 30 && Math.abs(p[2] - avg[2]) < 30);
-
-  if (uniform && spread > 60) {
-    return { r: Math.round(avg[0]), g: Math.round(avg[1]), b: Math.round(avg[2]), chroma: true };
-  }
+  if (spread > 60) return { r: med[0], g: med[1], b: med[2], chroma: true };
   return { r: 255, g: 255, b: 255, chroma: false };
+}
+
+// Sucht die Trennschwelle zwischen Hintergrund und Motiv im Histogramm der
+// Farbabstaende. Ein fester Wert passt nicht: der Abstand des Motivs zum
+// Chroma schwankt je Render stark -- bei der Katze beginnt es ab 100, bei den
+// Buttons erst ab 150, beim Regalbrett ab 125. Gesucht wird das Tal zwischen
+// dem Hintergrund-Peak bei 0 und der ersten dichten Motivregion.
+function findKeyThreshold(data, key) {
+  const BIN = 5;
+  const bins = new Array(Math.ceil(442 / BIN)).fill(0);
+  const total = data.length / 4;
+
+  for (let i = 0; i < data.length; i += 4) {
+    const d = Math.sqrt(
+      (key.r - data[i]) ** 2 + (key.g - data[i + 1]) ** 2 + (key.b - data[i + 2]) ** 2);
+    bins[Math.min(bins.length - 1, Math.floor(d / BIN))]++;
+  }
+
+  const quiet = total * 0.002;
+  let lo = 0;
+  while (lo < bins.length && bins[lo] > quiet) lo++;
+  let hi = lo;
+  while (hi < bins.length && bins[hi] <= quiet) hi++;
+
+  // Kein klares Tal: konservativer Standardwert
+  if (hi >= bins.length || hi - lo < 2) return { cut: 60, ramp: 50 };
+
+  const dLo = lo * BIN;
+  const dHi = hi * BIN;
+  return { cut: dLo + (dHi - dLo) * 0.5, ramp: Math.max(12, (dHi - dLo) * 0.4) };
 }
 
 function defringe(data, stripHalo = true, key = null) {
   if (key && key.chroma) {
-    // Chroma-Key: Abstand zur Hintergrundfarbe. Zusaetzlich wird der Farbstich
-    // aus den Randpixeln gerechnet, sonst bleibt ein bunter Saum stehen.
+    const { cut, ramp } = findKeyThreshold(data, key);
+
     for (let i = 0; i < data.length; i += 4) {
       const dist = Math.sqrt(
         (key.r - data[i]) ** 2 + (key.g - data[i + 1]) ** 2 + (key.b - data[i + 2]) ** 2);
-      if (dist < 60) data[i + 3] = 0;
-      else if (dist < 110) {
-        data[i + 3] = Math.floor(((dist - 60) / 50) * 255);
-        // Saum entfaerben: Richtung Graustufe des Pixels ziehen
+
+      // Despill: die Chroma-Flaeche strahlt auf helle Motive ab. Beim Katzen-
+      // Render hat das cremefarbene Fell einen Magenta-Stich bekommen.
+      // Korrigiert wird nur bei geringer Saettigung -- die azuki-rosé Pfeile der
+      // Buttons haben ebenfalls b > g, sind aber kraeftig gesaettigt und
+      // sollen ihre Farbe behalten.
+      if (dist >= cut) {
+        const r = data[i], g = data[i + 1], b = data[i + 2];
+        const sat = Math.max(r, g, b) - Math.min(r, g, b);
+        if (sat < 40 && r > g && b > g) {
+          data[i] = Math.round(g + (r - g) * 0.3);
+          data[i + 2] = Math.round(g + (b - g) * 0.3);
+        }
+      }
+
+      if (dist < cut) data[i + 3] = 0;
+      else if (dist < cut + ramp) {
+        data[i + 3] = Math.floor(((dist - cut) / ramp) * 255);
+        // Saum entfaerben, sonst bleibt ein magenta Rand am Objekt stehen
         const lum = (data[i] + data[i + 1] + data[i + 2]) / 3;
-        const t = 1 - (dist - 60) / 50;
+        const t = 1 - (dist - cut) / ramp;
         data[i] = Math.round(data[i] * (1 - t) + lum * t);
         data[i + 1] = Math.round(data[i + 1] * (1 - t) + lum * t);
         data[i + 2] = Math.round(data[i + 2] * (1 - t) + lum * t);
@@ -416,7 +454,7 @@ function trimShadowEdges(data, width, box, threshold = 0.9) {
 async function cropToContent(filePath, strategy = 'union', trimShadow = false, softEdge = 0) {
   const { data, info } = await sharp(filePath).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
   const key = detectKeyColor(data, info.width, info.height);
-  if (key.chroma) console.log(`    Chroma-Hintergrund erkannt: rgb(${key.r},${key.g},${key.b})`);
+  if (key.chroma) console.log(`    Chroma rgb(${key.r},${key.g},${key.b}), Schwelle ${findKeyThreshold(data, key).cut.toFixed(0)}`);
   defringe(data, true, key);
 
   const holes = fillInteriorHoles(data, info.width, info.height);
@@ -551,7 +589,7 @@ async function processImages() {
       // Bildfuellende Ebene: nur freistellen, Position im Frame bleibt erhalten.
       const { data, info } = await sharp(filePath).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
       const key = detectKeyColor(data, info.width, info.height);
-      if (key.chroma) console.log(`    Chroma-Hintergrund erkannt: rgb(${key.r},${key.g},${key.b})`);
+      if (key.chroma) console.log(`    Chroma rgb(${key.r},${key.g},${key.b}), Schwelle ${findKeyThreshold(data, key).cut.toFixed(0)}`);
       defringe(data, false, key);
 
       // Rahmen mit geschlossener Rueckwand: Innenflaeche ausstanzen. Das Loch ist

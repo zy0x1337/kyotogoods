@@ -42,9 +42,10 @@ const SHELF_PLATFORM_TOP_Y = 38;
 const DEFAULT_ITEM_BOTTOM_OFFSET = 36;
 const BG_CAVITY_RATIO = 0.6458;
 
-// Anteil der lichten Nischenweite, den ein Regalbrett einnimmt. < 1, damit das
-// Brett nicht an den Hinoki-Rahmen stoesst.
-const SHELF_CAVITY_FILL = 0.94;
+// Anteil der lichten Nischenweite, den ein Regalbrett einnimmt. Knapp ueber 1,
+// damit die Enden unter den Rahmenpfosten verschwinden und das Brett wie
+// eingelassen wirkt statt frei in der Nische zu schweben.
+const SHELF_CAVITY_FILL = 1.1;
 
 // Hintergrund-Tiers: pro Level-Gruppe eine breiter werdende Nische. Das
 // cavityRatio wird von scripts/process_assets.js am fertigen PNG gemessen.
@@ -658,6 +659,11 @@ export class Shelf extends Phaser.GameObjects.Container {
   public readonly itemScale: number;
   /** Auflageflaeche des Bretts in Container-Koordinaten */
   public readonly platformY: number;
+  /** Trefferflaeche in Container-Koordinaten. Deckt Brett UND die darauf
+   *  stehenden Goods ab -- das Brett allein ist nur rund 30px hoch, die Items
+   *  ragen weit darueber hinaus und waeren sonst nicht anklickbar. */
+  public readonly hitTop: number;
+  public readonly hitBottom: number;
 
   constructor(scene: Phaser.Scene, x: number, y: number, shelfIdx: number, data: { front: string | null; queue: string[] }[], itemScale = 1, shelfWidth = 304) {
     super(scene, x, y);
@@ -679,6 +685,9 @@ export class Shelf extends Phaser.GameObjects.Container {
       ? -this.shelfHeight / 2 + platformRatio * this.shelfHeight
       : SHELF_PLATFORM_TOP_Y * itemScale;
 
+    this.hitTop = this.platformY - 82 * itemScale;
+    this.hitBottom = this.shelfHeight / 2 + 6 * itemScale;
+
     this.drawStructure();
     this.initSlots(data);
     scene.add.existing(this);
@@ -689,9 +698,15 @@ export class Shelf extends Phaser.GameObjects.Container {
     const h = this.shelfHeight;
     const s = this.itemScale;
 
-    // Dezenter Schatten hinter dem Regalbrett
+    // Weicher Schlagschatten unter der Vorderkante. Vorher lag hier ein nach
+    // rechts unten versetztes Rechteck in Brettgroesse -- bei einem flachen
+    // Brett sah das aus wie ein zweites, verrutschtes Brett.
     const shadow = this.scene.add.graphics();
-    shadow.fillStyle(0x000000, 0.18).fillRoundedRect(-w / 2 + 3 * s, -h / 2 + 5 * s, w, h, 8 * s);
+    const shW = w * 0.97;
+    for (let i = 5; i > 0; i--) {
+      shadow.fillStyle(0x2B2418, 0.05)
+        .fillEllipse(0, h / 2 + i * 1.4 * s, shW * (1 - i * 0.03), 7 * s * (i / 5) + 3 * s);
+    }
     this.add(shadow);
 
     if (this.scene.textures.exists('shelf_wood')) {
@@ -1271,10 +1286,9 @@ export class GameScene extends Phaser.Scene {
     for (let i = 0; i < this.shelves.length; i++) {
       const shelf = this.shelves[i];
       const halfW = shelf.shelfWidth / 2;
-      const halfH = shelf.shelfHeight / 2;
 
       if (p.x >= shelf.x - halfW && p.x <= shelf.x + halfW &&
-          p.y >= shelf.y - halfH && p.y <= shelf.y + halfH) {
+          p.y >= shelf.y + shelf.hitTop && p.y <= shelf.y + shelf.hitBottom) {
 
         const localX = p.x - shelf.x;
         const slotIdx = localX < -shelf.spacing / 2 ? 0 : localX > shelf.spacing / 2 ? 2 : 1;
