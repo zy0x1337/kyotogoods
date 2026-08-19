@@ -1,7 +1,7 @@
 import '@fontsource/m-plus-rounded-1c/latin-500.css';
 import '@fontsource/m-plus-rounded-1c/latin-800.css';
 import Phaser from 'phaser';
-import { ITEM_BOTTOM_OFFSETS, BG_CAVITY_RATIOS, BG_CAVITY_RECTS, BG_FRAME_RECTS, AVAILABLE_ASSETS } from './item_offsets.generated';
+import { ITEM_BOTTOM_OFFSETS, BG_CAVITY_RATIOS, BG_CAVITY_RECTS, BG_FRAME_RECTS, SHELF_PLATFORM_RATIOS, AVAILABLE_ASSETS } from './item_offsets.generated';
 
 // ==========================================
 // 1. CMF DESIGN SYSTEM & ITEM REGISTRY
@@ -77,6 +77,8 @@ interface BgLayer {
   yRatio?: number;
   /** sprite: Breite als Anteil der Canvas-Breite */
   widthRatio?: number;
+  /** sprite: horizontal spiegeln, damit die Figur zur Szene blickt */
+  flipX?: boolean;
 }
 
 // Freistehendes Regalgehaeuse, das ueber der Gartenszene liegt. Solange es
@@ -92,7 +94,7 @@ const BG_LAYERS: BgLayer[] = [
   // Das Gehaeuse belegt rund x 0.17..0.85 -- die Tiere stehen in den schmalen
   // Wiesenstreifen links und rechts davon, sonst verschwinden sie dahinter.
   { key: 'bgl_cat',      mode: 'sprite', depth: -52, motion: 'bob', amount: 4, period: 2600,
-    xRatio: 0.085, yRatio: 0.965, widthRatio: 0.14 },
+    xRatio: 0.085, yRatio: 0.965, widthRatio: 0.14, flipX: true },
   { key: 'bgl_dog',      mode: 'sprite', depth: -52, motion: 'bob', amount: 5, period: 3100,
     xRatio: 0.915, yRatio: 0.965, widthRatio: 0.17 },
   // Laternen haengen an Schnueren, die an der Oberkante beginnen -- das Schwingen
@@ -123,11 +125,13 @@ function getItemSizeFactor(itemId: string): number {
   return ITEM_SIZE_FACTORS[itemId] ?? 1;
 }
 
-function getItemRestY(itemId: string, itemScale: number): number {
+// Ruhelage eines Goods auf dem Brett. platformY ist die Auflageflaeche in
+// Container-Koordinaten des Regals, gemessen am Asset statt fest verdrahtet.
+function getItemRestY(itemId: string, itemScale: number, platformY: number): number {
   const bottomOffset = ITEM_BOTTOM_OFFSETS[itemId] ?? DEFAULT_ITEM_BOTTOM_OFFSET;
   // Der Offset gilt fuer die volle Anzeigegroesse und muss mitschrumpfen,
   // sonst schwebt ein verkleinertes Item ueber dem Brett.
-  return (SHELF_PLATFORM_TOP_Y - bottomOffset * getItemSizeFactor(itemId)) * itemScale;
+  return platformY - bottomOffset * getItemSizeFactor(itemId) * itemScale;
 }
 
 export interface ItemDef {
@@ -557,12 +561,12 @@ export class GoodsItem extends Phaser.GameObjects.Container {
   public readonly itemScale: number;
   public readonly restY: number;
 
-  constructor(scene: Phaser.Scene, x: number, y: number, itemId: string, itemScale = 1) {
+  constructor(scene: Phaser.Scene, x: number, y: number, itemId: string, itemScale = 1, restY = y) {
     super(scene, x, y);
     this.itemId = itemId;
     this.itemDef = ITEMS[itemId] || ITEMS['chawan_cup'];
     this.itemScale = itemScale;
-    this.restY = getItemRestY(itemId, itemScale);
+    this.restY = restY;
     this.setSize(76 * itemScale, 76 * itemScale);
     this.renderArt();
     scene.add.existing(this);
@@ -652,6 +656,8 @@ export class Shelf extends Phaser.GameObjects.Container {
   public readonly shelfWidth: number;
   public readonly shelfHeight: number;
   public readonly itemScale: number;
+  /** Auflageflaeche des Bretts in Container-Koordinaten */
+  public readonly platformY: number;
 
   constructor(scene: Phaser.Scene, x: number, y: number, shelfIdx: number, data: { front: string | null; queue: string[] }[], itemScale = 1, shelfWidth = 304) {
     super(scene, x, y);
@@ -661,7 +667,18 @@ export class Shelf extends Phaser.GameObjects.Container {
     // rechts sind damit immer gleich gross.
     this.spacing = Phaser.Math.Clamp(shelfWidth / 3, 78 * itemScale, 104 * itemScale);
     this.shelfWidth = shelfWidth;
-    this.shelfHeight = 92 * itemScale;
+
+    // Hoehe folgt dem Seitenverhaeltnis der Textur. Vorher war sie fest, das
+    // Brett wurde dadurch gestaucht und die Maserung verzerrt.
+    const tex = scene.textures.exists('shelf_wood') ? scene.textures.get('shelf_wood').getSourceImage() : null;
+    this.shelfHeight = tex ? shelfWidth * (tex.height / tex.width) : 92 * itemScale;
+
+    // Auflagelinie: am Asset vermessen, sonst der alte Design-Wert
+    const platformRatio = SHELF_PLATFORM_RATIOS['shelf_wood'];
+    this.platformY = platformRatio !== undefined
+      ? -this.shelfHeight / 2 + platformRatio * this.shelfHeight
+      : SHELF_PLATFORM_TOP_Y * itemScale;
+
     this.drawStructure();
     this.initSlots(data);
     scene.add.existing(this);
@@ -678,7 +695,21 @@ export class Shelf extends Phaser.GameObjects.Container {
     this.add(shadow);
 
     if (this.scene.textures.exists('shelf_wood')) {
-      const shelfImg = this.scene.add.image(0, 0, 'shelf_wood').setDisplaySize(w, h);
+      // NineSlice statt Strecken: die Enden des Bretts behalten ihre Groesse,
+      // nur die Mitte wird auf die Regalbreite gezogen.
+      const tex = this.scene.textures.get('shelf_wood').getSourceImage();
+      const sideX = Math.max(1, Math.min(Math.floor(tex.width * 0.12), Math.floor(w / 2) - 1));
+
+      // Vertikale Insets muessen > 0 sein: mit 0 faellt Phaser auf einen
+      // Three-Slice zurueck und ignoriert die uebergebene Hoehe. Unten bleibt
+      // die Vorderkante des Bretts unskaliert stehen.
+      const platformRatio = SHELF_PLATFORM_RATIOS['shelf_wood'] ?? 0.9;
+      const lipH = Math.round(tex.height * (1 - platformRatio));
+      const topH = Math.max(1, Math.min(Math.floor(tex.height * 0.1), Math.floor(h / 2) - 1));
+      const botH = Math.max(1, Math.min(lipH, Math.floor(h / 2) - 1));
+
+      const shelfImg = this.scene.add.nineslice(0, 0, 'shelf_wood', undefined, w, h, sideX, sideX, topH, botH);
+      shelfImg.setOrigin(0.5);
       this.add(shelfImg);
     } else {
       const g = this.scene.add.graphics();
@@ -696,7 +727,8 @@ export class Shelf extends Phaser.GameObjects.Container {
     data.forEach((slot, i) => {
       this.queues[i] = [...slot.queue];
       if (slot.front) {
-        const item = new GoodsItem(this.scene, (i - 1) * this.spacing, getItemRestY(slot.front, this.itemScale), slot.front, this.itemScale);
+        const restY = getItemRestY(slot.front, this.itemScale, this.platformY);
+        const item = new GoodsItem(this.scene, (i - 1) * this.spacing, restY, slot.front, this.itemScale, restY);
         this.slots[i] = item;
         this.add(item);
       }
@@ -786,7 +818,8 @@ export class Shelf extends Phaser.GameObjects.Container {
     if (this.slots[i] === null && this.queues[i].length > 0) {
       const nextId = this.queues[i].shift()!;
 
-      const nextItem = new GoodsItem(this.scene, (i - 1) * this.spacing, getItemRestY(nextId, this.itemScale) - 16 * this.itemScale, nextId, this.itemScale);
+      const restY = getItemRestY(nextId, this.itemScale, this.platformY);
+      const nextItem = new GoodsItem(this.scene, (i - 1) * this.spacing, restY - 16 * this.itemScale, nextId, this.itemScale, restY);
       nextItem.setAlpha(0).setScale(0.7);
       this.slots[i] = nextItem;
       this.add(nextItem);
@@ -806,7 +839,7 @@ export class Shelf extends Phaser.GameObjects.Container {
 
   private playMatchEffect(itemId: string) {
     const s = this.itemScale;
-    const y = getItemRestY(itemId, s);
+    const y = getItemRestY(itemId, s, this.platformY);
     const effect = this.scene.add.container(0, 0);
     this.add(effect);
 
@@ -947,7 +980,7 @@ export class Shelf extends Phaser.GameObjects.Container {
         shelfIdx: this.shelfIdx,
         itemId: s0.itemId,
         worldX: this.x,
-        worldY: this.y + getItemRestY(s0.itemId, this.itemScale)
+        worldY: this.y + getItemRestY(s0.itemId, this.itemScale, this.platformY)
       });
     }
   }
@@ -1161,7 +1194,8 @@ export class GameScene extends Phaser.Scene {
         img = this.add.image(width * (layer.xRatio ?? 0.5), height * (layer.yRatio ?? 1), layer.key)
           .setOrigin(0.5, 1)
           .setScale(targetW / src.width)
-          .setDepth(layer.depth);
+          .setDepth(layer.depth)
+          .setFlipX(layer.flipX === true);
       }
 
       const baseX = img.x;
@@ -1379,7 +1413,8 @@ export class GameScene extends Phaser.Scene {
       for (let i = 0; i < 3; i++) {
         if (active.length > 0 && s.slots[i] === null) {
           const id = active.pop()!;
-          const it = new GoodsItem(this, (i - 1) * s.spacing, getItemRestY(id, s.itemScale), id, s.itemScale);
+          const restY = getItemRestY(id, s.itemScale, s.platformY);
+          const it = new GoodsItem(this, (i - 1) * s.spacing, restY, id, s.itemScale, restY);
           s.slots[i] = it;
           s.add(it);
         }
@@ -1469,10 +1504,10 @@ export class UIScene extends Phaser.Scene {
     this.movesTxt = stack(width - pad - colW / 2, 'MOVES', `${State.moves}`);
 
     // Booster-Reihe, ebenfalls ohne Tray-Karte
-    const boosterSize = 48 * uiScale;
-    const boosterSpacing = 92 * uiScale;
+    const boosterSize = 52 * uiScale;
+    const boosterSpacing = 112 * uiScale;
     const trayX = width / 2;
-    const trayY = height - 52 * uiScale;
+    const trayY = height - 46 * uiScale;
 
     const boosters = [
       { key: 'btn_undo', label: 'UNDO', fn: () => this.game.events.emit(GameEvents.UNDO_TRIGGERED) },

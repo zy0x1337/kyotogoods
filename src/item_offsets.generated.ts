@@ -41,6 +41,11 @@ export const BG_FRAME_RECTS: Record<string, { x: number; y: number; w: number; h
   bgl_niche_frame: { x: 0.5, y: 0.0682, w: 0.6833, h: 0.8674 }
 };
 
+// Auflageflaeche eines Regalbretts als Anteil seiner Bildhoehe.
+export const SHELF_PLATFORM_RATIOS: Record<string, number> = {
+  shelf_wood: 0.9071
+};
+
 // Alle Texturen, die tatsaechlich in public/assets/items/ liegen.
 export const AVAILABLE_ASSETS: ReadonlySet<string> = new Set([
   'bg_kissa_niche',

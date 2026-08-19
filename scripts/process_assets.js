@@ -451,6 +451,36 @@ async function measureCavityRatio(buf, width, height) {
   return parseFloat(((xr - xl) / width).toFixed(4));
 }
 
+// Findet die Auflageflaeche eines Regalbretts: die Oberkante der dunklen
+// Vorderkante. Gesucht wird der staerkste Helligkeitsabfall im unteren Drittel.
+// Ergebnis: Anteil der Bildhoehe (0..1).
+//
+// Damit ist die Auflagelinie eine Eigenschaft des Assets statt einer Konstante
+// im Code -- ein Brett mit anderer Kantenhoehe funktioniert ohne Nachjustieren.
+function measurePlatformRatio(data, width, height) {
+  const rowLum = y => {
+    let sum = 0, n = 0;
+    for (let x = Math.floor(width * 0.2); x < width * 0.8; x++) {
+      const i = (y * width + x) * 4;
+      if (data[i + 3] > 200) { sum += (data[i] + data[i + 1] + data[i + 2]) / 3; n++; }
+    }
+    return n ? sum / n : null;
+  };
+
+  let bestDrop = 0, bestY = Math.floor(height * 0.88);
+  let prev = rowLum(Math.floor(height * 0.55));
+
+  for (let y = Math.floor(height * 0.55) + 1; y < height; y++) {
+    const lum = rowLum(y);
+    if (lum === null || prev === null) { prev = lum; continue; }
+    const drop = prev - lum;
+    if (drop > bestDrop) { bestDrop = drop; bestY = y; }
+    prev = lum;
+  }
+
+  return parseFloat((bestY / height).toFixed(4));
+}
+
 async function processImages() {
   if (!fs.existsSync(RAW_DIR)) return;
   const files = fs.readdirSync(RAW_DIR).filter(f => {
@@ -462,6 +492,7 @@ async function processImages() {
   const cavities = {};
   const cavityRects = {};
   const frameRects = {};
+  const shelfPlatforms = {};
   const produced = new Set();
 
   for (const file of files) {
@@ -568,11 +599,19 @@ async function processImages() {
 
     // FALL 2: Regal-Leiste (exakter Alpha-Crop, dann auf 608x184 gestreckt)
     if (baseName.startsWith('shelf_')) {
-      const { pipeline } = await cropToContent(filePath, 'widest', true);
+      // Nicht mehr auf ein festes Format ziehen: die Hoehe folgt der Breite im
+      // Seitenverhaeltnis des Renders, sonst wird die Maserung gestaucht.
+      const { pipeline, box } = await cropToContent(filePath, 'widest', true);
+      const targetW = 608;
+      const targetH = Math.max(32, Math.round(box.height * (targetW / box.width)));
       await pipeline
-        .resize(608, 184, { fit: 'fill' })
+        .resize(targetW, targetH, { fit: 'fill' })
         .png({ compressionLevel: 9 })
         .toFile(targetPath);
+
+      const { data: sd, info: si } = await sharp(targetPath).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+      shelfPlatforms[baseName] = measurePlatformRatio(sd, si.width, si.height);
+      console.log(`  ${baseName}: ${targetW}x${targetH}, Auflage bei ${shelfPlatforms[baseName]}`);
       continue;
     }
 
@@ -666,6 +705,10 @@ async function processImages() {
     .map(id => `  ${id}: { x: ${frameRects[id].x}, y: ${frameRects[id].y}, w: ${frameRects[id].w}, h: ${frameRects[id].h} }`)
     .join(',\n');
 
+  const platformLines = Object.keys(shelfPlatforms).sort()
+    .map(id => `  ${id}: ${shelfPlatforms[id]}`)
+    .join(',\n');
+
   const assetLines = [...produced].sort()
     .map(id => `  '${id}'`)
     .join(',\n');
@@ -692,6 +735,11 @@ ${rectLines}
 // Aeussere Kontur eines freistehenden Rahmens in Bildanteilen.
 export const BG_FRAME_RECTS: Record<string, { x: number; y: number; w: number; h: number }> = {
 ${frameLines}
+};
+
+// Auflageflaeche eines Regalbretts als Anteil seiner Bildhoehe.
+export const SHELF_PLATFORM_RATIOS: Record<string, number> = {
+${platformLines}
 };
 
 // Alle Texturen, die tatsaechlich in public/assets/items/ liegen.

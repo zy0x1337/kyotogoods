@@ -57,6 +57,15 @@ hyper-realistic, high gloss reflections, shiny liquid specular, crumbs, baked fl
 8. **origami_dripper:**
    Conical origami coffee dripper in sage-green matte stoneware with 16 sharp vertical facets resting on a round blonde Hinoki base ring, orthographic front view, pure white background, zero floor shadow.
 
+### Regalbrett-Prompt (v2)
+v1 war ein flaches Brett: ein reiner Helligkeitsverlauf von 231 auf 198 ohne Tiefenkante, die dunkle Lippe nur in den letzten 16 px. Vor dem hellen Shoji-Panel verschwand es fast. v2 zeigt die Materialstärke, damit die Goods sichtbar **auf** dem Brett stehen statt davor zu schweben.
+
+Das Brett wird im Spiel als NineSlice auf die Regalbreite gezogen: **die Mitte muss eine ruhige, wiederholbare Fläche sein**, alle Details gehören an die beiden Enden. Die Auflagelinie wird von der Pipeline am Asset vermessen (`SHELF_PLATFORM_RATIOS`) — die Kantenhöhe darf sich also frei ändern.
+Magenta-Hintergrund, weil blondes Hinoki hell ist.
+
+**shelf_wood:**
+Single long horizontal shelf board of warm blonde hinoki wood seen from slightly above, aspect ratio 5:1, the flat top surface clearly visible as a lighter plane and the front edge showing a distinct band of material thickness in a deeper toasted walnut tone, a slim brushed brass pin support at each far end, completely plain and unornamented along the middle, straight clean silhouette with softly eased corners, Japanese modern kissa aesthetic, tactile matte finish with zero gloss, art toy product render, orthographic front view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
+
 ### Niche Background Prompts (3 Tiers)
 Each tier maintains the same Japanese kissa aesthetic: warm hinoki wood frame, matte white plaster interior, soft ambient lighting from above. The inner cavity width increases per tier to visually distinguish level groups.
 Format: Portrait 9:16 mobile canvas. Anchor: `raw_renders/bg_kissa_niche.jpeg`.
@@ -131,10 +140,9 @@ Die Halo-Entfernung des Defringings läuft für `bgl_`-Vollbild-Ebenen **nicht**
     *(v2 — Magenta-Hintergrund. Die v1-Fassung auf Weiß ließ sich nicht freistellen: das cremeweiße Fell und der Studio-Hintergrund waren an der Stirn farbgleich.)*
     A single small chubby calico cat art toy figurine sitting upright with its tail curled around its paws, matte unglazed ceramic finish in cream white with soft azuki and charcoal patches, simplified rounded geometry, Japanese modern kissa aesthetic, orthographic side-facing three-quarter view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
 
-23. **bgl_niche_frame** *(das Regalgehäuse — fehlt noch, blockiert die Gartenszene):*
-    Der bisherige `bg_kissa_niche` ist eine **Wand mit Loch**: sein Umfeld ist warmer Putz (RGB 203–238), kein Weiß. Er lässt sich nicht freistellen und deckt die Parallax-Layer vollständig zu. Solange dieses Asset fehlt, läuft das Spiel im Fallback auf die alte Wand-Nische.
-    Freistehendes Möbel, kein Wandausschnitt. Innen eine matte Putzrückwand, damit die Regalbretter lesbar bleiben:
-    Front-facing freestanding tall rectangular display cabinet made of warm blonde hinoki wood with slim side posts and a flat top and bottom board, deep matte white plaster back panel inside the open cavity, small brushed brass corner brackets, no doors and no shelves inside, single isolated object, Japanese modern kissa aesthetic, tall portrait orientation 9:16 with the cabinet filling the central 80% of the frame, orthographic front view, pure solid white background (#FFFFFF), zero floor shadow, sharp silhouette edge definition, art toy product render, 8k resolution --style raw
+23. **bgl_niche_frame** *(v2 — abgerundete Ecken; v1 war scharfkantig und passte nicht zur runden Formensprache von Buttons und Schrift):*
+    Freistehendes Möbel, kein Wandausschnitt. Die weiße Rückwand ist gewollt — die Pipeline stanzt sie aus und misst daran die lichte Nische:
+    Front-facing freestanding tall display cabinet made of warm blonde hinoki wood with slim side posts and a flat top and bottom board, generously rounded outer corners and softly rounded inner cavity corners, deep matte white plaster back panel inside the open cavity, small brushed brass corner brackets, no doors and no shelves inside, single isolated object, Japanese modern kissa aesthetic, tall portrait orientation 9:16 with the cabinet filling the central 80% of the frame, orthographic front view, pure solid white background (#FFFFFF), zero floor shadow, sharp silhouette edge definition, art toy product render, 8k resolution --style raw
 
 24. **bgl_dog** *(Idle-Bob, unten rechts):*
     A single small round shiba inu art toy figurine standing playfully with its curled tail up, matte unglazed ceramic finish in warm toast gold and chalk white, simplified rounded geometry, Japanese modern kissa aesthetic, orthographic side-facing three-quarter view, centered on a portrait 9:16 canvas with generous white padding, pure solid white background (#FFFFFF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
