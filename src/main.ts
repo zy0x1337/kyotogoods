@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { ITEM_BOTTOM_OFFSETS } from './item_offsets.generated';
 
 // ==========================================
 // 1. CMF DESIGN SYSTEM & ITEM REGISTRY
@@ -24,31 +25,16 @@ const SHELF_PLATFORM_TOP_Y = 38;
 const DEFAULT_ITEM_BOTTOM_OFFSET = 36;
 const BG_CAVITY_RATIO = 478 / 720;
 
-// Die Item-Texturen werden als 256x256-Quadrate exportiert, haben aber
-// unterschiedliche transparente Ränder. Diese Unterkanten gleichen wir an
-// der Oberkante des schwarzen Plattformprofils aus.
-const ITEM_BOTTOM_OFFSETS: Record<string, number> = {
-  brass_sphere: 15.19,
-  cast_iron_bell: 36,
-  chasen_whisk: 36,
-  chashaku_scoop: 9.28,
-  chawan_cup: 27.84,
-  coldbrew_flask: 36,
-  copper_caddy: 36,
-  dango_plate: 14.34,
-  dango_stick: 36,
-  gotoku_trivet: 10.69,
-  incense_burner: 23.06,
-  kissa_toast: 36,
-  kuro_mame_dome: 18,
-  matcha_montblanc: 33.19,
-  matcha_roll: 29.53,
-  mizuhiki_knot: 36,
-  origami_dripper: 25.59,
-  shou_sugi_block: 36,
-  tetsubin_kettle: 29.53,
-  yokan_prism: 25.59
-};
+// Hintergrund-Tiers: pro Level-Gruppe eine breiter werdende Nische
+const BG_TIERS: { key: string; cavityRatio: number; levelRange: [number, number] }[] = [
+  { key: 'bg_kissa_niche',      cavityRatio: 478 / 720, levelRange: [1, 3] },
+  { key: 'bg_kissa_niche_mid',  cavityRatio: 562 / 720, levelRange: [4, 5] },
+  { key: 'bg_kissa_niche_wide', cavityRatio: 634 / 720, levelRange: [6, 6] },
+];
+
+function getBgTier(level: number) {
+  return BG_TIERS.find(t => level >= t.levelRange[0] && level <= t.levelRange[1]) ?? BG_TIERS[0];
+}
 
 function getLayoutScale(width: number): number {
   return Math.min(width / DESIGN_WIDTH, 1.15);
@@ -192,6 +178,112 @@ const LEVELS: LevelDefinition[] = [
         { front: 'mizuhiki_knot', queue: [] },
         { front: 'gotoku_trivet', queue: [] },
         { front: 'kuro_mame_dome', queue: [] }
+      ]
+    ]
+  },
+  // Level 4 – 5 Regale, 5 Matches, Einsteiger-Puzzle mit Queues
+  {
+    moves: 12,
+    targetMatches: 5,
+    layout: [
+      [
+        { front: 'chawan_cup', queue: [] },
+        { front: 'chawan_cup', queue: [] },
+        { front: null, queue: [] }
+      ],
+      [
+        { front: 'tetsubin_kettle', queue: ['chawan_cup'] },
+        { front: 'tetsubin_kettle', queue: [] },
+        { front: null, queue: [] }
+      ],
+      [
+        { front: 'chasen_whisk', queue: ['tetsubin_kettle'] },
+        { front: 'chasen_whisk', queue: [] },
+        { front: null, queue: [] }
+      ],
+      [
+        { front: 'kissa_toast', queue: ['chasen_whisk'] },
+        { front: 'kissa_toast', queue: [] },
+        { front: null, queue: [] }
+      ],
+      [
+        { front: 'yokan_prism', queue: ['kissa_toast'] },
+        { front: 'yokan_prism', queue: [] },
+        { front: 'yokan_prism', queue: [] }
+      ]
+    ]
+  },
+  // Level 5 – 6 Regale, 9 Matches, Planungstiefe
+  {
+    moves: 18,
+    targetMatches: 9,
+    layout: [
+      [
+        { front: 'matcha_roll', queue: [] },
+        { front: 'matcha_roll', queue: [] },
+        { front: null, queue: [] }
+      ],
+      [
+        { front: 'brass_sphere', queue: ['matcha_roll'] },
+        { front: 'brass_sphere', queue: [] },
+        { front: null, queue: [] }
+      ],
+      [
+        { front: 'coldbrew_flask', queue: ['brass_sphere'] },
+        { front: 'coldbrew_flask', queue: [] },
+        { front: null, queue: [] }
+      ],
+      [
+        { front: 'shou_sugi_block', queue: ['coldbrew_flask'] },
+        { front: 'shou_sugi_block', queue: [] },
+        { front: null, queue: [] }
+      ],
+      [
+        { front: 'copper_caddy', queue: ['shou_sugi_block'] },
+        { front: 'copper_caddy', queue: [] },
+        { front: null, queue: [] }
+      ],
+      [
+        { front: 'origami_dripper', queue: ['copper_caddy'] },
+        { front: 'origami_dripper', queue: [] },
+        { front: 'origami_dripper', queue: [] }
+      ]
+    ]
+  },
+  // Level 6 – 6 Regale, 12 Matches, Endgame mit tiefen Queues
+  {
+    moves: 22,
+    targetMatches: 12,
+    layout: [
+      [
+        { front: 'mizuhiki_knot', queue: ['gotoku_trivet'] },
+        { front: 'gotoku_trivet', queue: [] },
+        { front: null, queue: [] }
+      ],
+      [
+        { front: 'cast_iron_bell', queue: ['mizuhiki_knot'] },
+        { front: 'kuro_mame_dome', queue: ['cast_iron_bell'] },
+        { front: null, queue: [] }
+      ],
+      [
+        { front: 'dango_plate', queue: ['kuro_mame_dome'] },
+        { front: 'incense_burner', queue: ['dango_plate'] },
+        { front: null, queue: [] }
+      ],
+      [
+        { front: 'matcha_montblanc', queue: ['incense_burner'] },
+        { front: 'chashaku_scoop', queue: ['matcha_montblanc'] },
+        { front: null, queue: [] }
+      ],
+      [
+        { front: 'chawan_cup', queue: ['chashaku_scoop'] },
+        { front: 'tetsubin_kettle', queue: ['chawan_cup'] },
+        { front: 'chasen_whisk', queue: ['tetsubin_kettle'] }
+      ],
+      [
+        { front: 'gotoku_trivet', queue: [] },
+        { front: 'kuro_mame_dome', queue: [] },
+        { front: 'yokan_prism', queue: ['chasen_whisk', 'dango_plate', 'incense_burner', 'matcha_montblanc', 'chashaku_scoop', 'yokan_prism'] }
       ]
     ]
   }
@@ -392,9 +484,27 @@ export class GoodsItem extends Phaser.GameObjects.Container {
   }
 
   private renderArt() {
+    const s = this.itemScale;
+
+    // Ovarler Schlagschatten (unabhängig von Textur oder Procedural)
+    const shadow = this.scene.add.graphics();
+    const sw = 48 * s;
+    const sh = 14 * s;
+    for (let i = 3; i >= 0; i--) {
+      const a = 0.06 * (4 - i);
+      const r = 1 + i * 0.5;
+      shadow.fillStyle(0x000000, a).fillEllipse(2 * s, 28 * s, sw + r * 2 * s, sh + r * s);
+    }
+    this.add(shadow);
+
     if (this.scene.textures.exists(`item_${this.itemId}`)) {
-      const img = this.scene.add.image(0, 0, `item_${this.itemId}`).setDisplaySize(ITEM_SIZE * this.itemScale, ITEM_SIZE * this.itemScale);
+      const img = this.scene.add.image(0, 0, `item_${this.itemId}`).setDisplaySize(ITEM_SIZE * s, ITEM_SIZE * s);
       this.add(img);
+
+      // Kontakt-Schatten: dünne Linie am unteren Rand
+      const contact = this.scene.add.graphics();
+      contact.fillStyle(0x000000, 0.15).fillEllipse(0, 30 * s, 40 * s, 4 * s);
+      this.add(contact);
       return;
     }
 
@@ -402,7 +512,6 @@ export class GoodsItem extends Phaser.GameObjects.Container {
     const g = this.scene.add.graphics();
     const d = this.itemDef;
 
-    g.fillStyle(0x000000, 0.12).fillRoundedRect(-30, -26, 60, 60, 12);
     g.fillStyle(d.baseColor, 1.0).fillRoundedRect(-32, -32, 64, 64, 14);
     g.fillStyle(d.accentColor, 1.0);
 
@@ -605,6 +714,23 @@ export class Shelf extends Phaser.GameObjects.Container {
       const matched = [s0, s1, s2];
       this.slots = [null, null, null];
 
+      // Sweep-Lichtbogen über die drei gematchten Items
+      const sweepW = this.spacing * 2.6;
+      const sweepH = 56 * this.itemScale;
+      const sweep = this.scene.add.graphics();
+      sweep.fillStyle(0xFFFBE8, 0.7).fillRoundedRect(-sweepW / 2, -sweepH / 2, sweepW, sweepH, 12 * this.itemScale);
+      sweep.setAlpha(0).setPosition(0, getItemRestY(s0.itemId, this.itemScale));
+      this.add(sweep);
+
+      this.scene.tweens.add({
+        targets: sweep,
+        alpha: 1,
+        duration: 110,
+        yoyo: true,
+        ease: 'Sine.easeOut',
+        onComplete: () => sweep.destroy()
+      });
+
       matched.forEach((item, idx) => {
         this.scene.tweens.add({
           targets: item,
@@ -646,14 +772,19 @@ export class PreloadScene extends Phaser.Scene {
   }
 
   preload() {
+    // Stille Fehlerbehandlung für optionale Hintergrund-Tiers
+    this.load.on('loaderror', () => {});
+
     // 1. Goods
     Object.keys(ITEMS).forEach(id => {
       this.load.image(`item_${id}`, `assets/items/${id}.png`);
     });
 
-    // 2. Environment & UI
-    this.load.image('bg_kissa_niche', 'assets/items/bg_kissa_niche.png');
+    // 2. Environment & UI – Hintergrund-Tiers (höhere Tiers können fehlen, Fallback auf bg_kissa_niche)
+    BG_TIERS.forEach(t => this.load.image(t.key, `assets/items/${t.key}.png`));
     this.load.image('shelf_wood', 'assets/items/shelf_wood.png');
+    this.load.image('ui_card_kuro', 'assets/items/ui_card_kuro.png');
+    this.load.image('ui_card_hinoki', 'assets/items/ui_card_hinoki.png');
     this.load.image('btn_undo', 'assets/items/btn_undo.png');
     this.load.image('btn_shuffle', 'assets/items/btn_shuffle.png');
     this.load.image('btn_hammer', 'assets/items/btn_hammer.png');
@@ -680,12 +811,59 @@ export class GameScene extends Phaser.Scene {
     this.shelves = [];
     this.selected = null;
 
-    // Hintergrund: Nische proportional skalieren, Rahmen bleibt erhalten.
-    if (this.textures.exists('bg_kissa_niche')) {
-      const bg = this.add.image(width / 2, height / 2, 'bg_kissa_niche');
-      const source = this.textures.get('bg_kissa_niche').getSourceImage();
+    // Hintergrund: Level-Tier bestimmen, Fallback auf Basis-Nische
+    const tier = getBgTier(State.currentLevel);
+    const bgKey = this.textures.exists(tier.key) ? tier.key : 'bg_kissa_niche';
+    const cavityRatio = this.textures.exists(tier.key) ? tier.cavityRatio : BG_CAVITY_RATIO;
+
+    if (this.textures.exists(bgKey)) {
+      const bg = this.add.image(width / 2, height / 2, bgKey);
+      const source = this.textures.get(bgKey).getSourceImage();
       const coverScale = Math.max(width / source.width, height / source.height);
       bg.setScale(coverScale).setDepth(-10);
+
+      // Warmes Nischen-Licht: radialer Schein von oben
+      const glow = this.add.graphics().setDepth(-9);
+      const cavityW = width * cavityRatio;
+      const glowR = cavityW * 0.55;
+      const cx = width / 2;
+      const cy = height * 0.22;
+      for (let r = glowR; r > 0; r -= glowR / 12) {
+        const alpha = 0.045 * (r / glowR);
+        glow.fillStyle(0xFFF8E8, alpha).fillCircle(cx, cy, r);
+      }
+
+      // Staub-Partikel: langsam aufsteigende Punkte in der Nische
+      const particleLayer = this.add.container(0, 0).setDepth(-8);
+      for (let p = 0; p < 14; p++) {
+        const dot = this.add.graphics();
+        const radius = 1.2 + Math.random() * 1.6;
+        dot.fillStyle(0xFFF8E8, 0.2 + Math.random() * 0.25).fillCircle(0, 0, radius);
+        const x0 = cx + (Math.random() - 0.5) * cavityW * 0.7;
+        const y0 = cy + Math.random() * (height * 0.55);
+        dot.setPosition(x0, y0);
+        particleLayer.add(dot);
+
+        const dur = 6000 + Math.random() * 9000;
+        const drift = (Math.random() - 0.5) * 20;
+        this.tweens.add({
+          targets: dot,
+          y: y0 - 60 - Math.random() * 80,
+          x: x0 + drift,
+          alpha: 0,
+          duration: dur,
+          ease: 'Sine.easeInOut',
+          repeat: -1,
+          repeatDelay: 1200 + Math.random() * 3000,
+          onRepeat: () => {
+            dot.setPosition(
+              cx + (Math.random() - 0.5) * cavityW * 0.7,
+              cy + Math.random() * (height * 0.55)
+            );
+            dot.setAlpha(0.2 + Math.random() * 0.25);
+          }
+        });
+      }
     }
 
     this.buildLevel(State.currentLevel);
@@ -710,9 +888,12 @@ export class GameScene extends Phaser.Scene {
 
     const itemScale = getLayoutScale(this.scale.width);
     const verticalScale = this.scale.height / DESIGN_HEIGHT;
-    const startY = (level.layout.length === 5 ? 180 : 195) * verticalScale;
-    const shelfSpacing = (level.layout.length === 5 ? 108 : 125) * verticalScale;
-    const shelfWidth = Math.round(this.scale.width * BG_CAVITY_RATIO);
+    const rows = level.layout.length;
+    const startY = (rows >= 6 ? 160 : rows === 5 ? 180 : 195) * verticalScale;
+    const shelfSpacing = (rows >= 6 ? 94 : rows === 5 ? 108 : 125) * verticalScale;
+    const tier = getBgTier(lvl);
+    const cavityRatio = this.textures.exists(tier.key) ? tier.cavityRatio : BG_CAVITY_RATIO;
+    const shelfWidth = Math.round(this.scale.width * cavityRatio);
 
     level.layout.forEach((data, i) => {
       this.shelves.push(new Shelf(this, this.scale.width / 2, startY + i * shelfSpacing, i, data, itemScale, shelfWidth));
@@ -886,9 +1067,19 @@ export class UIScene extends Phaser.Scene {
     const uiScale = getLayoutScale(width);
 
     // Header Plaque
-    const headerBg = this.add.graphics();
-    headerBg.fillStyle(KYOTO.kuroSteel, 0.08).fillRoundedRect(16 * uiScale, 24 * uiScale, width - 32 * uiScale, 60 * uiScale, 14 * uiScale);
-    headerBg.lineStyle(1.5 * uiScale, KYOTO.hinoki, 0.5).strokeRoundedRect(16 * uiScale, 24 * uiScale, width - 32 * uiScale, 60 * uiScale, 14 * uiScale);
+    const headerW = width - 32 * uiScale;
+    const headerH = 60 * uiScale;
+    const headerX = 16 * uiScale;
+    const headerY = 24 * uiScale;
+    if (this.textures.exists('ui_card_kuro')) {
+      const card = this.add.image(headerX + headerW / 2, headerY + headerH / 2, 'ui_card_kuro')
+        .setDisplaySize(headerW, headerH);
+      this.add.existing(card);
+    } else {
+      const headerBg = this.add.graphics();
+      headerBg.fillStyle(KYOTO.kuroSteel, 0.08).fillRoundedRect(headerX, headerY, headerW, headerH, 14 * uiScale);
+      headerBg.lineStyle(1.5 * uiScale, KYOTO.hinoki, 0.5).strokeRoundedRect(headerX, headerY, headerW, headerH, 14 * uiScale);
+    }
 
     this.scoreTxt = this.add.text(32 * uiScale, 42 * uiScale, 'SCORE: 0', {
       fontSize: `${18 * uiScale}px`,
@@ -909,6 +1100,18 @@ export class UIScene extends Phaser.Scene {
     }).setOrigin(1, 0);
 
     // Booster Tray
+    const trayW = 320 * uiScale;
+    const trayH = 64 * uiScale;
+    const trayX = width / 2;
+    const trayY = height - 56 * uiScale;
+    if (this.textures.exists('ui_card_hinoki')) {
+      this.add.image(trayX, trayY, 'ui_card_hinoki').setDisplaySize(trayW, trayH);
+    } else {
+      const trayBg = this.add.graphics();
+      trayBg.fillStyle(KYOTO.hinoki, 0.12).fillRoundedRect(trayX - trayW / 2, trayY - trayH / 2, trayW, trayH, 12 * uiScale);
+      trayBg.lineStyle(1 * uiScale, KYOTO.hinoki, 0.3).strokeRoundedRect(trayX - trayW / 2, trayY - trayH / 2, trayW, trayH, 12 * uiScale);
+    }
+
     const boosters = [
       { key: 'btn_undo', label: 'UNDO', fn: () => this.game.events.emit(GameEvents.UNDO_TRIGGERED) },
       { key: 'btn_shuffle', label: 'SHUFFLE', fn: () => this.game.events.emit(GameEvents.SHUFFLE_TRIGGERED) },
@@ -1028,7 +1231,7 @@ export class WinModalScene extends Phaser.Scene {
 
     btn.add([btnBg, btnTxt]).setSize(130, 40).setInteractive({ useHandCursor: true });
     btn.on('pointerdown', () => {
-      State.currentLevel = State.currentLevel >= 3 ? 1 : State.currentLevel + 1;
+      State.currentLevel = State.currentLevel >= LEVELS.length ? 1 : State.currentLevel + 1;
       this.scene.stop('WinModalScene');
       this.scene.get('GameScene').scene.restart();
     });
