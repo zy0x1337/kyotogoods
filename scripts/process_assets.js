@@ -165,21 +165,80 @@ function defringe(data) {
     if (dist < 18) data[i + 3] = 0;
     else if (dist < 38) data[i + 3] = Math.floor(((dist - 18) / 20) * 255);
   }
+
+  // Weisser Saum. Der weiche Schlagschatten der Renders ist heller als der
+  // Putz-Hintergrund im Spiel -- er liest sich dort nicht als Schatten, sondern
+  // als Glühen unter dem Objekt. Solche Pixel sind fast weiss UND nur teilweise
+  // deckend; deckende Flaechen (helle Items wie Toast oder Chawan) bleiben
+  // unangetastet, weil ihr Alpha bereits 255 ist.
+  //
+  // Die Schwelle darf nicht ueber den Defringe-Rampenwert geloest werden: ein
+  // globales Anheben wuerde die Brotflaeche des Toasts halbtransparent machen.
+  for (let i = 0; i < data.length; i += 4) {
+    const a = data[i + 3];
+    if (a === 0 || a >= 250) continue;
+    if (Math.min(data[i], data[i + 1], data[i + 2]) > 225) data[i + 3] = 0;
+  }
+
   return data;
+}
+
+// Der weiche Schlagschatten der Renders liegt auf weissem Papier und kommt
+// deshalb als hellgrauer, voll deckender Streifen an -- die Alpha-Logik greift
+// dort nicht. Auf dem Putz-Hintergrund des Spiels liest sich dieser Streifen als
+// Glühen unter dem Objekt.
+//
+// Erkennungsmerkmal: unbunt (geringe Kanalspreizung) und hell. Geprueft wird das
+// nur reihenweise an den Kanten der Crop-Box, nie im Inneren -- eine
+// Pixelmaske wuerde sonst Lichter aus weisser Keramik ausstanzen.
+function isShadowPixel(data, idx) {
+  if (data[idx + 3] < 8) return true;
+  const r = data[idx], g = data[idx + 1], b = data[idx + 2];
+  const spread = Math.max(r, g, b) - Math.min(r, g, b);
+  return spread < 10 && Math.min(r, g, b) > 150;
+}
+
+function trimShadowEdges(data, width, box, threshold = 0.9) {
+  let { left, top } = box;
+  let right = box.left + box.width - 1;
+  let bottom = box.top + box.height - 1;
+
+  const rowIsShadow = y => {
+    let hit = 0, total = 0;
+    for (let x = left; x <= right; x++, total++) if (isShadowPixel(data, (y * width + x) * 4)) hit++;
+    return total > 0 && hit / total >= threshold;
+  };
+  const colIsShadow = x => {
+    let hit = 0, total = 0;
+    for (let y = top; y <= bottom; y++, total++) if (isShadowPixel(data, (y * width + x) * 4)) hit++;
+    return total > 0 && hit / total >= threshold;
+  };
+
+  while (bottom > top && rowIsShadow(bottom)) bottom--;
+  while (top < bottom && rowIsShadow(top)) top++;
+  while (right > left && colIsShadow(right)) right--;
+  while (left < right && colIsShadow(left)) left++;
+
+  return { left, top, width: right - left + 1, height: bottom - top + 1 };
 }
 
 // Defringe -> exakter Alpha-Crop. Liefert eine sharp-Pipeline auf dem reinen
 // Inhalt. Mit singleObject wird vorher auf die groesste zusammenhaengende
 // Flaeche eingegrenzt, damit ein zweites Objekt im Render nichts verschiebt.
-async function cropToContent(filePath, strategy = 'union') {
+async function cropToContent(filePath, strategy = 'union', trimShadow = false) {
   const { data, info } = await sharp(filePath).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
   defringe(data);
 
   const region = strategy === 'none' ? null : findBlobRegion(data, info.width, info.height, strategy);
-  const box = findAlphaBox(data, info.width, info.height, 80, region);
+  const rawBox = findAlphaBox(data, info.width, info.height, 80, region);
   const raw = { width: info.width, height: info.height, channels: 4 };
 
-  if (!box) return { pipeline: sharp(data, { raw }), box: { left: 0, top: 0, width: info.width, height: info.height } };
+  if (!rawBox) return { pipeline: sharp(data, { raw }), box: { left: 0, top: 0, width: info.width, height: info.height } };
+
+  const box = trimShadow ? trimShadowEdges(data, info.width, rawBox) : rawBox;
+  const cut = (rawBox.height - box.height) + (rawBox.width - box.width);
+  if (cut > 0) console.log(`    Schattenrand entfernt: ${rawBox.width}x${rawBox.height} -> ${box.width}x${box.height}`);
+
   return { pipeline: sharp(data, { raw }).extract(box), box };
 }
 
@@ -242,7 +301,7 @@ async function processImages() {
 
     // FALL 2: Regal-Leiste (exakter Alpha-Crop, dann auf 608x184 gestreckt)
     if (baseName.startsWith('shelf_')) {
-      const { pipeline } = await cropToContent(filePath, 'widest');
+      const { pipeline } = await cropToContent(filePath, 'widest', true);
       await pipeline
         .resize(608, 184, { fit: 'fill' })
         .png({ compressionLevel: 9 })
@@ -254,7 +313,7 @@ async function processImages() {
     // NineSlice im Spiel exakt an der Kante der Karte ansetzt. Hoehe auf 128
     // normalisiert, Breite proportional (kein Verzerren des Rahmens).
     if (baseName.startsWith('ui_card_')) {
-      const { pipeline, box } = await cropToContent(filePath, 'widest');
+      const { pipeline, box } = await cropToContent(filePath, 'widest', true);
       const targetH = 128;
       const targetW = Math.max(64, Math.round(box.width * (targetH / box.height)));
       await pipeline

@@ -124,6 +124,8 @@ Format: Portrait 9:16 mobile canvas with a centered square effect and generous w
 Der komplette Weg von einem Prompt aus Abschnitt 3 bis zum fertigen Asset im Spiel.
 
 ### Schritt 1 — Rendern
+**Dateiformat:** PNG bevorzugen. JPEG funktioniert (der ganze bestehende Katalog ist JPEG) — freigestellt wird ohnehin gegen Weiß, nicht über einen Alphakanal. JPEG-Ringing an harten Kanten hinterlässt aber graue Sprenkel, und bei `bgl_`-Layern fällt das stärker auf als bei Items, weil die Layer auf volle Bildschirmbreite skaliert werden statt auf 256 px. `bgl_sky` ist egal, das Layer ist deckend.
+
 Prompt aus Abschnitt 3 nehmen, **Master Negative Prompt anhängen**, in Nano Banana Pro rendern.
 Immer **Portrait 9:16** wählen — auch für quadratische Objekte. Das Modell liefert sonst Landscape und der Alpha-Crop schneidet Kanten ab.
 Bei Layern und Karten den passenden Anchor mitgeben (siehe Prompt-Eintrag), sonst driftet der Farbton weg.
@@ -161,6 +163,8 @@ Alle drei werden **am fertigen PNG** gemessen bzw. gelistet — nie im Code hard
 
 - `union` (Items, Buttons, FX): alle Flächen ab 8 % der größten zusammen. Abgesetzte Details wie der Butterwürfel auf dem Toast oder die Goldflocke auf dem Yokan bleiben erhalten, Defringe-Krimskrams fällt raus.
 - `widest` (UI-Karten, Regalbrett): die Fläche mit dem breitesten Seitenverhältnis, als einzige. Wenn das Modell ein zweites Objekt mit ins Bild legt, ist das Störobjekt meist flächiger als die gesuchte Leiste — nach Fläche zu wählen greift daneben.
+
+**Schattenränder.** Der weiche Schlagschatten der Renders liegt auf weißem Papier und kommt deshalb als hellgrauer, voll deckender Streifen an — die Alpha-Logik greift dort nicht, und auf dem Putz-Hintergrund des Spiels liest er sich als Glühen unter dem Objekt. `trimShadowEdges` schrumpft die Box kantenweise, solange eine Randreihe zu ≥ 90 % aus unbunten hellen Pixeln besteht. Das läuft **nur für `ui_card_` und `shelf_`** — flache Rechtecke, bei denen der Streifen auffällt. Global angewandt hat es flache helle Items zerlegt (ein Bambuslöffel schrumpfte von 301 auf 64 px Höhe), weil blasses Holz demselben Muster entspricht.
 
 Anschließend zählt der Crop deckende Pixel pro Zeile/Spalte und ignoriert Reihen unter 0,5 % Deckung. Ohne das hatte ein einzelnes Streupixel (JPEG-Artefakt, Rest einer Signatur) die Box von `ui_card_kuro` auf die doppelte Höhe aufgebläht.
 
