@@ -22,6 +22,7 @@ const DESIGN_HEIGHT = 760;
 const ITEM_SIZE = 72;
 const SHELF_PLATFORM_TOP_Y = 38;
 const DEFAULT_ITEM_BOTTOM_OFFSET = 36;
+const BG_CAVITY_RATIO = 478 / 720;
 
 // Die Item-Texturen werden als 256x256-Quadrate exportiert, haben aber
 // unterschiedliche transparente Ränder. Diese Unterkanten gleichen wir an
@@ -474,12 +475,12 @@ export class Shelf extends Phaser.GameObjects.Container {
   public readonly shelfHeight: number;
   public readonly itemScale: number;
 
-  constructor(scene: Phaser.Scene, x: number, y: number, shelfIdx: number, data: { front: string | null; queue: string[] }[], itemScale = 1) {
+  constructor(scene: Phaser.Scene, x: number, y: number, shelfIdx: number, data: { front: string | null; queue: string[] }[], itemScale = 1, shelfWidth = 304) {
     super(scene, x, y);
     this.shelfIdx = shelfIdx;
     this.itemScale = itemScale;
     this.spacing = 92 * itemScale;
-    this.shelfWidth = 304 * itemScale;
+    this.shelfWidth = shelfWidth;
     this.shelfHeight = 92 * itemScale;
     this.drawStructure();
     this.initSlots(data);
@@ -489,13 +490,18 @@ export class Shelf extends Phaser.GameObjects.Container {
   private drawStructure() {
     const w = this.shelfWidth;
     const h = this.shelfHeight;
+    const s = this.itemScale;
+
+    // Dezenter Schatten hinter dem Regalbrett
+    const shadow = this.scene.add.graphics();
+    shadow.fillStyle(0x000000, 0.18).fillRoundedRect(-w / 2 + 3 * s, -h / 2 + 5 * s, w, h, 8 * s);
+    this.add(shadow);
 
     if (this.scene.textures.exists('shelf_wood')) {
       const shelfImg = this.scene.add.image(0, 0, 'shelf_wood').setDisplaySize(w, h);
       this.add(shelfImg);
     } else {
       const g = this.scene.add.graphics();
-      const s = this.itemScale;
       g.fillStyle(KYOTO.hinoki, 1.0).fillRoundedRect(-w / 2, -h / 2, w, h, 10 * s);
       [-this.spacing, 0, this.spacing].forEach(x => {
         g.fillStyle(KYOTO.slotIndent, 0.4).fillRoundedRect(x - 38 * s, -h / 2 + 8 * s, 76 * s, h - 16 * s, 8 * s);
@@ -646,7 +652,7 @@ export class PreloadScene extends Phaser.Scene {
     });
 
     // 2. Environment & UI
-    this.load.image('bg_plaster', 'assets/items/bg_plaster.png');
+    this.load.image('bg_kissa_niche', 'assets/items/bg_kissa_niche.png');
     this.load.image('shelf_wood', 'assets/items/shelf_wood.png');
     this.load.image('btn_undo', 'assets/items/btn_undo.png');
     this.load.image('btn_shuffle', 'assets/items/btn_shuffle.png');
@@ -674,10 +680,10 @@ export class GameScene extends Phaser.Scene {
     this.shelves = [];
     this.selected = null;
 
-    // Proportional skalierter Shikkui-Kalkputz-Hintergrund ohne Seitenstreifen.
-    if (this.textures.exists('bg_plaster')) {
-      const bg = this.add.image(width / 2, height / 2, 'bg_plaster');
-      const source = this.textures.get('bg_plaster').getSourceImage();
+    // Hintergrund: Nische proportional skalieren, Rahmen bleibt erhalten.
+    if (this.textures.exists('bg_kissa_niche')) {
+      const bg = this.add.image(width / 2, height / 2, 'bg_kissa_niche');
+      const source = this.textures.get('bg_kissa_niche').getSourceImage();
       const coverScale = Math.max(width / source.width, height / source.height);
       bg.setScale(coverScale).setDepth(-10);
     }
@@ -704,11 +710,12 @@ export class GameScene extends Phaser.Scene {
 
     const itemScale = getLayoutScale(this.scale.width);
     const verticalScale = this.scale.height / DESIGN_HEIGHT;
-    const startY = (level.layout.length === 5 ? 140 : 160) * verticalScale;
-    const shelfSpacing = (level.layout.length === 5 ? 104 : 118) * verticalScale;
+    const startY = (level.layout.length === 5 ? 180 : 195) * verticalScale;
+    const shelfSpacing = (level.layout.length === 5 ? 108 : 125) * verticalScale;
+    const shelfWidth = Math.round(this.scale.width * BG_CAVITY_RATIO);
 
     level.layout.forEach((data, i) => {
-      this.shelves.push(new Shelf(this, this.scale.width / 2, startY + i * shelfSpacing, i, data, itemScale));
+      this.shelves.push(new Shelf(this, this.scale.width / 2, startY + i * shelfSpacing, i, data, itemScale, shelfWidth));
     });
   }
 

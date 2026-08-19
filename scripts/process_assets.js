@@ -24,10 +24,10 @@ async function processImages() {
 
     console.log(`Processing: ${file}`);
 
-    // FALL 1: Hintergrund (Nicht transparent machen, sondern als 9:16 Wallpaper skalieren)
+    // FALL 1: Hintergrund (Seitenverhältnis erhalten, Breite 720)
     if (baseName.startsWith('bg_')) {
       await sharp(filePath)
-        .resize(720, 1280, { fit: 'cover' })
+        .resize(720, null, { fit: 'inside' })
         .png({ quality: 90 })
         .toFile(targetPath);
       continue;
