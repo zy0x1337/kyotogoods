@@ -54,30 +54,47 @@ const BG_TIERS: { key: string; levelRange: [number, number] }[] = [
 ];
 
 // Parallax-Layer des Hintergrunds. Jeder Layer ist ein eigenes freigestelltes
-// PNG (Prefix bgl_) und wird nur gezeichnet, wenn die Textur geladen werden
-// konnte. So kann die Szene stueckweise wachsen, ohne dass Code bricht.
-// yRatio/widthRatio beziehen sich auf Canvas-Hoehe bzw. -Breite.
+// PNG (Prefix bgl_) und wird nur gezeichnet, wenn er im Asset-Manifest steht.
+//
+// mode 'cover':  bildfuellende Ebene. Wurde im 9:16-Frame an ihrer endgueltigen
+//   Position gerendert und wird wie der Hintergrund cover-skaliert -- die Layer
+//   liegen dadurch deckungsgleich uebereinander.
+// mode 'band':   auf den Inhalt beschnittenes Band, volle Breite, unten buendig.
+// mode 'sprite': freigestelltes Einzelobjekt, ueber xRatio/yRatio platziert.
 type BgMotion = 'none' | 'sway' | 'drift' | 'bob';
+type BgLayerMode = 'cover' | 'band' | 'sprite';
 
 interface BgLayer {
   key: string;
-  yRatio: number;
-  widthRatio: number;
-  xRatio?: number;
+  mode: BgLayerMode;
   depth: number;
   motion: BgMotion;
   amount?: number;
   period?: number;
+  /** sprite: Mittelpunkt in Anteilen der Canvas-Groesse, y ist die Standlinie */
+  xRatio?: number;
+  yRatio?: number;
+  /** sprite: Breite als Anteil der Canvas-Breite */
+  widthRatio?: number;
 }
 
+// Freistehendes Regalgehaeuse, das ueber der Gartenszene liegt. Solange es
+// fehlt, bleibt der undurchsichtige Wand-Hintergrund bg_kissa_niche aktiv --
+// der wuerde die Parallax-Layer sonst komplett verdecken.
+const NICHE_FRAME_KEY = 'bgl_niche_frame';
+
 const BG_LAYERS: BgLayer[] = [
-  { key: 'bgl_sky',      yRatio: 0.00, widthRatio: 1.00, depth: -40, motion: 'none' },
-  { key: 'bgl_clouds',   yRatio: 0.14, widthRatio: 1.60, depth: -38, motion: 'drift', amount: 0.5, period: 42000 },
-  { key: 'bgl_hills',    yRatio: 0.62, widthRatio: 1.00, depth: -34, motion: 'none' },
-  { key: 'bgl_meadow',   yRatio: 1.00, widthRatio: 1.00, depth: -18, motion: 'none' },
-  { key: 'bgl_lanterns', yRatio: 0.05, widthRatio: 0.94, depth: -16, motion: 'sway', amount: 1.6, period: 3800 },
-  { key: 'bgl_cat',      yRatio: 0.955, widthRatio: 0.20, xRatio: 0.20, depth: -14, motion: 'bob', amount: 4, period: 2600 },
-  { key: 'bgl_dog',      yRatio: 0.955, widthRatio: 0.24, xRatio: 0.79, depth: -14, motion: 'bob', amount: 5, period: 3100 },
+  { key: 'bgl_sky',      mode: 'cover',  depth: -60, motion: 'none' },
+  { key: 'bgl_clouds',   mode: 'cover',  depth: -58, motion: 'drift', amount: 0.06, period: 38000 },
+  { key: 'bgl_hills',    mode: 'cover',  depth: -56, motion: 'none' },
+  { key: 'bgl_meadow',   mode: 'band',   depth: -54, motion: 'none' },
+  { key: 'bgl_cat',      mode: 'sprite', depth: -52, motion: 'bob', amount: 4, period: 2600,
+    xRatio: 0.17, yRatio: 0.985, widthRatio: 0.15 },
+  { key: 'bgl_dog',      mode: 'sprite', depth: -52, motion: 'bob', amount: 5, period: 3100,
+    xRatio: 0.82, yRatio: 0.985, widthRatio: 0.20 },
+  // Laternen haengen an Schnueren, die an der Oberkante beginnen -- das Schwingen
+  // dreht die Ebene deshalb um ihren oberen Rand, nicht um die Bildmitte.
+  { key: 'bgl_lanterns', mode: 'cover',  depth: -50, motion: 'sway', amount: 1.2, period: 5200 },
 ];
 
 function getCavityRatio(key: string): number {
@@ -947,6 +964,7 @@ export class PreloadScene extends Phaser.Scene {
     // 2. Environment & UI – Hintergrund-Tiers (höhere Tiers können fehlen, Fallback auf bg_kissa_niche)
     BG_TIERS.forEach(t => loadOptional(t.key));
     BG_LAYERS.forEach(l => loadOptional(l.key));
+    loadOptional(NICHE_FRAME_KEY);
     this.load.image('shelf_wood', 'assets/items/shelf_wood.png');
     this.load.image('fx_match_burst', 'assets/items/fx_match_burst.png');
     this.load.image('ui_card_kuro', 'assets/items/ui_card_kuro.png');
@@ -979,14 +997,25 @@ export class GameScene extends Phaser.Scene {
     this.shelves = [];
     this.selected = null;
 
-    // Hintergrund: Level-Tier bestimmen, Fallback auf Basis-Nische
+    // Hintergrund. Zwei Varianten:
+    //  a) Gartenszene aus bgl_ Layern plus freistehendem Regalgehaeuse
+    //  b) undurchsichtige Wand-Nische bg_kissa_niche (Fallback)
+    // Variante a braucht NICHE_FRAME_KEY -- ohne das Gehaeuse gaebe es kein
+    // Regal, und die Wand-Nische wuerde die Layer ohnehin verdecken.
     const tier = getBgTier(State.currentLevel);
-    const bgKey = this.textures.exists(tier.key) ? tier.key : 'bg_kissa_niche';
+    const useGarden = this.textures.exists(NICHE_FRAME_KEY);
+    const bgKey = useGarden
+      ? NICHE_FRAME_KEY
+      : (this.textures.exists(tier.key) ? tier.key : 'bg_kissa_niche');
     const cavityRatio = getCavityRatio(bgKey);
 
     // Default, falls gar keine Textur da ist
     this.cavityWidth = width * cavityRatio;
     this.cavityCenterX = width / 2;
+
+    if (useGarden) {
+      this.createBgLayers(width, height);
+    }
 
     if (this.textures.exists(bgKey)) {
       const bg = this.add.image(width / 2, height / 2, bgKey);
@@ -1011,8 +1040,6 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
-    this.createBgLayers(width, height);
-
     this.buildLevel(State.currentLevel);
 
     this.input.on('pointerdown', this.onPointerDown, this);
@@ -1035,25 +1062,37 @@ export class GameScene extends Phaser.Scene {
       if (!this.textures.exists(layer.key)) return;
 
       const src = this.textures.get(layer.key).getSourceImage();
-      const targetW = width * layer.widthRatio;
-      const scale = targetW / src.width;
-      const x = width * (layer.xRatio ?? 0.5);
-      const y = height * layer.yRatio;
-
-      // yRatio 0 haengt oben, 1 steht unten auf, dazwischen wird zentriert
-      const originY = layer.yRatio <= 0.02 ? 0 : layer.yRatio >= 0.98 ? 1 : 0.5;
-
-      const img = this.add.image(x, y, layer.key)
-        .setOrigin(0.5, originY)
-        .setScale(scale)
-        .setDepth(layer.depth);
-
       const amount = layer.amount ?? 0;
       const period = layer.period ?? 3000;
+      const swaying = layer.motion === 'sway';
+
+      let img: Phaser.GameObjects.Image;
+
+      if (layer.mode === 'cover') {
+        const scale = Math.max(width / src.width, height / src.height);
+        // Beim Schwingen liegt der Drehpunkt an der Oberkante, sonst mittig
+        img = this.add.image(width / 2, swaying ? 0 : height / 2, layer.key)
+          .setOrigin(0.5, swaying ? 0 : 0.5)
+          .setScale(scale)
+          .setDepth(layer.depth);
+      } else if (layer.mode === 'band') {
+        img = this.add.image(width / 2, height, layer.key)
+          .setOrigin(0.5, 1)
+          .setScale(width / src.width)
+          .setDepth(layer.depth);
+      } else {
+        const targetW = width * (layer.widthRatio ?? 0.2);
+        img = this.add.image(width * (layer.xRatio ?? 0.5), height * (layer.yRatio ?? 1), layer.key)
+          .setOrigin(0.5, 1)
+          .setScale(targetW / src.width)
+          .setDepth(layer.depth);
+      }
+
+      const baseX = img.x;
+      const baseY = img.y;
 
       switch (layer.motion) {
         case 'sway':
-          img.setOrigin(0.5, 0);
           this.tweens.add({
             targets: img,
             angle: { from: -amount, to: amount },
@@ -1066,7 +1105,7 @@ export class GameScene extends Phaser.Scene {
         case 'drift':
           this.tweens.add({
             targets: img,
-            x: { from: x - width * amount * 0.25, to: x + width * amount * 0.25 },
+            x: { from: baseX - width * amount, to: baseX + width * amount },
             duration: period,
             ease: 'Sine.easeInOut',
             yoyo: true,
@@ -1076,7 +1115,7 @@ export class GameScene extends Phaser.Scene {
         case 'bob':
           this.tweens.add({
             targets: img,
-            y: { from: y, to: y - amount },
+            y: { from: baseY, to: baseY - amount },
             duration: period,
             ease: 'Sine.easeInOut',
             yoyo: true,

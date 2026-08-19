@@ -18,6 +18,16 @@ const ITEM_IDS = [
   'origami_dripper', 'shou_sugi_block', 'tetsubin_kettle', 'yokan_prism'
 ];
 
+// Parallax-Layer, die als freigestelltes Einzelobjekt platziert werden statt
+// als bildfuellende Ebene. Alle uebrigen bgl_ Layer behalten ihre Position im
+// 9:16-Frame, damit sie sich im Spiel deckungsgleich stapeln lassen.
+const BGL_SPRITES = ['bgl_cat', 'bgl_dog'];
+
+// Layer, die als bildbreites Band am unteren Rand sitzen. Sie werden auf ihren
+// Inhalt beschnitten, weil die Renders unterhalb des Motivs Weissraum lassen --
+// als Vollbild-Ebene wuerde das Band sonst in der Luft haengen.
+const BGL_BANDS = ['bgl_meadow'];
+
 const TARGET_SIZE = 256;
 const ITEM_DISPLAY_SIZE = 72;
 const DEFAULT_OFFSET = 36;
@@ -159,7 +169,7 @@ function findBlobRegion(data, width, height, strategy = 'union', alphaMin = 80, 
   };
 }
 
-function defringe(data) {
+function defringe(data, stripHalo = true) {
   for (let i = 0; i < data.length; i += 4) {
     const dist = Math.sqrt((255 - data[i]) ** 2 + (255 - data[i + 1]) ** 2 + (255 - data[i + 2]) ** 2);
     if (dist < 18) data[i + 3] = 0;
@@ -174,10 +184,15 @@ function defringe(data) {
   //
   // Die Schwelle darf nicht ueber den Defringe-Rampenwert geloest werden: ein
   // globales Anheben wuerde die Brotflaeche des Toasts halbtransparent machen.
-  for (let i = 0; i < data.length; i += 4) {
-    const a = data[i + 3];
-    if (a === 0 || a >= 250) continue;
-    if (Math.min(data[i], data[i + 1], data[i + 2]) > 225) data[i + 3] = 0;
+  // Flache Grafik-Layer haben keinen Schlagschatten, dafuer aber absichtlich
+  // sehr helle Flaechen -- bei den Wolken loescht die Halo-Regel sonst das
+  // ganze Layer.
+  if (stripHalo) {
+    for (let i = 0; i < data.length; i += 4) {
+      const a = data[i + 3];
+      if (a === 0 || a >= 250) continue;
+      if (Math.min(data[i], data[i + 1], data[i + 2]) > 225) data[i + 3] = 0;
+    }
   }
 
   return data;
@@ -290,12 +305,48 @@ async function processImages() {
     // FALL 1b: Parallax-Layer (freigestellt, Breite 720, Hoehe proportional).
     // Position im Frame bleibt erhalten -> Layer koennen 1:1 uebereinander liegen.
     if (baseName.startsWith('bgl_')) {
+      // Einzelobjekt-Layer: freistellen und auf den Inhalt beschneiden, damit
+      // sie im Spiel frei positioniert werden koennen.
+      if (BGL_SPRITES.includes(baseName)) {
+        const { pipeline, box } = await cropToContent(filePath);
+        const targetH = 512;
+        const targetW = Math.max(32, Math.round(box.width * (targetH / box.height)));
+        await pipeline
+          .resize(targetW, targetH, { fit: 'fill' })
+          .png({ compressionLevel: 9 })
+          .toFile(targetPath);
+        console.log(`  ${baseName}: sprite ${box.width}x${box.height} -> ${targetW}x${targetH}`);
+        continue;
+      }
+
+      // Band-Layer: auf den Inhalt beschnitten, volle Breite, unten buendig.
+      if (BGL_BANDS.includes(baseName)) {
+        const { pipeline, box } = await cropToContent(filePath, 'union');
+        const targetW = 720;
+        const targetH = Math.max(16, Math.round(box.height * (targetW / box.width)));
+        await pipeline
+          .resize(targetW, targetH, { fit: 'fill' })
+          .png({ compressionLevel: 9 })
+          .toFile(targetPath);
+        console.log(`  ${baseName}: band ${box.width}x${box.height} -> ${targetW}x${targetH}`);
+        continue;
+      }
+
+      // Bildfuellende Ebene: nur freistellen, Position im Frame bleibt erhalten.
       const { data, info } = await sharp(filePath).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
-      defringe(data);
+      defringe(data, false);
       await sharp(data, { raw: { width: info.width, height: info.height, channels: 4 } })
         .resize(720, null, { fit: 'inside' })
         .png({ compressionLevel: 9 })
         .toFile(targetPath);
+
+      // Das freistehende Regalgehaeuse traegt die Nische, in die das Spiel die
+      // Regalbretter setzt -- es braucht dieselbe Vermessung wie ein bg_.
+      if (baseName.includes('niche')) {
+        const { data: fd, info: fi } = await sharp(targetPath).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+        cavities[baseName] = await measureCavityRatio(fd, fi.width, fi.height);
+        console.log(`  ${baseName}: cavityRatio=${cavities[baseName]}`);
+      }
       continue;
     }
 

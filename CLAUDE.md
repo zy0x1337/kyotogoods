@@ -87,7 +87,17 @@ Format: Portrait 9:16 Canvas, Objekt mittig, **genau ein Objekt im Bild**. Ancho
 Statt eines einzelnen Bildes wird der Hintergrund aus freigestellten Ebenen gebaut, damit sich Wolken, Laternen und Tiere unabhängig bewegen können. Die Szene: die Regalnische steht auf einer Engawa-Veranda, dahinter öffnet sich ein Garten — blauer Himmel, ferne Hügel, Wiese, oben hängende Chōchin-Laternen unter dem Dachvorsprung, unten spielen Shiba und Katze.
 
 **Regel für alle Layer:** dieselbe gedeckte Kissa-Palette (Hinoki-Blond, Mattweiß, Matcha, Messing, Azuki), Art-Toy-Matt-Render, kein Fotorealismus, kein Text. Alle Layer außer `bgl_sky` werden freigestellt — daher **reines Weiß (#FFFFFF) als Hintergrund** und keine Bodenschatten. Das mittlere Band hinter der Nische bleibt bewusst leer, damit die Regale lesbar bleiben.
-Format aller Layer: Portrait 9:16 Canvas. Die Position im Frame bleibt erhalten — die Layer werden im Spiel deckungsgleich übereinandergelegt (`BG_LAYERS` in `src/main.ts:44`).
+Format aller Layer: Portrait 9:16 Canvas. `BG_LAYERS` in `src/main.ts` kennt drei Modi:
+
+| Modus | Layer | Verarbeitung |
+|---|---|---|
+| `cover` | sky, clouds, hills, lanterns, niche_frame | Position im Frame bleibt erhalten, wird wie der Hintergrund cover-skaliert — die Ebenen liegen deckungsgleich übereinander |
+| `band` | meadow | auf den Inhalt beschnitten, volle Breite, unten bündig |
+| `sprite` | cat, dog | freigestellt, über `xRatio`/`yRatio` platziert |
+
+`band` gibt es, weil der Wiesen-Render unterhalb des Motivs Weißraum ließ (Inhalt endete bei 84 % der Frame-Höhe) — als Vollbild-Ebene hätte das Band in der Luft gehangen. Wenn ein Render sein Motiv nicht bis zur gedachten Kante führt, ist `band` die Reparatur, nicht ein neuer Render.
+
+Die Halo-Entfernung des Defringings läuft für `bgl_`-Vollbild-Ebenen **nicht**: flache Grafik-Layer haben keinen Schlagschatten, dafür absichtlich sehr helle Flächen. Mit aktiver Regel war das Wolken-Layer komplett verschwunden.
 
 17. **bgl_sky** *(Vollbild, statisch, unterste Ebene):*
     Soft pale blue morning sky filling the entire frame, gentle vertical gradient from dusty cornflower blue at the top to warm ivory at the horizon, completely empty with no clouds and no objects, flat matte art-toy poster finish, tall portrait orientation 9:16, no text, no watermark, 8k resolution --style raw
@@ -107,7 +117,12 @@ Format aller Layer: Portrait 9:16 Canvas. Die Position im Frame bleibt erhalten 
 22. **bgl_cat** *(Idle-Bob, unten links):*
     A single small chubby calico cat art toy figurine sitting upright with its tail curled around its paws, matte unglazed ceramic finish in cream white with soft azuki and charcoal patches, simplified rounded geometry, Japanese modern kissa aesthetic, orthographic side-facing three-quarter view, centered on a portrait 9:16 canvas with generous white padding, pure solid white background (#FFFFFF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
 
-23. **bgl_dog** *(Idle-Bob, unten rechts):*
+23. **bgl_niche_frame** *(das Regalgehäuse — fehlt noch, blockiert die Gartenszene):*
+    Der bisherige `bg_kissa_niche` ist eine **Wand mit Loch**: sein Umfeld ist warmer Putz (RGB 203–238), kein Weiß. Er lässt sich nicht freistellen und deckt die Parallax-Layer vollständig zu. Solange dieses Asset fehlt, läuft das Spiel im Fallback auf die alte Wand-Nische.
+    Freistehendes Möbel, kein Wandausschnitt. Innen eine matte Putzrückwand, damit die Regalbretter lesbar bleiben:
+    Front-facing freestanding tall rectangular display cabinet made of warm blonde hinoki wood with slim side posts and a flat top and bottom board, deep matte white plaster back panel inside the open cavity, small brushed brass corner brackets, no doors and no shelves inside, single isolated object, Japanese modern kissa aesthetic, tall portrait orientation 9:16 with the cabinet filling the central 80% of the frame, orthographic front view, pure solid white background (#FFFFFF), zero floor shadow, sharp silhouette edge definition, art toy product render, 8k resolution --style raw
+
+24. **bgl_dog** *(Idle-Bob, unten rechts):*
     A single small round shiba inu art toy figurine standing playfully with its curled tail up, matte unglazed ceramic finish in warm toast gold and chalk white, simplified rounded geometry, Japanese modern kissa aesthetic, orthographic side-facing three-quarter view, centered on a portrait 9:16 canvas with generous white padding, pure solid white background (#FFFFFF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
 
 ### Match Feedback FX
@@ -188,7 +203,7 @@ Checkliste im Browser:
 Den tatsächlich verwendeten Prompt in Abschnitt 3 aktualisieren, inkl. Versionsnotiz, warum die Vorgängerversion ersetzt wurde. Der Katalog ist die einzige Quelle für Re-Renders.
 
 ### Offene Punkte
-- `btn_undo` ist noch v1 (flaches Icon). Prompt 14 rendern; `btn_shuffle` und `ui_card_*` sind v2.
-- `btn_hammer` ist ein freistehender Schlägel statt einer Tastenkachel und ragt seitlich aus dem Tray. Prompt 16 rendern.
-- `bg_kissa_niche_mid` hat dieselbe gemessene Nischenweite wie `bg_kissa_niche` (0.6458) — Tier 2 ist damit wirkungslos. Mit stärkerer Betonung auf *thinner side pillars* neu rendern.
-- `bgl_*` Layer existieren noch nicht; der Code ist vorbereitet und wartet auf die Assets.
+- **`bgl_niche_frame` fehlt (Prompt 23).** Ohne das freistehende Gehäuse bleibt der Garten unsichtbar: der alte `bg_kissa_niche` ist eine undurchsichtige Wand und deckt alle Layer zu. `GameScene` schaltet automatisch auf die Gartenszene um, sobald die Textur im Manifest steht.
+- `btn_undo`, `btn_shuffle`, `btn_hammer`, `ui_card_kuro`, `ui_card_hinoki` sind auf v2 — nichts offen.
+- `bg_kissa_niche_mid` hat dieselbe gemessene Nischenweite wie `bg_kissa_niche` (0.6458) — Tier 2 ist damit wirkungslos. Nur noch relevant, solange der Fallback läuft.
+- Katze und Hund stehen dicht am Booster-Tray. Sobald das Gehäuse da ist, prüfen, ob `xRatio` (0.17 / 0.82) noch passt.
