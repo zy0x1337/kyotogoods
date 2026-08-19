@@ -27,7 +27,18 @@ export const BG_CAVITY_RATIOS: Record<string, number> = {
   bg_kissa_niche: 0.6458,
   bg_kissa_niche_mid: 0.6458,
   bg_kissa_niche_wide: 0.8167,
-  bg_plaster: 0.8958
+  bg_plaster: 0.8958,
+  bgl_niche_frame: 0.5592
+};
+
+// Lichte Nische als Rechteck in Bildanteilen: x ist die Mitte, y die Oberkante.
+export const BG_CAVITY_RECTS: Record<string, { x: number; y: number; w: number; h: number }> = {
+  bgl_niche_frame: { x: 0.5029, y: 0.1166, w: 0.5592, h: 0.7678 }
+};
+
+// Aeussere Kontur eines freistehenden Rahmens in Bildanteilen.
+export const BG_FRAME_RECTS: Record<string, { x: number; y: number; w: number; h: number }> = {
+  bgl_niche_frame: { x: 0.5, y: 0.0682, w: 0.6833, h: 0.8674 }
 };
 
 // Alle Texturen, die tatsaechlich in public/assets/items/ liegen.
@@ -42,6 +53,7 @@ export const AVAILABLE_ASSETS: ReadonlySet<string> = new Set([
   'bgl_hills',
   'bgl_lanterns',
   'bgl_meadow',
+  'bgl_niche_frame',
   'bgl_sky',
   'brass_sphere',
   'btn_hammer',

@@ -1,7 +1,7 @@
-import '@fontsource/zen-maru-gothic/latin-500.css';
-import '@fontsource/zen-maru-gothic/latin-700.css';
+import '@fontsource/m-plus-rounded-1c/latin-500.css';
+import '@fontsource/m-plus-rounded-1c/latin-800.css';
 import Phaser from 'phaser';
-import { ITEM_BOTTOM_OFFSETS, BG_CAVITY_RATIOS, AVAILABLE_ASSETS } from './item_offsets.generated';
+import { ITEM_BOTTOM_OFFSETS, BG_CAVITY_RATIOS, BG_CAVITY_RECTS, BG_FRAME_RECTS, AVAILABLE_ASSETS } from './item_offsets.generated';
 
 // ==========================================
 // 1. CMF DESIGN SYSTEM & ITEM REGISTRY
@@ -20,9 +20,10 @@ export const KYOTO = {
   sageGreen: 0x8FA89B
 };
 
-// Zen Maru Gothic: gerundete japanische Gothic-Schrift, passt zum weichen
-// Art-Toy-CMF der Goods. Wird lokal gebundelt (offline-tauglich fuer Capacitor).
-const FONT_FAMILY = '"Zen Maru Gothic", "Hiragino Maru Gothic ProN", sans-serif';
+// M PLUS Rounded 1c: stark gerundete japanische Schrift mit deutlich mehr
+// Spiel als eine neutrale Gothic -- passt zum Art-Toy-CMF der Goods. Wird lokal
+// gebundelt (offline-tauglich fuer Capacitor).
+const FONT_FAMILY = '"M PLUS Rounded 1c", "Hiragino Maru Gothic ProN", sans-serif';
 
 // Kleine Grossbuchstaben-Labels ueber den Werten
 function labelStyle(size: number, color: string): Phaser.Types.GameObjects.Text.TextStyle {
@@ -31,7 +32,7 @@ function labelStyle(size: number, color: string): Phaser.Types.GameObjects.Text.
 
 // Werte und Ueberschriften
 function valueStyle(size: number, color: string): Phaser.Types.GameObjects.Text.TextStyle {
-  return { fontFamily: FONT_FAMILY, fontSize: `${size}px`, color, fontStyle: '700' };
+  return { fontFamily: FONT_FAMILY, fontSize: `${size}px`, color, fontStyle: '800' };
 }
 
 const DESIGN_WIDTH = 420;
@@ -88,10 +89,12 @@ const BG_LAYERS: BgLayer[] = [
   { key: 'bgl_clouds',   mode: 'cover',  depth: -58, motion: 'drift', amount: 0.06, period: 38000 },
   { key: 'bgl_hills',    mode: 'cover',  depth: -56, motion: 'none' },
   { key: 'bgl_meadow',   mode: 'band',   depth: -54, motion: 'none' },
+  // Das Gehaeuse belegt rund x 0.17..0.85 -- die Tiere stehen in den schmalen
+  // Wiesenstreifen links und rechts davon, sonst verschwinden sie dahinter.
   { key: 'bgl_cat',      mode: 'sprite', depth: -52, motion: 'bob', amount: 4, period: 2600,
-    xRatio: 0.17, yRatio: 0.985, widthRatio: 0.15 },
+    xRatio: 0.085, yRatio: 0.965, widthRatio: 0.14 },
   { key: 'bgl_dog',      mode: 'sprite', depth: -52, motion: 'bob', amount: 5, period: 3100,
-    xRatio: 0.82, yRatio: 0.985, widthRatio: 0.20 },
+    xRatio: 0.915, yRatio: 0.965, widthRatio: 0.17 },
   // Laternen haengen an Schnueren, die an der Oberkante beginnen -- das Schwingen
   // dreht die Ebene deshalb um ihren oberen Rand, nicht um die Bildmitte.
   { key: 'bgl_lanterns', mode: 'cover',  depth: -50, motion: 'sway', amount: 1.2, period: 5200 },
@@ -109,9 +112,22 @@ function getLayoutScale(width: number): number {
   return Math.min(width / DESIGN_WIDTH, 1.15);
 }
 
+// Feinjustierung einzelner Goods gegenueber der Einheitsgroesse. Der Render
+// bestimmt, wie viel Leinwand ein Objekt einnimmt -- der Chawan fiel dadurch
+// deutlich groesser aus als die uebrigen Items.
+const ITEM_SIZE_FACTORS: Record<string, number> = {
+  chawan_cup: 0.8
+};
+
+function getItemSizeFactor(itemId: string): number {
+  return ITEM_SIZE_FACTORS[itemId] ?? 1;
+}
+
 function getItemRestY(itemId: string, itemScale: number): number {
   const bottomOffset = ITEM_BOTTOM_OFFSETS[itemId] ?? DEFAULT_ITEM_BOTTOM_OFFSET;
-  return (SHELF_PLATFORM_TOP_Y - bottomOffset) * itemScale;
+  // Der Offset gilt fuer die volle Anzeigegroesse und muss mitschrumpfen,
+  // sonst schwebt ein verkleinertes Item ueber dem Brett.
+  return (SHELF_PLATFORM_TOP_Y - bottomOffset * getItemSizeFactor(itemId)) * itemScale;
 }
 
 export interface ItemDef {
@@ -556,7 +572,8 @@ export class GoodsItem extends Phaser.GameObjects.Container {
     const s = this.itemScale;
 
     if (this.scene.textures.exists(`item_${this.itemId}`)) {
-      const img = this.scene.add.image(0, 0, `item_${this.itemId}`).setDisplaySize(ITEM_SIZE * s, ITEM_SIZE * s);
+      const size = ITEM_SIZE * s * getItemSizeFactor(this.itemId);
+      const img = this.scene.add.image(0, 0, `item_${this.itemId}`).setDisplaySize(size, size);
       this.add(img);
       return;
     }
@@ -987,6 +1004,8 @@ export class GameScene extends Phaser.Scene {
   private selected: { shelfIdx: number; slotIdx: number; item: GoodsItem } | null = null;
   private cavityWidth = 0;
   private cavityCenterX = 0;
+  private cavityTop = 0;
+  private cavityHeight = 0;
 
   constructor() {
     super('GameScene');
@@ -1018,25 +1037,79 @@ export class GameScene extends Phaser.Scene {
     }
 
     if (this.textures.exists(bgKey)) {
-      const bg = this.add.image(width / 2, height / 2, bgKey);
       const source = this.textures.get(bgKey).getSourceImage();
-      const coverScale = Math.max(width / source.width, height / source.height);
-      bg.setScale(coverScale).setDepth(-10);
+      const rect = BG_CAVITY_RECTS[bgKey];
+      const frame = BG_FRAME_RECTS[bgKey];
 
-      // Die Nische wird mit dem Hintergrund mitskaliert und -beschnitten. Ihre
-      // Breite auf dem Schirm haengt daher am coverScale, nicht an der
-      // Screenbreite -- sonst laeuft das Regal ueber den Hinoki-Rahmen.
-      this.cavityWidth = source.width * coverScale * cavityRatio;
-      this.cavityCenterX = bg.x;
+      let imgX = width / 2;
+      let imgY = height / 2;
+      let k: number;
+
+      if (frame) {
+        // Freistehendes Moebel: so skalieren und setzen, dass es vollstaendig
+        // zwischen Header und Booster-Reihe steht und unten auf der Wiese
+        // aufsitzt. Cover-Scaling wuerde es oben und unten anschneiden -- das
+        // liess es wie einen Wandausschnitt wirken statt wie ein Moebel im Garten.
+        const uiScale = getLayoutScale(width);
+        const bandTop = 78 * uiScale;
+        const bandBottom = height - 74 * uiScale;
+
+        k = Math.min(
+          (bandBottom - bandTop) / (frame.h * source.height),
+          (width * 0.92) / (frame.w * source.width)
+        );
+        imgX = width / 2 - (frame.x - 0.5) * source.width * k;
+        imgY = bandBottom - (frame.y + frame.h - 0.5) * source.height * k;
+      } else {
+        k = Math.max(width / source.width, height / source.height);
+      }
+
+      if (rect) {
+        // Exaktes Rechteck, beim Ausstanzen der Rueckwand aus dem Alphakanal gemessen
+        this.cavityCenterX = imgX + (rect.x - 0.5) * source.width * k;
+        this.cavityWidth = rect.w * source.width * k;
+        this.cavityTop = imgY + (rect.y - 0.5) * source.height * k;
+        this.cavityHeight = rect.h * source.height * k;
+      } else {
+        this.cavityCenterX = width / 2;
+        this.cavityWidth = source.width * k * cavityRatio;
+        this.cavityTop = 0;
+        this.cavityHeight = 0;
+      }
+
+      // Shoji-Panel: hinter dem Rahmen, vor der Gartenszene. Ohne das milchige
+      // Papier stehen die Goods direkt auf Himmel und Huegeln und verlieren
+      // ihren Kontrast. Bewusst durchscheinend -- der Garten soll dahinter
+      // erkennbar bleiben.
+      if (useGarden && this.cavityHeight > 0) {
+        this.add.graphics().setDepth(-12)
+          .fillStyle(0xFFFDF6, 0.55)
+          .fillRect(
+            this.cavityCenterX - this.cavityWidth / 2,
+            this.cavityTop,
+            this.cavityWidth,
+            this.cavityHeight
+          );
+      }
+
+      // Bodenschatten: erdet das Moebel auf der Wiese, sonst schwebt es
+      if (frame) {
+        const footY = imgY + (frame.y + frame.h - 0.5) * source.height * k;
+        const footW = frame.w * source.width * k;
+        const shadow = this.add.graphics().setDepth(-11);
+        for (let i = 6; i > 0; i--) {
+          shadow.fillStyle(0x3A4A32, 0.05).fillEllipse(width / 2, footY, footW * (0.6 + i * 0.06), 26 * (i / 6));
+        }
+      }
+
+      this.add.image(imgX, imgY, bgKey).setScale(k).setDepth(-10);
 
       // Warmes Nischen-Licht: radialer Schein von oben
       const glow = this.add.graphics().setDepth(-9);
       const glowR = this.cavityWidth * 0.55;
-      const cx = this.cavityCenterX;
-      const cy = height * 0.22;
+      const cy = this.cavityHeight > 0 ? this.cavityTop + this.cavityHeight * 0.12 : height * 0.22;
       for (let r = glowR; r > 0; r -= glowR / 12) {
-        const alpha = 0.045 * (r / glowR);
-        glow.fillStyle(0xFFF8E8, alpha).fillCircle(cx, cy, r);
+        glow.fillStyle(0xFFF8E8, 0.045 * (r / glowR)).fillCircle(this.cavityCenterX, cy, r);
       }
     }
 
@@ -1076,9 +1149,12 @@ export class GameScene extends Phaser.Scene {
           .setScale(scale)
           .setDepth(layer.depth);
       } else if (layer.mode === 'band') {
-        img = this.add.image(width / 2, height, layer.key)
+        // Zwei Pixel ueber den unteren Rand hinaus und minimal breiter als die
+        // Leinwand: der Rand des Renders laeuft weich aus, ohne diesen
+        // Ueberstand blitzt am Bildrand eine Fuge durch.
+        img = this.add.image(width / 2, height + 2, layer.key)
           .setOrigin(0.5, 1)
-          .setScale(width / src.width)
+          .setScale((width + 4) / src.width)
           .setDepth(layer.depth);
       } else {
         const targetW = width * (layer.widthRatio ?? 0.2);
@@ -1133,9 +1209,21 @@ export class GameScene extends Phaser.Scene {
     const itemScale = getLayoutScale(this.scale.width);
     const verticalScale = this.scale.height / DESIGN_HEIGHT;
     const rows = level.layout.length;
-    const startY = (rows >= 6 ? 160 : rows === 5 ? 180 : 195) * verticalScale;
-    const shelfSpacing = (rows >= 6 ? 94 : rows === 5 ? 108 : 125) * verticalScale;
     const shelfWidth = Math.round(this.cavityWidth * SHELF_CAVITY_FILL);
+
+    // Ist die lichte Hoehe der Nische bekannt, werden die Bretter gleichmaessig
+    // darin verteilt statt nach festen Design-Werten gesetzt. Der halbe
+    // Zeilenabstand oben und unten haelt Abstand zum Rahmen.
+    let startY: number;
+    let shelfSpacing: number;
+
+    if (this.cavityHeight > 0) {
+      shelfSpacing = this.cavityHeight / (rows + 0.5);
+      startY = this.cavityTop + shelfSpacing * 0.75;
+    } else {
+      startY = (rows >= 6 ? 160 : rows === 5 ? 180 : 195) * verticalScale;
+      shelfSpacing = (rows >= 6 ? 94 : rows === 5 ? 108 : 125) * verticalScale;
+    }
 
     level.layout.forEach((data, i) => {
       this.shelves.push(new Shelf(this, this.cavityCenterX, startY + i * shelfSpacing, i, data, itemScale, shelfWidth));
@@ -1313,7 +1401,7 @@ export class GameScene extends Phaser.Scene {
 // Zieht eine UI-Karte als NineSlice auf. Die Ecken/Raender der Textur behalten
 // dabei ihre Originalgroesse -- nur die Mitte wird gedehnt. Ohne das wird eine
 // schmale Karte auf Headerbreite gezogen und Rahmen wie Messingkante verzerren.
-function addCardNineSlice(
+export function addCardNineSlice(
   scene: Phaser.Scene,
   x: number,
   y: number,
@@ -1352,56 +1440,39 @@ export class UIScene extends Phaser.Scene {
     const { width, height } = this.scale;
     const uiScale = getLayoutScale(width);
 
-    // Header-Plakette: SCORE links, Level mittig, MOVES rechts. Label und Wert
-    // sitzen gestapelt auf der vertikalen Mitte der Karte, damit der Text
-    // innerhalb des Rahmens bleibt und nicht auf dessen Kante klebt.
-    const headerH = 66 * uiScale;
-    const headerW = width - 32 * uiScale;
-    const headerX = 16 * uiScale;
-    const headerY = 22 * uiScale;
-    const headerCx = headerX + headerW / 2;
-    const headerCy = headerY + headerH / 2;
-
-    const headerCard = addCardNineSlice(this, headerCx, headerCy, headerW, headerH, 'ui_card_kuro');
-    if (!headerCard) {
-      const headerBg = this.add.graphics();
-      headerBg.fillStyle(KYOTO.kuroSteel, 0.92).fillRoundedRect(headerX, headerY, headerW, headerH, 14 * uiScale);
-      headerBg.lineStyle(1.5 * uiScale, KYOTO.brass, 0.55).strokeRoundedRect(headerX, headerY, headerW, headerH, 14 * uiScale);
-    }
-
-    // Innenabstand zum Rahmen der Karte
+    // Header. Die UI-Karten (ui_card_kuro / ui_card_hinoki) sind bewusst nicht
+    // gezeichnet -- der Text steht frei ueber der Gartenszene. Die Assets und
+    // addCardNineSlice bleiben erhalten, falls die Platten zurueckkommen.
     const pad = 26 * uiScale;
-    const labelY = headerCy - 13 * uiScale;
-    const valueY = headerCy + 5 * uiScale;
+    const labelY = 30 * uiScale;
+    const valueY = 56 * uiScale;
 
-    const LABEL = '#C49A5A';
-    const VALUE = '#FDFBF7';
+    // Dunkle Schrift plus heller Schein, damit sie sowohl auf Himmel als auch
+    // auf Huegeln lesbar bleibt.
+    const LABEL = '#5C4B33';
+    const VALUE = '#1E2022';
+    const halo = {
+      shadow: { offsetX: 0, offsetY: 0, color: '#FDFBF7', blur: 8, stroke: true, fill: true }
+    };
 
-    this.add.text(headerX + pad, labelY, 'SCORE', labelStyle(9 * uiScale, LABEL)).setOrigin(0, 0.5);
-    this.scoreTxt = this.add.text(headerX + pad, valueY, '0', valueStyle(20 * uiScale, VALUE)).setOrigin(0, 0.5);
+    // Label und Wert teilen sich dieselbe x-Mitte und stehen beide auf
+    // Origin 0.5 -- damit sitzt die Zahl exakt unter der Wortmitte.
+    const stack = (cx: number, text: string, initial: string) => {
+      this.add.text(cx, labelY, text, { ...labelStyle(13 * uiScale, LABEL), ...halo }).setOrigin(0.5);
+      return this.add.text(cx, valueY, initial, { ...valueStyle(24 * uiScale, VALUE), ...halo }).setOrigin(0.5);
+    };
 
-    this.add.text(headerCx, labelY, 'TEA BAR', labelStyle(9 * uiScale, LABEL)).setOrigin(0.5);
-    this.add.text(headerCx, valueY, `${State.currentLevel}`, valueStyle(20 * uiScale, VALUE)).setOrigin(0.5);
+    // Aussenspalten so breit wie noetig, damit die Bloecke nicht am Rand kleben
+    const colW = 78 * uiScale;
+    this.scoreTxt = stack(pad + colW / 2, 'SCORE', '0');
+    stack(width / 2, 'TEA BAR', `${State.currentLevel}`);
+    this.movesTxt = stack(width - pad - colW / 2, 'MOVES', `${State.moves}`);
 
-    this.add.text(headerX + headerW - pad, labelY, 'MOVES', labelStyle(9 * uiScale, LABEL)).setOrigin(1, 0.5);
-    this.movesTxt = this.add.text(headerX + headerW - pad, valueY, `${State.moves}`, valueStyle(20 * uiScale, VALUE)).setOrigin(1, 0.5);
-
-    // Booster Tray. Breite folgt der Buttonreihe, damit kein Button ueber den
-    // Rand der Karte hinausragt.
-    // Die Buttons muessen in die vertiefte Rinne der Tray-Karte passen, nicht
-    // ueber deren Rahmen hinausragen: die Rinne belegt rund 60% der Kartenhoehe.
+    // Booster-Reihe, ebenfalls ohne Tray-Karte
     const boosterSize = 48 * uiScale;
     const boosterSpacing = 92 * uiScale;
-    const trayW = boosterSpacing * 2 + boosterSize + 36 * uiScale;
-    const trayH = boosterSize * 1.85;
     const trayX = width / 2;
-    const trayY = height - trayH / 2 - 18 * uiScale;
-    const trayCard = addCardNineSlice(this, trayX, trayY, trayW, trayH, 'ui_card_hinoki');
-    if (!trayCard) {
-      const trayBg = this.add.graphics();
-      trayBg.fillStyle(KYOTO.hinoki, 0.12).fillRoundedRect(trayX - trayW / 2, trayY - trayH / 2, trayW, trayH, 12 * uiScale);
-      trayBg.lineStyle(1 * uiScale, KYOTO.hinoki, 0.3).strokeRoundedRect(trayX - trayW / 2, trayY - trayH / 2, trayW, trayH, 12 * uiScale);
-    }
+    const trayY = height - 52 * uiScale;
 
     const boosters = [
       { key: 'btn_undo', label: 'UNDO', fn: () => this.game.events.emit(GameEvents.UNDO_TRIGGERED) },
@@ -1438,7 +1509,7 @@ export class UIScene extends Phaser.Scene {
     const onMove = (m: number) => {
       this.movesTxt.setText(`${m}`);
       if (m <= 5) {
-        this.movesTxt.setColor('#E8A0A5');
+        this.movesTxt.setColor('#6E373B');
         this.tweens.add({ targets: this.movesTxt, scale: 1.2, yoyo: true, duration: 110, ease: 'Sine.easeOut' });
       } else {
         this.movesTxt.setColor(VALUE);
@@ -1547,8 +1618,8 @@ function boot() {
 // Webfont geladen ist, bleibt der erste Frame in der Fallback-Schrift stehen.
 if (document.fonts && document.fonts.load) {
   Promise.all([
-    document.fonts.load('500 16px "Zen Maru Gothic"'),
-    document.fonts.load('700 16px "Zen Maru Gothic"')
+    document.fonts.load('500 16px "M PLUS Rounded 1c"'),
+    document.fonts.load('800 16px "M PLUS Rounded 1c"')
   ]).then(boot).catch(boot);
 } else {
   boot();

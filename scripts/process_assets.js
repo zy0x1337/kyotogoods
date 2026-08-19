@@ -28,6 +28,11 @@ const BGL_SPRITES = ['bgl_cat', 'bgl_dog'];
 // als Vollbild-Ebene wuerde das Band sonst in der Luft haengen.
 const BGL_BANDS = ['bgl_meadow'];
 
+// Layer, bei denen die Innenflaeche ausgestanzt wird, damit der Hintergrund
+// durchscheint. Der Render liefert das Gehaeuse mit geschlossener Putzrueckwand
+// -- ohne Ausstanzen waere die Gartenszene dahinter unsichtbar.
+const BGL_KNOCKOUT = ['bgl_niche_frame'];
+
 const TARGET_SIZE = 256;
 const ITEM_DISPLAY_SIZE = 72;
 const DEFAULT_OFFSET = 36;
@@ -169,6 +174,88 @@ function findBlobRegion(data, width, height, strategy = 'union', alphaMin = 80, 
   };
 }
 
+// Stanzt die geschlossene Innenflaeche eines Rahmens aus. Gefuellt wird von der
+// Bildmitte her ueber unbunte, mittelhelle Pixel -- das Putzpanel. Der Holzrahmen
+// ist stark warm (Kanalspreizung > 80) und stoppt die Fuellung zuverlaessig, der
+// reinweisse Aussenbereich wird nie erreicht.
+//
+// Rueckgabe: Bounding-Box des Lochs, also die lichte Nische.
+function knockOutPanel(data, width, height) {
+  const isPanel = i => {
+    const r = data[i], g = data[i + 1], b = data[i + 2];
+    const lo = Math.min(r, g, b);
+    return Math.max(r, g, b) - lo < 30 && lo > 140 && lo < 250;
+  };
+
+  const seed = (Math.floor(height / 2) * width + Math.floor(width / 2));
+  if (!isPanel(seed * 4)) return null;
+
+  const seen = new Uint8Array(width * height);
+  const stack = new Int32Array(width * height);
+  let sp = 0;
+  stack[sp++] = seed;
+  seen[seed] = 1;
+
+  let x0 = width, y0 = height, x1 = -1, y1 = -1;
+
+  while (sp > 0) {
+    const cur = stack[--sp];
+    const cx = cur % width;
+    const cy = (cur - cx) / width;
+
+    data[cur * 4 + 3] = 0;
+    if (cx < x0) x0 = cx;
+    if (cx > x1) x1 = cx;
+    if (cy < y0) y0 = cy;
+    if (cy > y1) y1 = cy;
+
+    if (cx > 0 && !seen[cur - 1] && isPanel((cur - 1) * 4)) { seen[cur - 1] = 1; stack[sp++] = cur - 1; }
+    if (cx < width - 1 && !seen[cur + 1] && isPanel((cur + 1) * 4)) { seen[cur + 1] = 1; stack[sp++] = cur + 1; }
+    if (cy > 0 && !seen[cur - width] && isPanel((cur - width) * 4)) { seen[cur - width] = 1; stack[sp++] = cur - width; }
+    if (cy < height - 1 && !seen[cur + width] && isPanel((cur + width) * 4)) { seen[cur + width] = 1; stack[sp++] = cur + width; }
+  }
+
+  return { left: x0, top: y0, width: x1 - x0 + 1, height: y1 - y0 + 1 };
+}
+
+// Freigestellt wird gegen Weiss -- bei einem cremeweissen Objekt trifft das
+// auch dessen hellste Stellen. Bei der Katze riss das Loecher in Kopf und Fell.
+//
+// Reparatur: von den Bildraendern her durch die transparenten Pixel fluten. Was
+// dabei nicht erreicht wird, liegt im Inneren des Objekts und bekommt seine
+// Deckung zurueck. Weiche Aussenkanten bleiben unangetastet, weil sie vom Rand
+// aus erreichbar sind.
+function fillInteriorHoles(data, width, height, alphaMax = 250) {
+  const isHole = i => data[i * 4 + 3] <= alphaMax;
+
+  const seen = new Uint8Array(width * height);
+  const stack = new Int32Array(width * height);
+  let sp = 0;
+
+  const push = i => {
+    if (!seen[i] && isHole(i)) { seen[i] = 1; stack[sp++] = i; }
+  };
+
+  for (let x = 0; x < width; x++) { push(x); push((height - 1) * width + x); }
+  for (let y = 0; y < height; y++) { push(y * width); push(y * width + width - 1); }
+
+  while (sp > 0) {
+    const cur = stack[--sp];
+    const cx = cur % width;
+    const cy = (cur - cx) / width;
+    if (cx > 0) push(cur - 1);
+    if (cx < width - 1) push(cur + 1);
+    if (cy > 0) push(cur - width);
+    if (cy < height - 1) push(cur + width);
+  }
+
+  let filled = 0;
+  for (let i = 0; i < width * height; i++) {
+    if (!seen[i] && data[i * 4 + 3] < 255) { data[i * 4 + 3] = 255; filled++; }
+  }
+  return filled;
+}
+
 function defringe(data, stripHalo = true) {
   for (let i = 0; i < data.length; i += 4) {
     const dist = Math.sqrt((255 - data[i]) ** 2 + (255 - data[i + 1]) ** 2 + (255 - data[i + 2]) ** 2);
@@ -213,6 +300,34 @@ function isShadowPixel(data, idx) {
   return spread < 10 && Math.min(r, g, b) > 150;
 }
 
+// Schrumpft die Box, solange eine Randreihe nicht dicht genug gedeckt ist. Der
+// Wiesen-Render lief rechts und unten weich aus; die Box umfasste diese fast
+// transparenten Reihen noch, wodurch das Band im Spiel eine Luecke zum
+// Bildrand liess.
+function trimSoftEdges(data, width, box, minCoverage = 0.6, alphaMin = 200) {
+  let { left, top } = box;
+  let right = box.left + box.width - 1;
+  let bottom = box.top + box.height - 1;
+
+  const rowCov = y => {
+    let hit = 0;
+    for (let x = left; x <= right; x++) if (data[(y * width + x) * 4 + 3] > alphaMin) hit++;
+    return hit / (right - left + 1);
+  };
+  const colCov = x => {
+    let hit = 0;
+    for (let y = top; y <= bottom; y++) if (data[(y * width + x) * 4 + 3] > alphaMin) hit++;
+    return hit / (bottom - top + 1);
+  };
+
+  while (bottom > top && rowCov(bottom) < minCoverage) bottom--;
+  while (top < bottom && rowCov(top) < minCoverage) top++;
+  while (right > left && colCov(right) < minCoverage) right--;
+  while (left < right && colCov(left) < minCoverage) left++;
+
+  return { left, top, width: right - left + 1, height: bottom - top + 1 };
+}
+
 function trimShadowEdges(data, width, box, threshold = 0.9) {
   let { left, top } = box;
   let right = box.left + box.width - 1;
@@ -240,9 +355,12 @@ function trimShadowEdges(data, width, box, threshold = 0.9) {
 // Defringe -> exakter Alpha-Crop. Liefert eine sharp-Pipeline auf dem reinen
 // Inhalt. Mit singleObject wird vorher auf die groesste zusammenhaengende
 // Flaeche eingegrenzt, damit ein zweites Objekt im Render nichts verschiebt.
-async function cropToContent(filePath, strategy = 'union', trimShadow = false) {
+async function cropToContent(filePath, strategy = 'union', trimShadow = false, softEdge = 0) {
   const { data, info } = await sharp(filePath).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
   defringe(data);
+
+  const holes = fillInteriorHoles(data, info.width, info.height);
+  if (holes > 0) console.log(`    ${holes} Innenpixel wiederhergestellt`);
 
   const region = strategy === 'none' ? null : findBlobRegion(data, info.width, info.height, strategy);
   const rawBox = findAlphaBox(data, info.width, info.height, 80, region);
@@ -250,7 +368,8 @@ async function cropToContent(filePath, strategy = 'union', trimShadow = false) {
 
   if (!rawBox) return { pipeline: sharp(data, { raw }), box: { left: 0, top: 0, width: info.width, height: info.height } };
 
-  const box = trimShadow ? trimShadowEdges(data, info.width, rawBox) : rawBox;
+  let box = trimShadow ? trimShadowEdges(data, info.width, rawBox) : rawBox;
+  if (softEdge > 0) box = trimSoftEdges(data, info.width, box, softEdge);
   const cut = (rawBox.height - box.height) + (rawBox.width - box.width);
   if (cut > 0) console.log(`    Schattenrand entfernt: ${rawBox.width}x${rawBox.height} -> ${box.width}x${box.height}`);
 
@@ -281,6 +400,8 @@ async function processImages() {
 
   const offsets = {};
   const cavities = {};
+  const cavityRects = {};
+  const frameRects = {};
   const produced = new Set();
 
   for (const file of files) {
@@ -308,7 +429,11 @@ async function processImages() {
       // Einzelobjekt-Layer: freistellen und auf den Inhalt beschneiden, damit
       // sie im Spiel frei positioniert werden koennen.
       if (BGL_SPRITES.includes(baseName)) {
-        const { pipeline, box } = await cropToContent(filePath);
+        // Schattenrand mit abschneiden: die Figuren stehen im Spiel auf der
+        // Wiese, ein gebackener Papierschatten darunter liest sich dort als
+        // heller Fleck. Die Koerper sind durchgehend warm getoent, das
+        // Kanten-Trimming kann sie nicht anknabbern.
+        const { pipeline, box } = await cropToContent(filePath, 'union', true);
         const targetH = 512;
         const targetW = Math.max(32, Math.round(box.width * (targetH / box.height)));
         await pipeline
@@ -321,7 +446,7 @@ async function processImages() {
 
       // Band-Layer: auf den Inhalt beschnitten, volle Breite, unten buendig.
       if (BGL_BANDS.includes(baseName)) {
-        const { pipeline, box } = await cropToContent(filePath, 'union');
+        const { pipeline, box } = await cropToContent(filePath, 'union', false, 0.9);
         const targetW = 720;
         const targetH = Math.max(16, Math.round(box.height * (targetW / box.width)));
         await pipeline
@@ -335,17 +460,46 @@ async function processImages() {
       // Bildfuellende Ebene: nur freistellen, Position im Frame bleibt erhalten.
       const { data, info } = await sharp(filePath).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
       defringe(data, false);
+
+      // Rahmen mit geschlossener Rueckwand: Innenflaeche ausstanzen. Das Loch ist
+      // danach die exakte lichte Nische -- praeziser als die Helligkeits-Heuristik
+      // von measureCavityRatio, weil es direkt aus dem Alphakanal kommt.
+      if (BGL_KNOCKOUT.includes(baseName)) {
+        const hole = knockOutPanel(data, info.width, info.height);
+        if (hole) {
+          cavityRects[baseName] = {
+            x: parseFloat(((hole.left + hole.width / 2) / info.width).toFixed(4)),
+            y: parseFloat((hole.top / info.height).toFixed(4)),
+            w: parseFloat((hole.width / info.width).toFixed(4)),
+            h: parseFloat((hole.height / info.height).toFixed(4))
+          };
+          cavities[baseName] = cavityRects[baseName].w;
+          console.log(`  ${baseName}: Nische ausgestanzt, ${hole.width}x${hole.height} (ratio ${cavities[baseName]})`);
+        } else {
+          console.warn(`  ${baseName}: Innenflaeche nicht erkannt -- Rueckwand bleibt geschlossen`);
+        }
+      }
+
       await sharp(data, { raw: { width: info.width, height: info.height, channels: 4 } })
         .resize(720, null, { fit: 'inside' })
         .png({ compressionLevel: 9 })
         .toFile(targetPath);
 
-      // Das freistehende Regalgehaeuse traegt die Nische, in die das Spiel die
-      // Regalbretter setzt -- es braucht dieselbe Vermessung wie ein bg_.
-      if (baseName.includes('niche')) {
-        const { data: fd, info: fi } = await sharp(targetPath).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
-        cavities[baseName] = await measureCavityRatio(fd, fi.width, fi.height);
-        console.log(`  ${baseName}: cavityRatio=${cavities[baseName]}`);
+      // Aeussere Kontur des Gehaeuses. Das Spiel skaliert danach, damit das
+      // Moebel vollstaendig zwischen Header und Booster-Reihe steht statt vom
+      // Cover-Scaling oben und unten angeschnitten zu werden.
+      if (BGL_KNOCKOUT.includes(baseName)) {
+        const { data: od, info: oi } = await sharp(targetPath).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+        const outer = findAlphaBox(od, oi.width, oi.height, 40);
+        if (outer) {
+          frameRects[baseName] = {
+            x: parseFloat(((outer.left + outer.width / 2) / oi.width).toFixed(4)),
+            y: parseFloat((outer.top / oi.height).toFixed(4)),
+            w: parseFloat((outer.width / oi.width).toFixed(4)),
+            h: parseFloat((outer.height / oi.height).toFixed(4))
+          };
+          console.log(`  ${baseName}: Kontur ${outer.width}x${outer.height}`);
+        }
       }
       continue;
     }
@@ -442,6 +596,14 @@ async function processImages() {
     if (path.extname(f).toLowerCase() === '.png') produced.add(path.parse(f).name);
   }
 
+  const rectLines = Object.keys(cavityRects).sort()
+    .map(id => `  ${id}: { x: ${cavityRects[id].x}, y: ${cavityRects[id].y}, w: ${cavityRects[id].w}, h: ${cavityRects[id].h} }`)
+    .join(',\n');
+
+  const frameLines = Object.keys(frameRects).sort()
+    .map(id => `  ${id}: { x: ${frameRects[id].x}, y: ${frameRects[id].y}, w: ${frameRects[id].w}, h: ${frameRects[id].h} }`)
+    .join(',\n');
+
   const assetLines = [...produced].sort()
     .map(id => `  '${id}'`)
     .join(',\n');
@@ -458,6 +620,16 @@ ${lines}
 // Lichte Weite der Nische je Hintergrund, gemessen am fertigen PNG (Anteil der Bildbreite).
 export const BG_CAVITY_RATIOS: Record<string, number> = {
 ${cavityLines}
+};
+
+// Lichte Nische als Rechteck in Bildanteilen: x ist die Mitte, y die Oberkante.
+export const BG_CAVITY_RECTS: Record<string, { x: number; y: number; w: number; h: number }> = {
+${rectLines}
+};
+
+// Aeussere Kontur eines freistehenden Rahmens in Bildanteilen.
+export const BG_FRAME_RECTS: Record<string, { x: number; y: number; w: number; h: number }> = {
+${frameLines}
 };
 
 // Alle Texturen, die tatsaechlich in public/assets/items/ liegen.

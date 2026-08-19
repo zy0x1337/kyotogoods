@@ -11,10 +11,11 @@
 
 ## 2. Typografie
 
-Schrift: **Zen Maru Gothic** (`@fontsource/zen-maru-gothic`, nur Latin 500 + 700 importiert). Gerundete japanische Gothic — passt zum weichen Art-Toy-CMF der Goods und bleibt bei kleinen Zahlen lesbar. Wird lokal gebundelt, also offline-tauglich im Capacitor-Build.
+Schrift: **M PLUS Rounded 1c** (`@fontsource/m-plus-rounded-1c`, nur Latin 500 + 800 importiert). Stark gerundete japanische Schrift mit deutlich mehr Spiel als eine neutrale Gothic. Wird lokal gebundelt, also offline-tauglich im Capacitor-Build. Vorgänger war Zen Maru Gothic — zu brav.
 
 - `FONT_FAMILY`, `labelStyle(size, color)`, `valueStyle(size, color)` in `src/main.ts` — kein `this.add.text` ohne einen dieser Helper.
 - `labelStyle` = Weight 500, Versalien, klein, Messing `#C49A5A`. `valueStyle` = Weight 700, Werte in Creme `#FDFBF7` auf dunklem Grund.
+- Header: Label und Wert teilen sich dieselbe x-Mitte bei Origin 0.5, damit die Zahl exakt unter der Wortmitte steht.
 - Der Spielstart wartet auf `document.fonts.load(...)`. Phaser rastert Text beim Erzeugen in die Canvas — ohne das Warten bliebe der erste Frame in der Fallback-Schrift stehen.
 
 ---
@@ -70,18 +71,18 @@ Format: Portrait 9:16 Canvas, Karte horizontal zentriert, großzügiges Weiß ü
 13. **ui_card_hinoki** *(Booster-Tray, trägt Undo / Shuffle / Hammer):*
     Wide horizontal tray bar, aspect ratio 4:1, warm blonde hinoki wood with clean chamfered edges and subtle straight grain, a shallow recessed inner channel running the full length, two small brass end caps at the far left and far right ends only, completely plain and unornamented center field, Japanese modern kissa aesthetic, portrait 9:16 canvas with the bar centered horizontally and generous white padding above and below, orthographic front view, pure solid white background (#FFFFFF), art toy product render, 8k resolution --style raw
 
-### Booster Button Prompts (v2)
-Die v1-Buttons waren flache App-Icons mit weißen Vektorpfeilen und passen nicht zum taktilen Art-Toy-CMF der Goods. v2 spricht dieselbe Sprache wie die Items: ein physisches Objekt, kein Icon-Glyph. Alle drei quadratisch, gleiche Grundfläche.
-Format: Portrait 9:16 Canvas, Objekt mittig, **genau ein Objekt im Bild**. Anchor: `raw_renders/tetsubin_kettle.png` für das CMF.
+### Booster Button Prompts (v3)
+v2 waren schwarze Kuro-Steel-Kacheln. Vor dem Gartenhintergrund wirken sie hart und düster — v3 ist heller, runder und freundlicher, bleibt aber in der Palette der Szene (Creme, Matcha, Azuki, Hinoki, Messing).
+Format: Portrait 9:16 Canvas, Objekt mittig, **genau ein Objekt im Bild**. Alle drei mit identischem Körper, nur das Relief unterscheidet sich — sonst wirkt die Reihe unruhig.
 
 14. **btn_undo:**
-    Single squat matte charcoal black kuro steel push button tile with softly rounded corners, a raised brushed brass counter-clockwise curved arrow sculpted in low relief on its face, tactile matte finish with zero gloss, Japanese modern kissa aesthetic, art toy product render, orthographic front view, centered on a portrait 9:16 canvas with generous white padding, pure solid white background (#FFFFFF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
+    Single chunky rounded-square push button in soft warm cream ceramic with generously rounded corners and a soft pillowy silhouette, a thick raised matcha-green counter-clockwise curved arrow sculpted in smooth low relief on its face, friendly modern art toy look, tactile matte finish with zero gloss, Japanese modern kissa palette, orthographic front view, centered on a portrait 9:16 canvas with generous white padding, pure solid white background (#FFFFFF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
 
 15. **btn_shuffle:**
-    Single squat matte charcoal black kuro steel push button tile with softly rounded corners, two raised brushed brass arrows crossing each other in an X sculpted in low relief on its face, tactile matte finish with zero gloss, Japanese modern kissa aesthetic, art toy product render, orthographic front view, centered on a portrait 9:16 canvas with generous white padding, pure solid white background (#FFFFFF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
+    Single chunky rounded-square push button in soft warm cream ceramic with generously rounded corners and a soft pillowy silhouette, two thick raised azuki-rose arrows crossing each other in an X sculpted in smooth low relief on its face, friendly modern art toy look, tactile matte finish with zero gloss, Japanese modern kissa palette, orthographic front view, centered on a portrait 9:16 canvas with generous white padding, pure solid white background (#FFFFFF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
 
-16. **btn_hammer** *(optional — für ein konsistentes Set mitrendern):*
-    Single squat matte charcoal black kuro steel push button tile with softly rounded corners, a raised pale hinoki wood mallet sculpted in low relief on its face, tactile matte finish with zero gloss, Japanese modern kissa aesthetic, art toy product render, orthographic front view, centered on a portrait 9:16 canvas with generous white padding, pure solid white background (#FFFFFF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
+16. **btn_hammer:**
+    Single chunky rounded-square push button in soft warm cream ceramic with generously rounded corners and a soft pillowy silhouette, a thick raised blonde hinoki wood mallet sculpted in smooth low relief on its face, friendly modern art toy look, tactile matte finish with zero gloss, Japanese modern kissa palette, orthographic front view, centered on a portrait 9:16 canvas with generous white padding, pure solid white background (#FFFFFF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
 
 ### Parallax-Hintergrund "Engawa-Garten" (bgl_ Layer)
 Statt eines einzelnen Bildes wird der Hintergrund aus freigestellten Ebenen gebaut, damit sich Wolken, Laternen und Tiere unabhängig bewegen können. Die Szene: die Regalnische steht auf einer Engawa-Veranda, dahinter öffnet sich ein Garten — blauer Himmel, ferne Hügel, Wiese, oben hängende Chōchin-Laternen unter dem Dachvorsprung, unten spielen Shiba und Katze.
@@ -91,7 +92,7 @@ Format aller Layer: Portrait 9:16 Canvas. `BG_LAYERS` in `src/main.ts` kennt dre
 
 | Modus | Layer | Verarbeitung |
 |---|---|---|
-| `cover` | sky, clouds, hills, lanterns, niche_frame | Position im Frame bleibt erhalten, wird wie der Hintergrund cover-skaliert — die Ebenen liegen deckungsgleich übereinander |
+| `cover` | sky, clouds, hills, lanterns | Position im Frame bleibt erhalten, wird wie der Hintergrund cover-skaliert — die Ebenen liegen deckungsgleich übereinander |
 | `band` | meadow | auf den Inhalt beschnitten, volle Breite, unten bündig |
 | `sprite` | cat, dog | freigestellt, über `xRatio`/`yRatio` platziert |
 
@@ -179,6 +180,10 @@ Alle drei werden **am fertigen PNG** gemessen bzw. gelistet — nie im Code hard
 - `union` (Items, Buttons, FX): alle Flächen ab 8 % der größten zusammen. Abgesetzte Details wie der Butterwürfel auf dem Toast oder die Goldflocke auf dem Yokan bleiben erhalten, Defringe-Krimskrams fällt raus.
 - `widest` (UI-Karten, Regalbrett): die Fläche mit dem breitesten Seitenverhältnis, als einzige. Wenn das Modell ein zweites Objekt mit ins Bild legt, ist das Störobjekt meist flächiger als die gesuchte Leiste — nach Fläche zu wählen greift daneben.
 
+**Innenlöcher.** Freigestellt wird gegen Weiß — bei einem cremeweißen Objekt trifft das auch dessen hellste Stellen. Bei der Katze riss das Löcher in Kopf und Fell. `fillInteriorHoles` flutet nach dem Keying von den Bildrändern durch die transparenten Pixel; was dabei nicht erreicht wird, liegt im Objektinneren und bekommt seine Deckung zurück. Weiche Außenkanten bleiben unangetastet, weil sie vom Rand aus erreichbar sind.
+
+**Weiche Ränder.** `trimSoftEdges` schrumpft die Box, solange eine Randreihe unter 90 % Deckung liegt. Für Band-Layer nötig: der Wiesen-Render lief rechts und unten weich aus, die Box umfasste diese fast transparenten Reihen noch — im Spiel blieb dadurch unten und unten rechts eine Lücke zum Bildrand.
+
 **Schattenränder.** Der weiche Schlagschatten der Renders liegt auf weißem Papier und kommt deshalb als hellgrauer, voll deckender Streifen an — die Alpha-Logik greift dort nicht, und auf dem Putz-Hintergrund des Spiels liest er sich als Glühen unter dem Objekt. `trimShadowEdges` schrumpft die Box kantenweise, solange eine Randreihe zu ≥ 90 % aus unbunten hellen Pixeln besteht. Das läuft **nur für `ui_card_` und `shelf_`** — flache Rechtecke, bei denen der Streifen auffällt. Global angewandt hat es flache helle Items zerlegt (ein Bambuslöffel schrumpfte von 301 auf 64 px Höhe), weil blasses Holz demselben Muster entspricht.
 
 Anschließend zählt der Crop deckende Pixel pro Zeile/Spalte und ignoriert Reihen unter 0,5 % Deckung. Ohne das hatte ein einzelnes Streupixel (JPEG-Artefakt, Rest einer Signatur) die Box von `ui_card_kuro` auf die doppelte Höhe aufgebläht.
@@ -202,8 +207,14 @@ Checkliste im Browser:
 ### Schritt 6 — Prompt zurückschreiben
 Den tatsächlich verwendeten Prompt in Abschnitt 3 aktualisieren, inkl. Versionsnotiz, warum die Vorgängerversion ersetzt wurde. Der Katalog ist die einzige Quelle für Re-Renders.
 
+### Das Regalgehäuse
+`bgl_niche_frame` kommt mit geschlossener Putzrückwand aus dem Modell. Die Pipeline stanzt sie aus (`knockOutPanel`): Flutfüllung von der Bildmitte über unbunte, mittelhelle Pixel. Der Holzrahmen ist stark warm (Kanalspreizung > 80) und stoppt die Füllung zuverlässig, der reinweiße Außenbereich wird nie erreicht.
+
+Das Loch ist danach die exakte lichte Nische und wird als `BG_CAVITY_RECTS` exportiert — präziser als die Helligkeits-Heuristik, weil es direkt aus dem Alphakanal kommt. Zusätzlich geht die äußere Kontur als `BG_FRAME_RECTS` mit: das Spiel skaliert das Möbel danach so, dass es vollständig zwischen Header und Booster-Reihe steht und unten auf der Wiese aufsitzt. Cover-Scaling hätte es oben und unten angeschnitten — dann liest es sich wie ein Wandausschnitt statt wie ein Möbel im Garten.
+
+Im Gehäuse liegt ein Shoji-Panel (Deckkraft 0.55) zwischen Garten und Regalbrettern. Ohne das milchige Papier stehen die Goods direkt auf Himmel und Hügeln und verlieren ihren Kontrast; bei 0.9 war der Garten dahinter komplett weg.
+
 ### Offene Punkte
-- **`bgl_niche_frame` fehlt (Prompt 23).** Ohne das freistehende Gehäuse bleibt der Garten unsichtbar: der alte `bg_kissa_niche` ist eine undurchsichtige Wand und deckt alle Layer zu. `GameScene` schaltet automatisch auf die Gartenszene um, sobald die Textur im Manifest steht.
-- `btn_undo`, `btn_shuffle`, `btn_hammer`, `ui_card_kuro`, `ui_card_hinoki` sind auf v2 — nichts offen.
-- `bg_kissa_niche_mid` hat dieselbe gemessene Nischenweite wie `bg_kissa_niche` (0.6458) — Tier 2 ist damit wirkungslos. Nur noch relevant, solange der Fallback läuft.
-- Katze und Hund stehen dicht am Booster-Tray. Sobald das Gehäuse da ist, prüfen, ob `xRatio` (0.17 / 0.82) noch passt.
+- `btn_undo`, `btn_shuffle`, `btn_hammer` sind auf v2 (schwarze Kacheln). Prompts 14–16 rendern.
+- `bg_kissa_niche_mid` hat dieselbe gemessene Nischenweite wie `bg_kissa_niche` — nur noch relevant, falls der Fallback ohne `bgl_niche_frame` wieder gebraucht wird.
+- `ui_card_kuro` / `ui_card_hinoki` sind fertig, werden aber aktuell **nicht gezeichnet** — der Header steht frei über der Szene. `addCardNineSlice` bleibt im Code, falls die Platten zurückkommen.
