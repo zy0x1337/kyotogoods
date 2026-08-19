@@ -22,7 +22,7 @@ Schrift: **Zen Maru Gothic** (`@fontsource/zen-maru-gothic`, nur Latin 500 + 700
 ## 3. Nano Banana Pro Asset Generation Catalog
 
 ### Master Negative Prompt (Append to all runs)
-hyper-realistic, high gloss reflections, shiny liquid specular, crumbs, baked floor shadows, blurry edges, gradient background, photorealism, text, watermark, logo, perspective tilt, 3d render artifacts
+hyper-realistic, high gloss reflections, shiny liquid specular, crumbs, baked floor shadows, blurry edges, gradient background, photorealism, text, watermark, logo, perspective tilt, 3d render artifacts, multiple objects, second object, duplicate, collage, grid layout, product lineup
 
 ### Master Base Prompt Formula
 [Subject] [Geometric Primitive], Japanese modern kissa aesthetic, unglazed biscuit porcelain and tactile matte wood CMF, orthographic front-facing view, softbox ambient studio lighting, pure solid white background (#FFFFFF), zero floor shadow, sharp silhouette edge definition, art toy product render, 8k resolution --style raw
@@ -60,7 +60,9 @@ Format: Portrait 9:16 mobile canvas. Anchor: `raw_renders/bg_kissa_niche.jpeg`.
 
 ### UI Card Prompts (v2 — echte Balkenformate)
 Die v1-Renders waren nahezu quadratisch (`ui_card_kuro` kam als 1606×1702 aus dem Modell) und mussten im Spiel auf Headerbreite gezogen werden. Ab v2 wird das Seitenverhältnis mitgeneriert. Die Karte wird per NineSlice gezeichnet, d.h. nur die Mitte darf gedehnt werden — **Ecken und Kanten müssen deshalb vollständig im äußeren Drittel der Kartenhöhe liegen**, und das Mittelfeld muss eine ruhige, wiederholbare Fläche ohne Ornament sein.
-Format: Portrait 9:16 Canvas, Karte horizontal zentriert, großzügiges Weiß über und unter der Karte. Anchor: `raw_renders/bg_kissa_niche.jpeg` für den Ton.
+Format: Portrait 9:16 Canvas, Karte horizontal zentriert, großzügiges Weiß über und unter der Karte.
+
+**Kein Anchor bei UI-Karten.** Mit `bg_kissa_niche.jpeg` als Anchor hat das Modell die Nische ein zweites Mal mit ins Bild gerendert — die Pipeline fängt das inzwischen ab (Strategie `widest`), aber der Render bleibt Verschwendung. Farbton stattdessen im Prompt beschreiben.
 
 12. **ui_card_kuro** *(Header-Plakette: Score / Bar / Moves):*
     Extremely wide horizontal nameplate bar, aspect ratio 6:1, matte charcoal black kuro steel body with a thin brushed brass pinstripe running along the top and bottom edge, small brass corner brackets at the far left and far right ends only, completely plain and unornamented center field, softly rounded corners, Japanese modern kissa aesthetic, portrait 9:16 canvas with the bar centered horizontally and generous white padding above and below, orthographic front view, pure solid white background (#FFFFFF), art toy product render, 8k resolution --style raw
@@ -70,7 +72,7 @@ Format: Portrait 9:16 Canvas, Karte horizontal zentriert, großzügiges Weiß ü
 
 ### Booster Button Prompts (v2)
 Die v1-Buttons waren flache App-Icons mit weißen Vektorpfeilen und passen nicht zum taktilen Art-Toy-CMF der Goods. v2 spricht dieselbe Sprache wie die Items: ein physisches Objekt, kein Icon-Glyph. Alle drei quadratisch, gleiche Grundfläche.
-Format: Portrait 9:16 Canvas, Objekt mittig. Anchor: `raw_renders/tetsubin_kettle.png` für das CMF.
+Format: Portrait 9:16 Canvas, Objekt mittig, **genau ein Objekt im Bild**. Anchor: `raw_renders/tetsubin_kettle.png` für das CMF.
 
 14. **btn_undo:**
     Single squat matte charcoal black kuro steel push button tile with softly rounded corners, a raised brushed brass counter-clockwise curved arrow sculpted in low relief on its face, tactile matte finish with zero gloss, Japanese modern kissa aesthetic, art toy product render, orthographic front view, centered on a portrait 9:16 canvas with generous white padding, pure solid white background (#FFFFFF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
@@ -155,7 +157,14 @@ Schreibt nach `public/assets/items/` und regeneriert `src/item_offsets.generated
 Alle drei werden **am fertigen PNG** gemessen bzw. gelistet — nie im Code hardcoden.
 `AVAILABLE_ASSETS` steuert das Laden optionaler Assets: der Vite-Dev-Server liefert für fehlende Dateien das HTML-Fallback mit Status 200, der Phaser-Loader würde daran hängenbleiben.
 
-Der Alpha-Crop zählt deckende Pixel pro Zeile/Spalte und ignoriert Reihen unter 0,5 % Deckung. Ein einzelnes Streupixel aus dem Render (JPEG-Artefakt, Rest einer Signatur) hatte die Box von `ui_card_kuro` sonst auf die doppelte Höhe aufgebläht — die Karte füllte im Spiel nur die obere Hälfte ihrer Box und der Text rutschte darunter.
+**Freistellen in zwei Stufen.** Erst wird die Maske in zusammenhängende Flächen zerlegt, dann erst die Bounding-Box gezogen:
+
+- `union` (Items, Buttons, FX): alle Flächen ab 8 % der größten zusammen. Abgesetzte Details wie der Butterwürfel auf dem Toast oder die Goldflocke auf dem Yokan bleiben erhalten, Defringe-Krimskrams fällt raus.
+- `widest` (UI-Karten, Regalbrett): die Fläche mit dem breitesten Seitenverhältnis, als einzige. Wenn das Modell ein zweites Objekt mit ins Bild legt, ist das Störobjekt meist flächiger als die gesuchte Leiste — nach Fläche zu wählen greift daneben.
+
+Anschließend zählt der Crop deckende Pixel pro Zeile/Spalte und ignoriert Reihen unter 0,5 % Deckung. Ohne das hatte ein einzelnes Streupixel (JPEG-Artefakt, Rest einer Signatur) die Box von `ui_card_kuro` auf die doppelte Höhe aufgebläht.
+
+Das Log meldet `N relevante Objekte im Render` — steht da mehr als 1, hat der Render Ballast und die Strategie hat geraten. Dann lieber neu rendern.
 
 ### Schritt 4 — Registrieren
 Pflicht-Assets in `PreloadScene.preload()` (`src/main.ts`) mit `this.load.image(...)` laden, optionale mit `loadOptional(key)`.
@@ -175,7 +184,7 @@ Checkliste im Browser:
 Den tatsächlich verwendeten Prompt in Abschnitt 3 aktualisieren, inkl. Versionsnotiz, warum die Vorgängerversion ersetzt wurde. Der Katalog ist die einzige Quelle für Re-Renders.
 
 ### Offene Punkte
-- `ui_card_kuro` ist noch v1 (nahezu quadratisch) — Header wirkt als dünnes schwarzes Band. Prompt 12 rendern.
-- `btn_undo` / `btn_shuffle` sind noch v1 (flache Icons). Prompts 14 / 15 rendern.
+- `btn_undo` ist noch v1 (flaches Icon). Prompt 14 rendern; `btn_shuffle` und `ui_card_*` sind v2.
+- `btn_hammer` ist ein freistehender Schlägel statt einer Tastenkachel und ragt seitlich aus dem Tray. Prompt 16 rendern.
 - `bg_kissa_niche_mid` hat dieselbe gemessene Nischenweite wie `bg_kissa_niche` (0.6458) — Tier 2 ist damit wirkungslos. Mit stärkerer Betonung auf *thinner side pillars* neu rendern.
 - `bgl_*` Layer existieren noch nicht; der Code ist vorbereitet und wartet auf die Assets.

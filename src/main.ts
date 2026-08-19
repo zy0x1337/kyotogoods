@@ -1349,12 +1349,14 @@ export class UIScene extends Phaser.Scene {
 
     // Booster Tray. Breite folgt der Buttonreihe, damit kein Button ueber den
     // Rand der Karte hinausragt.
-    const boosterSpacing = 96 * uiScale;
-    const boosterSize = 54 * uiScale;
-    const trayW = boosterSpacing * 2 + boosterSize + 34 * uiScale;
-    const trayH = 78 * uiScale;
+    // Die Buttons muessen in die vertiefte Rinne der Tray-Karte passen, nicht
+    // ueber deren Rahmen hinausragen: die Rinne belegt rund 60% der Kartenhoehe.
+    const boosterSize = 48 * uiScale;
+    const boosterSpacing = 92 * uiScale;
+    const trayW = boosterSpacing * 2 + boosterSize + 36 * uiScale;
+    const trayH = boosterSize * 1.85;
     const trayX = width / 2;
-    const trayY = height - 56 * uiScale;
+    const trayY = height - trayH / 2 - 18 * uiScale;
     const trayCard = addCardNineSlice(this, trayX, trayY, trayW, trayH, 'ui_card_hinoki');
     if (!trayCard) {
       const trayBg = this.add.graphics();
