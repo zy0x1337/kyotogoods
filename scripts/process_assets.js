@@ -36,6 +36,58 @@ function findAlphaBounds(data, width, height) {
   return { top, bottom };
 }
 
+// Vollstaendige Alpha-Bounding-Box. sharp.trim() ist bei weichen Defringe-Kanten
+// unzuverlaessig (laesst Rest-Padding stehen), daher rechnen wir selbst.
+function findAlphaBox(data, width, height, threshold = 10) {
+  let x0 = width, y0 = height, x1 = -1, y1 = -1;
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      if (data[(y * width + x) * 4 + 3] > threshold) {
+        if (x < x0) x0 = x;
+        if (x > x1) x1 = x;
+        if (y < y0) y0 = y;
+        if (y > y1) y1 = y;
+      }
+    }
+  }
+  if (x1 < 0) return null;
+  return { left: x0, top: y0, width: x1 - x0 + 1, height: y1 - y0 + 1 };
+}
+
+function defringe(data) {
+  for (let i = 0; i < data.length; i += 4) {
+    const dist = Math.sqrt((255 - data[i]) ** 2 + (255 - data[i + 1]) ** 2 + (255 - data[i + 2]) ** 2);
+    if (dist < 18) data[i + 3] = 0;
+    else if (dist < 38) data[i + 3] = Math.floor(((dist - 18) / 20) * 255);
+  }
+  return data;
+}
+
+// Defringe -> exakter Alpha-Crop. Liefert eine sharp-Pipeline auf dem reinen Inhalt.
+async function cropToContent(filePath) {
+  const { data, info } = await sharp(filePath).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  defringe(data);
+  const box = findAlphaBox(data, info.width, info.height);
+  const raw = { width: info.width, height: info.height, channels: 4 };
+  if (!box) return { pipeline: sharp(data, { raw }), box: { left: 0, top: 0, width: info.width, height: info.height } };
+  return { pipeline: sharp(data, { raw }).extract(box), box };
+}
+
+// Misst die lichte Weite der Nische im Hintergrund-Render. Die dunkle Innenkante
+// des Hinoki-Rahmens ist auf halber Hoehe das jeweils dunkelste Pixel im linken
+// bzw. rechten Randdrittel. Ergebnis: Anteil der Bildbreite (0..1).
+async function measureCavityRatio(buf, width, height) {
+  const y = Math.floor(height * 0.5);
+  const lum = x => {
+    const i = (y * width + x) * 4;
+    return (buf[i] + buf[i + 1] + buf[i + 2]) / 3;
+  };
+  let xl = 0, minL = Infinity, xr = width - 1, minR = Infinity;
+  for (let x = 0; x < width * 0.4; x++) if (lum(x) < minL) { minL = lum(x); xl = x; }
+  for (let x = Math.floor(width * 0.6); x < width; x++) if (lum(x) < minR) { minR = lum(x); xr = x; }
+  return parseFloat(((xr - xl) / width).toFixed(4));
+}
+
 async function processImages() {
   if (!fs.existsSync(RAW_DIR)) return;
   const files = fs.readdirSync(RAW_DIR).filter(f => {
@@ -44,6 +96,7 @@ async function processImages() {
   });
 
   const offsets = {};
+  const cavities = {};
 
   for (const file of files) {
     const filePath = path.join(RAW_DIR, file);
@@ -52,83 +105,98 @@ async function processImages() {
 
     console.log(`Processing: ${file}`);
 
-    // FALL 1: Hintergrund (Seitenverhältnis erhalten, Breite 720)
+    // FALL 1: Hintergrund-Vollbild (Seitenverhaeltnis erhalten, Breite 720)
     if (baseName.startsWith('bg_')) {
       await sharp(filePath)
         .resize(720, null, { fit: 'inside' })
         .png({ quality: 90 })
         .toFile(targetPath);
+      const { data: bgData, info: bgInfo } = await sharp(targetPath).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+      cavities[baseName] = await measureCavityRatio(bgData, bgInfo.width, bgInfo.height);
+      console.log(`  ${baseName}: cavityRatio=${cavities[baseName]}`);
       continue;
     }
 
-    // FALL 2: Regal-Leiste (Freistellen, aber breites Seitenverhältnis beibehalten)
+    // FALL 1b: Parallax-Layer (freigestellt, Breite 720, Hoehe proportional).
+    // Position im Frame bleibt erhalten -> Layer koennen 1:1 uebereinander liegen.
+    if (baseName.startsWith('bgl_')) {
+      const { data, info } = await sharp(filePath).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+      defringe(data);
+      await sharp(data, { raw: { width: info.width, height: info.height, channels: 4 } })
+        .resize(720, null, { fit: 'inside' })
+        .png({ compressionLevel: 9 })
+        .toFile(targetPath);
+      continue;
+    }
+
+    // FALL 2: Regal-Leiste (exakter Alpha-Crop, dann auf 608x184 gestreckt)
     if (baseName.startsWith('shelf_')) {
-      const image = sharp(filePath).ensureAlpha();
-      const { data, info } = await image.raw().toBuffer({ resolveWithObject: true });
-
-      for (let i = 0; i < data.length; i += 4) {
-        const dist = Math.sqrt((255 - data[i]) ** 2 + (255 - data[i + 1]) ** 2 + (255 - data[i + 2]) ** 2);
-        if (dist < 18) data[i + 3] = 0;
-        else if (dist < 38) data[i + 3] = Math.floor(((dist - 18) / 20) * 255);
-      }
-
-      await sharp(data, { raw: { width: info.width, height: info.height, channels: 4 } })
-        .trim()
-        .resize(608, 184, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+      const { pipeline } = await cropToContent(filePath);
+      await pipeline
+        .resize(608, 184, { fit: 'fill' })
         .png({ compressionLevel: 9 })
         .toFile(targetPath);
       continue;
     }
 
-    // FALL 3: UI-Karten (Freistellen, 512x128 Breitformat)
+    // FALL 3: UI-Karten. Randlos auf den sichtbaren Inhalt beschnitten, damit
+    // NineSlice im Spiel exakt an der Kante der Karte ansetzt. Hoehe auf 128
+    // normalisiert, Breite proportional (kein Verzerren des Rahmens).
     if (baseName.startsWith('ui_card_')) {
-      const image = sharp(filePath).ensureAlpha();
-      const { data, info } = await image.raw().toBuffer({ resolveWithObject: true });
+      const { pipeline, box } = await cropToContent(filePath);
+      const targetH = 128;
+      const targetW = Math.max(64, Math.round(box.width * (targetH / box.height)));
+      await pipeline
+        .resize(targetW, targetH, { fit: 'fill' })
+        .png({ compressionLevel: 9 })
+        .toFile(targetPath);
+      console.log(`  ${baseName}: content ${box.width}x${box.height} -> ${targetW}x${targetH}`);
+      continue;
+    }
 
-      for (let i = 0; i < data.length; i += 4) {
-        const dist = Math.sqrt((255 - data[i]) ** 2 + (255 - data[i + 1]) ** 2 + (255 - data[i + 2]) ** 2);
-        if (dist < 18) data[i + 3] = 0;
-        else if (dist < 38) data[i + 3] = Math.floor(((dist - 18) / 20) * 255);
-      }
-
-      await sharp(data, { raw: { width: info.width, height: info.height, channels: 4 } })
-        .trim()
-        .resize(512, 128, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+    // FALL 4: Match-FX (exakter Alpha-Crop, quadratischer Sprite)
+    if (baseName.startsWith('fx_')) {
+      const { pipeline } = await cropToContent(filePath);
+      await pipeline
+        .resize(256, 256, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
         .png({ compressionLevel: 9 })
         .toFile(targetPath);
       continue;
     }
 
-    // FALL 4: Goods & UI-Icons (Freistellen, 256x256, Bottom-Offset berechnen)
+    // FALL 4b: Booster-Buttons & Icons (exakter Alpha-Crop, quadratisch zentriert)
+    if (baseName.startsWith('btn_') || baseName.startsWith('ui_')) {
+      const { pipeline } = await cropToContent(filePath);
+      await pipeline
+        .resize(256, 256, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+        .png({ compressionLevel: 9 })
+        .toFile(targetPath);
+      continue;
+    }
+
+    // FALL 5: Goods & UI-Icons (Freistellen, 256x256, Bottom-Offset berechnen)
     if (!ITEM_IDS.includes(baseName)) continue;
 
-    const image = sharp(filePath).ensureAlpha();
-    const { data, info } = await image.raw().toBuffer({ resolveWithObject: true });
-
-    for (let i = 0; i < data.length; i += 4) {
-      const dist = Math.sqrt((255 - data[i]) ** 2 + (255 - data[i + 1]) ** 2 + (255 - data[i + 2]) ** 2);
-      if (dist < 18) data[i + 3] = 0;
-      else if (dist < 38) data[i + 3] = Math.floor(((dist - 18) / 20) * 255);
-    }
-
-    // Alpha-Bounds im Raw-Source bestimmen (VOR dem Trim)
-    const bounds = findAlphaBounds(data, info.width, info.height);
-
-    // Bottom-Offset: Pixel vom untersten sichtbaren Pixel zur unteren Kante des Raw-Bildes
-    const trimBottom = bounds.bottom >= 0 ? (info.height - 1 - bounds.bottom) : 0;
-
-    // In Design-Koordinaten umrechnen (72px-Display)
-    const offsetDesign = info.height > 0
-      ? parseFloat((trimBottom * (ITEM_DISPLAY_SIZE / info.height)).toFixed(2))
+    // Defringing + exakter Alpha-Crop + Resize auf 256x256. Die finale Textur ist
+    // die einzige verlaessliche Quelle fuer die sichtbare Unterkante im Spiel.
+    const { pipeline } = await cropToContent(filePath);
+    const processed = pipeline
+      .resize(TARGET_SIZE, TARGET_SIZE, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } });
+    const { data: processedData, info: processedInfo } = await processed
+      .ensureAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    const bounds = findAlphaBounds(processedData, processedInfo.width, processedInfo.height);
+    const offsetDesign = bounds.bottom >= 0
+      ? parseFloat(((bounds.bottom + 1 - processedInfo.height / 2) * (ITEM_DISPLAY_SIZE / processedInfo.height)).toFixed(2))
       : DEFAULT_OFFSET;
 
     offsets[baseName] = offsetDesign;
-    console.log(`  ${baseName}: rawH=${info.height} bottomRow=${bounds.bottom} trimBottom=${trimBottom}px → ${offsetDesign}px design`);
+    console.log(`  ${baseName}: finalBottom=${bounds.bottom}px → ${offsetDesign}px design`);
 
-    // Defringing + Trim + Resize auf 256x256
-    await sharp(data, { raw: { width: info.width, height: info.height, channels: 4 } })
-      .trim()
-      .resize(TARGET_SIZE, TARGET_SIZE, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+    await sharp(processedData, {
+      raw: { width: processedInfo.width, height: processedInfo.height, channels: processedInfo.channels }
+    })
       .png({ compressionLevel: 9 })
       .toFile(targetPath);
   }
@@ -146,9 +214,18 @@ async function processImages() {
     .map(id => `  ${id}: ${offsets[id]}`)
     .join(',\n');
 
+  const cavityLines = Object.keys(cavities).sort()
+    .map(id => `  ${id}: ${cavities[id]}`)
+    .join(',\n');
+
   const tsContent = `// Auto-generated by scripts/process_assets.js — do not edit manually
 export const ITEM_BOTTOM_OFFSETS: Record<string, number> = {
 ${lines}
+};
+
+// Lichte Weite der Nische je Hintergrund, gemessen am fertigen PNG (Anteil der Bildbreite).
+export const BG_CAVITY_RATIOS: Record<string, number> = {
+${cavityLines}
 };
 `;
 

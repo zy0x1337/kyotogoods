@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { ITEM_BOTTOM_OFFSETS } from './item_offsets.generated';
+import { ITEM_BOTTOM_OFFSETS, BG_CAVITY_RATIOS } from './item_offsets.generated';
 
 // ==========================================
 // 1. CMF DESIGN SYSTEM & ITEM REGISTRY
@@ -23,14 +23,50 @@ const DESIGN_HEIGHT = 760;
 const ITEM_SIZE = 72;
 const SHELF_PLATFORM_TOP_Y = 38;
 const DEFAULT_ITEM_BOTTOM_OFFSET = 36;
-const BG_CAVITY_RATIO = 478 / 720;
+const BG_CAVITY_RATIO = 0.6458;
 
-// Hintergrund-Tiers: pro Level-Gruppe eine breiter werdende Nische
-const BG_TIERS: { key: string; cavityRatio: number; levelRange: [number, number] }[] = [
-  { key: 'bg_kissa_niche',      cavityRatio: 478 / 720, levelRange: [1, 3] },
-  { key: 'bg_kissa_niche_mid',  cavityRatio: 562 / 720, levelRange: [4, 5] },
-  { key: 'bg_kissa_niche_wide', cavityRatio: 634 / 720, levelRange: [6, 6] },
+// Anteil der lichten Nischenweite, den ein Regalbrett einnimmt. < 1, damit das
+// Brett nicht an den Hinoki-Rahmen stoesst.
+const SHELF_CAVITY_FILL = 0.94;
+
+// Hintergrund-Tiers: pro Level-Gruppe eine breiter werdende Nische. Das
+// cavityRatio wird von scripts/process_assets.js am fertigen PNG gemessen.
+const BG_TIERS: { key: string; levelRange: [number, number] }[] = [
+  { key: 'bg_kissa_niche',      levelRange: [1, 3] },
+  { key: 'bg_kissa_niche_mid',  levelRange: [4, 5] },
+  { key: 'bg_kissa_niche_wide', levelRange: [6, 6] },
 ];
+
+// Parallax-Layer des Hintergrunds. Jeder Layer ist ein eigenes freigestelltes
+// PNG (Prefix bgl_) und wird nur gezeichnet, wenn die Textur geladen werden
+// konnte. So kann die Szene stueckweise wachsen, ohne dass Code bricht.
+// yRatio/widthRatio beziehen sich auf Canvas-Hoehe bzw. -Breite.
+type BgMotion = 'none' | 'sway' | 'drift' | 'bob';
+
+interface BgLayer {
+  key: string;
+  yRatio: number;
+  widthRatio: number;
+  xRatio?: number;
+  depth: number;
+  motion: BgMotion;
+  amount?: number;
+  period?: number;
+}
+
+const BG_LAYERS: BgLayer[] = [
+  { key: 'bgl_sky',      yRatio: 0.00, widthRatio: 1.00, depth: -40, motion: 'none' },
+  { key: 'bgl_clouds',   yRatio: 0.14, widthRatio: 1.60, depth: -38, motion: 'drift', amount: 0.5, period: 42000 },
+  { key: 'bgl_hills',    yRatio: 0.62, widthRatio: 1.00, depth: -34, motion: 'none' },
+  { key: 'bgl_meadow',   yRatio: 1.00, widthRatio: 1.00, depth: -18, motion: 'none' },
+  { key: 'bgl_lanterns', yRatio: 0.05, widthRatio: 0.94, depth: -16, motion: 'sway', amount: 1.6, period: 3800 },
+  { key: 'bgl_cat',      yRatio: 0.955, widthRatio: 0.20, xRatio: 0.20, depth: -14, motion: 'bob', amount: 4, period: 2600 },
+  { key: 'bgl_dog',      yRatio: 0.955, widthRatio: 0.24, xRatio: 0.79, depth: -14, motion: 'bob', amount: 5, period: 3100 },
+];
+
+function getCavityRatio(key: string): number {
+  return BG_CAVITY_RATIOS[key] ?? BG_CAVITY_RATIO;
+}
 
 function getBgTier(level: number) {
   return BG_TIERS.find(t => level >= t.levelRange[0] && level <= t.levelRange[1]) ?? BG_TIERS[0];
@@ -486,25 +522,9 @@ export class GoodsItem extends Phaser.GameObjects.Container {
   private renderArt() {
     const s = this.itemScale;
 
-    // Ovarler Schlagschatten (unabhängig von Textur oder Procedural)
-    const shadow = this.scene.add.graphics();
-    const sw = 48 * s;
-    const sh = 14 * s;
-    for (let i = 3; i >= 0; i--) {
-      const a = 0.06 * (4 - i);
-      const r = 1 + i * 0.5;
-      shadow.fillStyle(0x000000, a).fillEllipse(2 * s, 28 * s, sw + r * 2 * s, sh + r * s);
-    }
-    this.add(shadow);
-
     if (this.scene.textures.exists(`item_${this.itemId}`)) {
       const img = this.scene.add.image(0, 0, `item_${this.itemId}`).setDisplaySize(ITEM_SIZE * s, ITEM_SIZE * s);
       this.add(img);
-
-      // Kontakt-Schatten: dünne Linie am unteren Rand
-      const contact = this.scene.add.graphics();
-      contact.fillStyle(0x000000, 0.15).fillEllipse(0, 30 * s, 40 * s, 4 * s);
-      this.add(contact);
       return;
     }
 
@@ -578,7 +598,6 @@ export class Shelf extends Phaser.GameObjects.Container {
   public shelfIdx: number;
   public slots: (GoodsItem | null)[] = [null, null, null];
   public queues: string[][] = [[], [], []];
-  private peekIndicators: (Phaser.GameObjects.Graphics | null)[] = [null, null, null];
   public readonly spacing: number;
   public readonly shelfWidth: number;
   public readonly shelfHeight: number;
@@ -588,7 +607,9 @@ export class Shelf extends Phaser.GameObjects.Container {
     super(scene, x, y);
     this.shelfIdx = shelfIdx;
     this.itemScale = itemScale;
-    this.spacing = 92 * itemScale;
+    // Drei Slots gleichmaessig ueber das Brett verteilt: Raender links und
+    // rechts sind damit immer gleich gross.
+    this.spacing = Phaser.Math.Clamp(shelfWidth / 3, 78 * itemScale, 104 * itemScale);
     this.shelfWidth = shelfWidth;
     this.shelfHeight = 92 * itemScale;
     this.drawStructure();
@@ -629,48 +650,74 @@ export class Shelf extends Phaser.GameObjects.Container {
         this.slots[i] = item;
         this.add(item);
       }
-      this.refreshPeek(i);
     });
-  }
-
-  public refreshPeek(i: number) {
-    this.peekIndicators[i]?.destroy();
-    if (this.queues[i].length > 0) {
-      const g = this.scene.add.graphics();
-      const count = this.queues[i].length;
-      const xCenter = (i - 1) * this.spacing;
-
-      // Subtile Matcha-Punkte für wartende Ebenen im Hintergrund
-      for (let d = 0; d < count; d++) {
-        const dotX = xCenter + (d - (count - 1) / 2) * 8;
-        g.fillStyle(KYOTO.matcha, 0.75).fillCircle(dotX, -38 * this.itemScale, 2.5 * this.itemScale);
-      }
-
-      this.addAt(g, 1);
-      this.peekIndicators[i] = g;
-    }
   }
 
   public getFirstEmptySlot(): number {
     return this.slots.findIndex(s => s === null);
   }
 
-  public insertItem(i: number, item: GoodsItem): boolean {
+  public insertItem(i: number, item: GoodsItem, fromWorld?: { x: number; y: number }): boolean {
     if (this.slots[i] !== null) return false;
     this.slots[i] = item;
     this.add(item);
 
+    const toX = (i - 1) * this.spacing;
+    const toY = item.restY;
+
+    // Beim Umhaengen in ein anderes Regal aendert sich das Bezugssystem. Ohne
+    // Korrektur springt das Item auf die alten Lokalkoordinaten -- es sieht aus,
+    // als flöge es von der Seite herein. Daher Weltposition zurueckrechnen.
+    if (fromWorld) {
+      item.setPosition(fromWorld.x - this.x, fromWorld.y - this.y);
+    }
+
+    const fromX = item.x;
+    const fromY = item.y;
+    const dist = Phaser.Math.Distance.Between(fromX, fromY, toX, toY);
+
+    // Wurfparabel: das Item wird angehoben, fliegt ueber den Scheitel und
+    // setzt auf dem Zielslot auf. Scheitelhoehe waechst mit der Distanz.
+    const lift = Phaser.Math.Clamp(dist * 0.45, 26 * this.itemScale, 92 * this.itemScale);
+    const peakX = (fromX + toX) / 2;
+    const peakY = Math.min(fromY, toY) - lift;
+    const curve = new Phaser.Curves.QuadraticBezier(
+      new Phaser.Math.Vector2(fromX, fromY),
+      new Phaser.Math.Vector2(peakX, peakY),
+      new Phaser.Math.Vector2(toX, toY)
+    );
+
+    const duration = Phaser.Math.Clamp(160 + dist * 0.55, 200, 420);
+    const travel = { t: 0 };
+    const point = new Phaser.Math.Vector2();
+
     this.scene.tweens.add({
-      targets: item,
-      x: (i - 1) * this.spacing,
-      y: item.restY,
-      scale: 1.0,
-      duration: 180,
-      ease: 'Back.easeOut',
+      targets: travel,
+      t: 1,
+      duration,
+      ease: 'Sine.easeInOut',
+      onUpdate: () => {
+        curve.getPoint(travel.t, point);
+        item.setPosition(point.x, point.y);
+        // Leichtes Kippen in Flugrichtung, am Ziel wieder aufrecht
+        item.setRotation(Phaser.Math.DegToRad(6 * Math.sign(toX - fromX) * Math.sin(travel.t * Math.PI)));
+      },
       onComplete: () => {
+        item.setPosition(toX, toY);
+        item.setRotation(0);
         ZenAudio.playDrop();
         this.checkMatch();
       }
+    });
+
+    // Der Groessen-Impuls laeuft parallel: Anheben, dann Aufsetzen.
+    this.scene.tweens.add({
+      targets: item,
+      scale: 1.08,
+      duration: duration * 0.4,
+      ease: 'Sine.easeOut',
+      yoyo: true,
+      hold: duration * 0.2
     });
     return true;
   }
@@ -688,7 +735,6 @@ export class Shelf extends Phaser.GameObjects.Container {
   public advanceQueue(i: number) {
     if (this.slots[i] === null && this.queues[i].length > 0) {
       const nextId = this.queues[i].shift()!;
-      this.refreshPeek(i);
 
       const nextItem = new GoodsItem(this.scene, (i - 1) * this.spacing, getItemRestY(nextId, this.itemScale) - 16 * this.itemScale, nextId, this.itemScale);
       nextItem.setAlpha(0).setScale(0.7);
@@ -708,35 +754,129 @@ export class Shelf extends Phaser.GameObjects.Container {
     }
   }
 
+  private playMatchEffect(itemId: string) {
+    const s = this.itemScale;
+    const y = getItemRestY(itemId, s);
+    const effect = this.scene.add.container(0, 0);
+    this.add(effect);
+
+    if (this.scene.textures.exists('fx_match_burst')) {
+      const sprite = this.scene.add.image(0, y, 'fx_match_burst')
+        .setDisplaySize(75 * s, 75 * s)
+        .setAlpha(0);
+      const baseScaleX = sprite.scaleX;
+      const baseScaleY = sprite.scaleY;
+      sprite.setScale(baseScaleX * 0.55, baseScaleY * 0.55);
+      effect.add(sprite);
+      this.scene.tweens.add({
+        targets: sprite,
+        alpha: 0.9,
+        scaleX: baseScaleX,
+        scaleY: baseScaleY,
+        duration: 130,
+        ease: 'Back.easeOut'
+      });
+      this.scene.tweens.add({
+        targets: sprite,
+        alpha: 0,
+        scaleX: baseScaleX * 1.2,
+        scaleY: baseScaleY * 1.2,
+        duration: 390,
+        delay: 90,
+        ease: 'Quad.easeOut'
+      });
+    }
+
+    // Drei feine Siegelringe geben jedem Item einen eigenen, klaren Moment.
+    [-this.spacing, 0, this.spacing].forEach((x, index) => {
+      const ring = this.scene.add.graphics();
+      ring.lineStyle(2.5 * s, index === 1 ? KYOTO.brass : 0xFFF7DE, 0.95);
+      ring.strokeCircle(0, 0, 10 * s);
+      ring.setPosition(x, y).setScale(0.65);
+      effect.add(ring);
+
+      this.scene.tweens.add({
+        targets: ring,
+        scale: 1.8,
+        alpha: 0,
+        duration: 360,
+        delay: index * 25,
+        ease: 'Quad.easeOut'
+      });
+    });
+
+    // Zentraler Lichtkern und kurze radiale Strahlen.
+    const flash = this.scene.add.graphics();
+    flash.fillStyle(0xFFF7DE, 0.95).fillCircle(0, 0, 9 * s);
+    flash.setPosition(0, y).setScale(0.45);
+    effect.add(flash);
+    this.scene.tweens.add({
+      targets: flash,
+      scale: 2.6,
+      alpha: 0,
+      duration: 280,
+      ease: 'Quad.easeOut'
+    });
+
+    for (let i = 0; i < 10; i++) {
+      const angle = (i / 10) * Math.PI * 2;
+      const ray = this.scene.add.graphics();
+      ray.lineStyle((i % 3 === 0 ? 2.5 : 1.5) * s, i % 2 === 0 ? KYOTO.brass : 0xFFF7DE, 0.9);
+      ray.lineBetween(0, -8 * s, 0, -19 * s);
+      ray.setPosition(0, y).setRotation(angle).setScale(0.65);
+      effect.add(ray);
+
+      this.scene.tweens.add({
+        targets: ray,
+        scale: 1.35,
+        alpha: 0,
+        duration: 300,
+        delay: 20,
+        ease: 'Quad.easeOut'
+      });
+    }
+
+    // Kleine Rauten statt runder Partikel: festlich, aber nicht bubble-artig.
+    for (let i = 0; i < 8; i++) {
+      const angle = (i / 8) * Math.PI * 2 + 0.2;
+      const distance = (42 + (i % 3) * 10) * s;
+      const shard = this.scene.add.graphics();
+      shard.fillStyle(i % 2 === 0 ? KYOTO.brass : KYOTO.matcha, 0.95);
+      shard.fillTriangle(0, -4 * s, 3 * s, 3 * s, -3 * s, 3 * s);
+      shard.setPosition(0, y).setRotation(angle).setScale(0.7);
+      effect.add(shard);
+
+      this.scene.tweens.add({
+        targets: shard,
+        x: Math.cos(angle) * distance,
+        y: y + Math.sin(angle) * distance,
+        scale: 0.25,
+        alpha: 0,
+        duration: 420,
+        delay: 35,
+        ease: 'Cubic.easeOut'
+      });
+    }
+
+    this.scene.time.delayedCall(560, () => effect.destroy());
+  }
+
   public checkMatch() {
     const [s0, s1, s2] = this.slots;
     if (s0 && s1 && s2 && s0.itemId === s1.itemId && s1.itemId === s2.itemId) {
       const matched = [s0, s1, s2];
       this.slots = [null, null, null];
 
-      // Sweep-Lichtbogen über die drei gematchten Items
-      const sweepW = this.spacing * 2.6;
-      const sweepH = 56 * this.itemScale;
-      const sweep = this.scene.add.graphics();
-      sweep.fillStyle(0xFFFBE8, 0.7).fillRoundedRect(-sweepW / 2, -sweepH / 2, sweepW, sweepH, 12 * this.itemScale);
-      sweep.setAlpha(0).setPosition(0, getItemRestY(s0.itemId, this.itemScale));
-      this.add(sweep);
-
-      this.scene.tweens.add({
-        targets: sweep,
-        alpha: 1,
-        duration: 110,
-        yoyo: true,
-        ease: 'Sine.easeOut',
-        onComplete: () => sweep.destroy()
-      });
+      this.playMatchEffect(s0.itemId);
 
       matched.forEach((item, idx) => {
         this.scene.tweens.add({
           targets: item,
-          scale: 1.25,
-          duration: 90,
+          scale: 1.18,
+          y: item.restY - 6 * this.itemScale,
+          duration: 110,
           yoyo: true,
+          ease: 'Back.easeOut',
           onComplete: () => {
             this.scene.tweens.add({
               targets: item,
@@ -757,7 +897,7 @@ export class Shelf extends Phaser.GameObjects.Container {
         shelfIdx: this.shelfIdx,
         itemId: s0.itemId,
         worldX: this.x,
-        worldY: this.y
+        worldY: this.y + getItemRestY(s0.itemId, this.itemScale)
       });
     }
   }
@@ -782,7 +922,9 @@ export class PreloadScene extends Phaser.Scene {
 
     // 2. Environment & UI – Hintergrund-Tiers (höhere Tiers können fehlen, Fallback auf bg_kissa_niche)
     BG_TIERS.forEach(t => this.load.image(t.key, `assets/items/${t.key}.png`));
+    BG_LAYERS.forEach(l => this.load.image(l.key, `assets/items/${l.key}.png`));
     this.load.image('shelf_wood', 'assets/items/shelf_wood.png');
+    this.load.image('fx_match_burst', 'assets/items/fx_match_burst.png');
     this.load.image('ui_card_kuro', 'assets/items/ui_card_kuro.png');
     this.load.image('ui_card_hinoki', 'assets/items/ui_card_hinoki.png');
     this.load.image('btn_undo', 'assets/items/btn_undo.png');
@@ -801,6 +943,8 @@ export class PreloadScene extends Phaser.Scene {
 export class GameScene extends Phaser.Scene {
   private shelves: Shelf[] = [];
   private selected: { shelfIdx: number; slotIdx: number; item: GoodsItem } | null = null;
+  private cavityWidth = 0;
+  private cavityCenterX = 0;
 
   constructor() {
     super('GameScene');
@@ -814,7 +958,11 @@ export class GameScene extends Phaser.Scene {
     // Hintergrund: Level-Tier bestimmen, Fallback auf Basis-Nische
     const tier = getBgTier(State.currentLevel);
     const bgKey = this.textures.exists(tier.key) ? tier.key : 'bg_kissa_niche';
-    const cavityRatio = this.textures.exists(tier.key) ? tier.cavityRatio : BG_CAVITY_RATIO;
+    const cavityRatio = getCavityRatio(bgKey);
+
+    // Default, falls gar keine Textur da ist
+    this.cavityWidth = width * cavityRatio;
+    this.cavityCenterX = width / 2;
 
     if (this.textures.exists(bgKey)) {
       const bg = this.add.image(width / 2, height / 2, bgKey);
@@ -822,49 +970,24 @@ export class GameScene extends Phaser.Scene {
       const coverScale = Math.max(width / source.width, height / source.height);
       bg.setScale(coverScale).setDepth(-10);
 
+      // Die Nische wird mit dem Hintergrund mitskaliert und -beschnitten. Ihre
+      // Breite auf dem Schirm haengt daher am coverScale, nicht an der
+      // Screenbreite -- sonst laeuft das Regal ueber den Hinoki-Rahmen.
+      this.cavityWidth = source.width * coverScale * cavityRatio;
+      this.cavityCenterX = bg.x;
+
       // Warmes Nischen-Licht: radialer Schein von oben
       const glow = this.add.graphics().setDepth(-9);
-      const cavityW = width * cavityRatio;
-      const glowR = cavityW * 0.55;
-      const cx = width / 2;
+      const glowR = this.cavityWidth * 0.55;
+      const cx = this.cavityCenterX;
       const cy = height * 0.22;
       for (let r = glowR; r > 0; r -= glowR / 12) {
         const alpha = 0.045 * (r / glowR);
         glow.fillStyle(0xFFF8E8, alpha).fillCircle(cx, cy, r);
       }
-
-      // Staub-Partikel: langsam aufsteigende Punkte in der Nische
-      const particleLayer = this.add.container(0, 0).setDepth(-8);
-      for (let p = 0; p < 14; p++) {
-        const dot = this.add.graphics();
-        const radius = 1.2 + Math.random() * 1.6;
-        dot.fillStyle(0xFFF8E8, 0.2 + Math.random() * 0.25).fillCircle(0, 0, radius);
-        const x0 = cx + (Math.random() - 0.5) * cavityW * 0.7;
-        const y0 = cy + Math.random() * (height * 0.55);
-        dot.setPosition(x0, y0);
-        particleLayer.add(dot);
-
-        const dur = 6000 + Math.random() * 9000;
-        const drift = (Math.random() - 0.5) * 20;
-        this.tweens.add({
-          targets: dot,
-          y: y0 - 60 - Math.random() * 80,
-          x: x0 + drift,
-          alpha: 0,
-          duration: dur,
-          ease: 'Sine.easeInOut',
-          repeat: -1,
-          repeatDelay: 1200 + Math.random() * 3000,
-          onRepeat: () => {
-            dot.setPosition(
-              cx + (Math.random() - 0.5) * cavityW * 0.7,
-              cy + Math.random() * (height * 0.55)
-            );
-            dot.setAlpha(0.2 + Math.random() * 0.25);
-          }
-        });
-      }
     }
+
+    this.createBgLayers(width, height);
 
     this.buildLevel(State.currentLevel);
 
@@ -882,6 +1005,64 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
+  // Zeichnet die optionalen Parallax-Layer und startet ihre Leerlauf-Animation.
+  private createBgLayers(width: number, height: number) {
+    BG_LAYERS.forEach(layer => {
+      if (!this.textures.exists(layer.key)) return;
+
+      const src = this.textures.get(layer.key).getSourceImage();
+      const targetW = width * layer.widthRatio;
+      const scale = targetW / src.width;
+      const x = width * (layer.xRatio ?? 0.5);
+      const y = height * layer.yRatio;
+
+      // yRatio 0 haengt oben, 1 steht unten auf, dazwischen wird zentriert
+      const originY = layer.yRatio <= 0.02 ? 0 : layer.yRatio >= 0.98 ? 1 : 0.5;
+
+      const img = this.add.image(x, y, layer.key)
+        .setOrigin(0.5, originY)
+        .setScale(scale)
+        .setDepth(layer.depth);
+
+      const amount = layer.amount ?? 0;
+      const period = layer.period ?? 3000;
+
+      switch (layer.motion) {
+        case 'sway':
+          img.setOrigin(0.5, 0);
+          this.tweens.add({
+            targets: img,
+            angle: { from: -amount, to: amount },
+            duration: period,
+            ease: 'Sine.easeInOut',
+            yoyo: true,
+            repeat: -1
+          });
+          break;
+        case 'drift':
+          this.tweens.add({
+            targets: img,
+            x: { from: x - width * amount * 0.25, to: x + width * amount * 0.25 },
+            duration: period,
+            ease: 'Sine.easeInOut',
+            yoyo: true,
+            repeat: -1
+          });
+          break;
+        case 'bob':
+          this.tweens.add({
+            targets: img,
+            y: { from: y, to: y - amount },
+            duration: period,
+            ease: 'Sine.easeInOut',
+            yoyo: true,
+            repeat: -1
+          });
+          break;
+      }
+    });
+  }
+
   private buildLevel(lvl: number) {
     const level = LEVELS[lvl - 1] ?? LEVELS[0];
     State.reset(level.moves, level.targetMatches);
@@ -891,12 +1072,10 @@ export class GameScene extends Phaser.Scene {
     const rows = level.layout.length;
     const startY = (rows >= 6 ? 160 : rows === 5 ? 180 : 195) * verticalScale;
     const shelfSpacing = (rows >= 6 ? 94 : rows === 5 ? 108 : 125) * verticalScale;
-    const tier = getBgTier(lvl);
-    const cavityRatio = this.textures.exists(tier.key) ? tier.cavityRatio : BG_CAVITY_RATIO;
-    const shelfWidth = Math.round(this.scale.width * cavityRatio);
+    const shelfWidth = Math.round(this.cavityWidth * SHELF_CAVITY_FILL);
 
     level.layout.forEach((data, i) => {
-      this.shelves.push(new Shelf(this, this.scale.width / 2, startY + i * shelfSpacing, i, data, itemScale, shelfWidth));
+      this.shelves.push(new Shelf(this, this.cavityCenterX, startY + i * shelfSpacing, i, data, itemScale, shelfWidth));
     });
   }
 
@@ -939,9 +1118,11 @@ export class GameScene extends Phaser.Scene {
 
           const targetSlot = shelf.getFirstEmptySlot();
           if (targetSlot !== -1) {
-            const moved = this.shelves[src.shelfIdx].removeItem(src.slotIdx);
+            const srcShelf = this.shelves[src.shelfIdx];
+            const fromWorld = { x: srcShelf.x + src.item.x, y: srcShelf.y + src.item.y };
+            const moved = srcShelf.removeItem(src.slotIdx);
             if (moved) {
-              shelf.insertItem(targetSlot, moved);
+              shelf.insertItem(targetSlot, moved, fromWorld);
               State.moves--;
               State.history.push({
                 fromShelf: src.shelfIdx,
@@ -974,17 +1155,30 @@ export class GameScene extends Phaser.Scene {
     ZenAudio.playMatch(State.combo);
 
     // Schwebender Punkte-Indikator
-    const floatTxt = this.add.text(worldX, worldY - 10, `+${pointsGained}`, {
-      fontSize: '22px',
-      color: '#4A6B47',
-      fontStyle: 'bold'
+    const effectScale = getLayoutScale(this.scale.width);
+    const floatTxt = this.add.text(worldX, worldY - 16 * effectScale, `MATCH!\n+${pointsGained}`, {
+      fontSize: `${17 * effectScale}px`,
+      color: '#F4D58A',
+      fontStyle: 'bold',
+      align: 'center',
+      stroke: '#1E2022',
+      strokeThickness: 3 * effectScale,
+      shadow: {
+        offsetX: 0,
+        offsetY: 3 * effectScale,
+        color: '#1E2022',
+        blur: 4,
+        stroke: true,
+        fill: true
+      }
     }).setOrigin(0.5);
 
     this.tweens.add({
       targets: floatTxt,
-      y: worldY - 45,
+      y: worldY - 58 * effectScale,
       alpha: 0,
-      duration: 650,
+      scale: 1.08,
+      duration: 800,
       ease: 'Quad.easeOut',
       onComplete: () => floatTxt.destroy()
     });
@@ -1011,8 +1205,10 @@ export class GameScene extends Phaser.Scene {
     const targetSlot = toShelf.getFirstEmptySlot();
 
     if (sIdx !== -1 && targetSlot !== -1) {
+      const src = fromShelf.slots[sIdx]!;
+      const fromWorld = { x: fromShelf.x + src.x, y: fromShelf.y + src.y };
       const it = fromShelf.removeItem(sIdx);
-      if (it) toShelf.insertItem(targetSlot, it);
+      if (it) toShelf.insertItem(targetSlot, it, fromWorld);
     }
   }
 
@@ -1053,6 +1249,38 @@ export class GameScene extends Phaser.Scene {
   }
 }
 
+// Zieht eine UI-Karte als NineSlice auf. Die Ecken/Raender der Textur behalten
+// dabei ihre Originalgroesse -- nur die Mitte wird gedehnt. Ohne das wird eine
+// schmale Karte auf Headerbreite gezogen und Rahmen wie Messingkante verzerren.
+function addCardNineSlice(
+  scene: Phaser.Scene,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  key: string
+): Phaser.GameObjects.NineSlice | null {
+  if (!scene.textures.exists(key)) return null;
+
+  const src = scene.textures.get(key).getSourceImage();
+  const texW = src.width;
+  const texH = src.height;
+
+  // Rahmenbreite der Textur: 30% der kuerzeren Seite, aber nie mehr als die
+  // Haelfte einer Achse (sonst ueberlappen die Slices).
+  const inset = Math.floor(Math.min(texW, texH) * 0.3);
+  const sideX = Math.min(inset, Math.floor(texW / 2) - 1);
+  const sideY = Math.min(inset, Math.floor(texH / 2) - 1);
+
+  // Zielmasse nie unter die Rahmengroesse druecken, sonst ueberlappen die Slices
+  const drawW = Math.max(w, sideX * 2 + 2);
+  const drawH = Math.max(h, sideY * 2 + 2);
+
+  const ns = scene.add.nineslice(x, y, key, undefined, drawW, drawH, sideX, sideX, sideY, sideY);
+  ns.setOrigin(0.5);
+  return ns;
+}
+
 export class UIScene extends Phaser.Scene {
   private scoreTxt!: Phaser.GameObjects.Text;
   private movesTxt!: Phaser.GameObjects.Text;
@@ -1071,11 +1299,8 @@ export class UIScene extends Phaser.Scene {
     const headerH = 60 * uiScale;
     const headerX = 16 * uiScale;
     const headerY = 24 * uiScale;
-    if (this.textures.exists('ui_card_kuro')) {
-      const card = this.add.image(headerX + headerW / 2, headerY + headerH / 2, 'ui_card_kuro')
-        .setDisplaySize(headerW, headerH);
-      this.add.existing(card);
-    } else {
+    const headerCard = addCardNineSlice(this, headerX + headerW / 2, headerY + headerH / 2, headerW, headerH, 'ui_card_kuro');
+    if (!headerCard) {
       const headerBg = this.add.graphics();
       headerBg.fillStyle(KYOTO.kuroSteel, 0.08).fillRoundedRect(headerX, headerY, headerW, headerH, 14 * uiScale);
       headerBg.lineStyle(1.5 * uiScale, KYOTO.hinoki, 0.5).strokeRoundedRect(headerX, headerY, headerW, headerH, 14 * uiScale);
@@ -1099,14 +1324,16 @@ export class UIScene extends Phaser.Scene {
       fontStyle: 'bold'
     }).setOrigin(1, 0);
 
-    // Booster Tray
-    const trayW = 320 * uiScale;
-    const trayH = 64 * uiScale;
+    // Booster Tray. Breite folgt der Buttonreihe, damit kein Button ueber den
+    // Rand der Karte hinausragt.
+    const boosterSpacing = 96 * uiScale;
+    const boosterSize = 54 * uiScale;
+    const trayW = boosterSpacing * 2 + boosterSize + 34 * uiScale;
+    const trayH = 78 * uiScale;
     const trayX = width / 2;
     const trayY = height - 56 * uiScale;
-    if (this.textures.exists('ui_card_hinoki')) {
-      this.add.image(trayX, trayY, 'ui_card_hinoki').setDisplaySize(trayW, trayH);
-    } else {
+    const trayCard = addCardNineSlice(this, trayX, trayY, trayW, trayH, 'ui_card_hinoki');
+    if (!trayCard) {
       const trayBg = this.add.graphics();
       trayBg.fillStyle(KYOTO.hinoki, 0.12).fillRoundedRect(trayX - trayW / 2, trayY - trayH / 2, trayW, trayH, 12 * uiScale);
       trayBg.lineStyle(1 * uiScale, KYOTO.hinoki, 0.3).strokeRoundedRect(trayX - trayW / 2, trayY - trayH / 2, trayW, trayH, 12 * uiScale);
@@ -1122,7 +1349,7 @@ export class UIScene extends Phaser.Scene {
     ];
 
     boosters.forEach((b, idx) => {
-      const btn = this.add.container(width / 2 + (idx - 1) * 105 * uiScale, height - 56 * uiScale);
+      const btn = this.add.container(trayX + (idx - 1) * boosterSpacing, trayY);
 
       if (b.label === 'HAMMER') {
         this.hammerHighlight = this.add.graphics();
@@ -1130,7 +1357,7 @@ export class UIScene extends Phaser.Scene {
       }
 
       if (this.textures.exists(b.key)) {
-        const sprite = this.add.image(0, 0, b.key).setDisplaySize(54 * uiScale, 54 * uiScale);
+        const sprite = this.add.image(0, 0, b.key).setDisplaySize(boosterSize, boosterSize);
         btn.add(sprite);
       } else {
         const bg = this.add.graphics().fillStyle(KYOTO.kuroSteel, 0.9).fillRoundedRect(-32 * uiScale, -22 * uiScale, 64 * uiScale, 44 * uiScale, 10 * uiScale);
