@@ -22,6 +22,17 @@ Schrift: **M PLUS Rounded 1c** (`@fontsource/m-plus-rounded-1c`, nur Latin 500 +
 
 ## 3. Nano Banana Pro Asset Generation Catalog
 
+### Hintergrundfarbe: Weiß oder Magenta
+
+Freigestellt wird gegen die Hintergrundfarbe des Renders. Welche zu wählen ist, hängt am Motiv:
+
+- **Dunkle oder kräftig farbige Motive** → `pure solid white background (#FFFFFF)`. Funktioniert seit jeher.
+- **Helle, cremefarbene oder weiße Motive** → `pure solid magenta background (#FF00FF)`. **Pflicht**, nicht optional.
+
+Der Grund: der Studio-Hintergrund kommt nie als exaktes Weiß aus dem Modell, sondern mit Vignette. Beim Katzen-Render lief er von 241 bis 251 Grau, während das cremeweiße Fell bei 249 bis 251 liegt — an der Stirn sind Motiv und Hintergrund exakt dieselbe Farbe. Das Keying riss daraufhin eine Kerbe in den Kopf, und bei `btn_undo` fehlte ein ganzes Stück der rechten Kante. Weil dadurch auch die Inhaltsbox schrumpfte, wurden die drei Booster-Buttons noch dazu ungleich groß.
+
+Gegen Magenta ist die Trennung eindeutig: kein Ton der Kissa-Palette kommt ihm nahe (das dunkle Azuki-Rosé liegt weit entfernt). Die Pipeline erkennt den Chroma-Hintergrund automatisch an den Bildecken — es ist **keine Konfiguration nötig**, nur der richtige Prompt. Der Saum wird beim Keying zusätzlich entfärbt, damit kein bunter Rand stehen bleibt.
+
 ### Master Negative Prompt (Append to all runs)
 hyper-realistic, high gloss reflections, shiny liquid specular, crumbs, baked floor shadows, blurry edges, gradient background, photorealism, text, watermark, logo, perspective tilt, 3d render artifacts, multiple objects, second object, duplicate, collage, grid layout, product lineup
 
@@ -74,15 +85,16 @@ Format: Portrait 9:16 Canvas, Karte horizontal zentriert, großzügiges Weiß ü
 ### Booster Button Prompts (v3)
 v2 waren schwarze Kuro-Steel-Kacheln. Vor dem Gartenhintergrund wirken sie hart und düster — v3 ist heller, runder und freundlicher, bleibt aber in der Palette der Szene (Creme, Matcha, Azuki, Hinoki, Messing).
 Format: Portrait 9:16 Canvas, Objekt mittig, **genau ein Objekt im Bild**. Alle drei mit identischem Körper, nur das Relief unterscheidet sich — sonst wirkt die Reihe unruhig.
+**Magenta-Hintergrund**, weil der Körper cremefarben ist (siehe oben).
 
 14. **btn_undo:**
-    Single chunky rounded-square push button in soft warm cream ceramic with generously rounded corners and a soft pillowy silhouette, a thick raised matcha-green counter-clockwise curved arrow sculpted in smooth low relief on its face, friendly modern art toy look, tactile matte finish with zero gloss, Japanese modern kissa palette, orthographic front view, centered on a portrait 9:16 canvas with generous white padding, pure solid white background (#FFFFFF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
+    Single chunky rounded-square push button in soft warm cream ceramic with generously rounded corners and a soft pillowy silhouette, a thick raised matcha-green counter-clockwise curved arrow sculpted in smooth low relief on its face, friendly modern art toy look, tactile matte finish with zero gloss, Japanese modern kissa palette, orthographic front view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
 
 15. **btn_shuffle:**
-    Single chunky rounded-square push button in soft warm cream ceramic with generously rounded corners and a soft pillowy silhouette, two thick raised azuki-rose arrows crossing each other in an X sculpted in smooth low relief on its face, friendly modern art toy look, tactile matte finish with zero gloss, Japanese modern kissa palette, orthographic front view, centered on a portrait 9:16 canvas with generous white padding, pure solid white background (#FFFFFF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
+    Single chunky rounded-square push button in soft warm cream ceramic with generously rounded corners and a soft pillowy silhouette, two thick raised azuki-rose arrows crossing each other in an X sculpted in smooth low relief on its face, friendly modern art toy look, tactile matte finish with zero gloss, Japanese modern kissa palette, orthographic front view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
 
 16. **btn_hammer:**
-    Single chunky rounded-square push button in soft warm cream ceramic with generously rounded corners and a soft pillowy silhouette, a thick raised blonde hinoki wood mallet sculpted in smooth low relief on its face, friendly modern art toy look, tactile matte finish with zero gloss, Japanese modern kissa palette, orthographic front view, centered on a portrait 9:16 canvas with generous white padding, pure solid white background (#FFFFFF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
+    Single chunky rounded-square push button in soft warm cream ceramic with generously rounded corners and a soft pillowy silhouette, a thick raised blonde hinoki wood mallet sculpted in smooth low relief on its face, friendly modern art toy look, tactile matte finish with zero gloss, Japanese modern kissa palette, orthographic front view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
 
 ### Parallax-Hintergrund "Engawa-Garten" (bgl_ Layer)
 Statt eines einzelnen Bildes wird der Hintergrund aus freigestellten Ebenen gebaut, damit sich Wolken, Laternen und Tiere unabhängig bewegen können. Die Szene: die Regalnische steht auf einer Engawa-Veranda, dahinter öffnet sich ein Garten — blauer Himmel, ferne Hügel, Wiese, oben hängende Chōchin-Laternen unter dem Dachvorsprung, unten spielen Shiba und Katze.
@@ -116,7 +128,8 @@ Die Halo-Entfernung des Defringings läuft für `bgl_`-Vollbild-Ebenen **nicht**
     A horizontal row of five round paper chochin lanterns hanging from thin dark cords of differing lengths, alternating warm ivory and soft azuki red, bamboo rib texture and small brass caps, flat matte art-toy finish with a warm glow from within, all cords starting exactly at the very top edge of the frame, occupying only the upper quarter, tall portrait 9:16 canvas with everything below completely empty, pure solid white background (#FFFFFF), zero floor shadow, no text, 8k resolution --style raw
 
 22. **bgl_cat** *(Idle-Bob, unten links):*
-    A single small chubby calico cat art toy figurine sitting upright with its tail curled around its paws, matte unglazed ceramic finish in cream white with soft azuki and charcoal patches, simplified rounded geometry, Japanese modern kissa aesthetic, orthographic side-facing three-quarter view, centered on a portrait 9:16 canvas with generous white padding, pure solid white background (#FFFFFF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
+    *(v2 — Magenta-Hintergrund. Die v1-Fassung auf Weiß ließ sich nicht freistellen: das cremeweiße Fell und der Studio-Hintergrund waren an der Stirn farbgleich.)*
+    A single small chubby calico cat art toy figurine sitting upright with its tail curled around its paws, matte unglazed ceramic finish in cream white with soft azuki and charcoal patches, simplified rounded geometry, Japanese modern kissa aesthetic, orthographic side-facing three-quarter view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
 
 23. **bgl_niche_frame** *(das Regalgehäuse — fehlt noch, blockiert die Gartenszene):*
     Der bisherige `bg_kissa_niche` ist eine **Wand mit Loch**: sein Umfeld ist warmer Putz (RGB 203–238), kein Weiß. Er lässt sich nicht freistellen und deckt die Parallax-Layer vollständig zu. Solange dieses Asset fehlt, läuft das Spiel im Fallback auf die alte Wand-Nische.
@@ -215,6 +228,6 @@ Das Loch ist danach die exakte lichte Nische und wird als `BG_CAVITY_RECTS` expo
 Im Gehäuse liegt ein Shoji-Panel (Deckkraft 0.55) zwischen Garten und Regalbrettern. Ohne das milchige Papier stehen die Goods direkt auf Himmel und Hügeln und verlieren ihren Kontrast; bei 0.9 war der Garten dahinter komplett weg.
 
 ### Offene Punkte
-- `btn_undo`, `btn_shuffle`, `btn_hammer` sind auf v2 (schwarze Kacheln). Prompts 14–16 rendern.
+- **`bgl_cat` und die drei `btn_*` müssen gegen Magenta neu gerendert werden** (Prompts 14–16 und 22). Auf Weiß sind sie nicht sauber freistellbar — Kerbe in der Katzenstirn, fehlendes Stück an `btn_undo`, dadurch ungleich große Buttons. Die Pipeline erkennt den Chroma-Hintergrund von selbst.
 - `bg_kissa_niche_mid` hat dieselbe gemessene Nischenweite wie `bg_kissa_niche` — nur noch relevant, falls der Fallback ohne `bgl_niche_frame` wieder gebraucht wird.
 - `ui_card_kuro` / `ui_card_hinoki` sind fertig, werden aber aktuell **nicht gezeichnet** — der Header steht frei über der Szene. `addCardNineSlice` bleibt im Code, falls die Platten zurückkommen.

@@ -256,7 +256,65 @@ function fillInteriorHoles(data, width, height, alphaMax = 250) {
   return filled;
 }
 
-function defringe(data, stripHalo = true) {
+// Erkennt, wogegen freigestellt werden muss. Standard ist Weiss. Ist der Rand
+// dagegen kraeftig bunt und einheitlich, wurde gegen eine Chroma-Flaeche
+// gerendert -- dann wird gegen diese Farbe gekeyt.
+//
+// Noetig fuer helle Motive: der Katzen-Render hat einen Studio-Hintergrund von
+// 241..251 Grau, waehrend das cremeweisse Fell bei 249..251 liegt. An der Stirn
+// sind Motiv und Hintergrund exakt dieselbe Farbe -- weder ein Schwellwert noch
+// eine Konnektivitaetsanalyse koennen das trennen. Gegen ein saettigungsstarkes
+// Chroma ist die Trennung dagegen eindeutig.
+function detectKeyColor(data, width, height) {
+  const samples = [];
+  const inset = 4;
+  for (const [x, y] of [
+    [inset, inset], [width - 1 - inset, inset],
+    [inset, height - 1 - inset], [width - 1 - inset, height - 1 - inset],
+    [Math.floor(width / 2), inset], [Math.floor(width / 2), height - 1 - inset]
+  ]) {
+    const i = (y * width + x) * 4;
+    samples.push([data[i], data[i + 1], data[i + 2]]);
+  }
+
+  const avg = [0, 1, 2].map(c => samples.reduce((a, p) => a + p[c], 0) / samples.length);
+  const spread = Math.max(...avg) - Math.min(...avg);
+
+  // Alle Ecken nah beieinander?
+  const uniform = samples.every(p =>
+    Math.abs(p[0] - avg[0]) < 30 && Math.abs(p[1] - avg[1]) < 30 && Math.abs(p[2] - avg[2]) < 30);
+
+  if (uniform && spread > 60) {
+    return { r: Math.round(avg[0]), g: Math.round(avg[1]), b: Math.round(avg[2]), chroma: true };
+  }
+  return { r: 255, g: 255, b: 255, chroma: false };
+}
+
+function defringe(data, stripHalo = true, key = null) {
+  if (key && key.chroma) {
+    // Chroma-Key: Abstand zur Hintergrundfarbe. Zusaetzlich wird der Farbstich
+    // aus den Randpixeln gerechnet, sonst bleibt ein bunter Saum stehen.
+    for (let i = 0; i < data.length; i += 4) {
+      const dist = Math.sqrt(
+        (key.r - data[i]) ** 2 + (key.g - data[i + 1]) ** 2 + (key.b - data[i + 2]) ** 2);
+      if (dist < 60) data[i + 3] = 0;
+      else if (dist < 110) {
+        data[i + 3] = Math.floor(((dist - 60) / 50) * 255);
+        // Saum entfaerben: Richtung Graustufe des Pixels ziehen
+        const lum = (data[i] + data[i + 1] + data[i + 2]) / 3;
+        const t = 1 - (dist - 60) / 50;
+        data[i] = Math.round(data[i] * (1 - t) + lum * t);
+        data[i + 1] = Math.round(data[i + 1] * (1 - t) + lum * t);
+        data[i + 2] = Math.round(data[i + 2] * (1 - t) + lum * t);
+      }
+    }
+    return data;
+  }
+
+  return defringeWhite(data, stripHalo);
+}
+
+function defringeWhite(data, stripHalo = true) {
   for (let i = 0; i < data.length; i += 4) {
     const dist = Math.sqrt((255 - data[i]) ** 2 + (255 - data[i + 1]) ** 2 + (255 - data[i + 2]) ** 2);
     if (dist < 18) data[i + 3] = 0;
@@ -357,7 +415,9 @@ function trimShadowEdges(data, width, box, threshold = 0.9) {
 // Flaeche eingegrenzt, damit ein zweites Objekt im Render nichts verschiebt.
 async function cropToContent(filePath, strategy = 'union', trimShadow = false, softEdge = 0) {
   const { data, info } = await sharp(filePath).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
-  defringe(data);
+  const key = detectKeyColor(data, info.width, info.height);
+  if (key.chroma) console.log(`    Chroma-Hintergrund erkannt: rgb(${key.r},${key.g},${key.b})`);
+  defringe(data, true, key);
 
   const holes = fillInteriorHoles(data, info.width, info.height);
   if (holes > 0) console.log(`    ${holes} Innenpixel wiederhergestellt`);
@@ -459,7 +519,9 @@ async function processImages() {
 
       // Bildfuellende Ebene: nur freistellen, Position im Frame bleibt erhalten.
       const { data, info } = await sharp(filePath).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
-      defringe(data, false);
+      const key = detectKeyColor(data, info.width, info.height);
+      if (key.chroma) console.log(`    Chroma-Hintergrund erkannt: rgb(${key.r},${key.g},${key.b})`);
+      defringe(data, false, key);
 
       // Rahmen mit geschlossener Rueckwand: Innenflaeche ausstanzen. Das Loch ist
       // danach die exakte lichte Nische -- praeziser als die Helligkeits-Heuristik
