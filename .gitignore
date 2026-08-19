@@ -1,0 +1,6 @@
+node_modules/
+dist/
+
+# Geraete-Screenshots, die beim Testen im Projektwurzel landen
+/localhost_*.png
+/Gemini_Generated_Image*.jpeg
