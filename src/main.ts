@@ -190,7 +190,16 @@ interface LevelDefinition {
 
 // Jede Stufe enthält exakt drei Exemplare pro Itemtyp. Die freien Slots
 // öffnen zuerst den Kern-Loop und die Queues erhöhen danach die Planungstiefe.
+//
+// Progressionskurve (targetMatches = Anzahl unterschiedlicher Itemtypen je Level):
+// L1: 4  L2: 5  L3: 6  L4: 7  L5: 8  L6: 10 — monoton steigend, keine Spitzen mehr.
+// moves/targetMatches sinkt von 2.25 (Tutorial) auf 1.8 (Finale) -- der Move-Puffer
+// wird bewusst enger, je geuebter die Spielmechanik beim Spieler sitzt.
+// Itemkatalog wird in drei Wellen eingefuehrt: Batch 1&2 (Kernhelden) in L1-L2,
+// Batch 3&4 (Expansion) in L3, Batch 5 (Mastery) in L4-L6. Alle 20 Items aus
+// ITEMS kommen so mindestens einmal vor -- 'dango_stick' fehlte zuvor komplett.
 const LEVELS: LevelDefinition[] = [
+  // Level 1 – 4 Regale, 4 Matches, Tutorial (unveraendert, bereits gut getunt)
   {
     moves: 8,
     targetMatches: 4,
@@ -217,171 +226,187 @@ const LEVELS: LevelDefinition[] = [
       ]
     ]
   },
+  // Level 2 – 5 Regale, 5 Matches. Rest von Batch 1&2: dango_stick, yokan_prism,
+  // copper_caddy, origami_dripper, matcha_roll als erster Ausblick auf Batch 3&4.
   {
-    moves: 13,
-    targetMatches: 6,
+    moves: 11,
+    targetMatches: 5,
     layout: [
       [
-        { front: 'copper_caddy', queue: [] },
-        { front: 'copper_caddy', queue: [] },
+        { front: 'dango_stick', queue: [] },
+        { front: 'dango_stick', queue: [] },
+        { front: null, queue: ['yokan_prism'] }
+      ],
+      [
+        { front: 'dango_stick', queue: ['copper_caddy'] },
+        { front: 'yokan_prism', queue: [] },
         { front: null, queue: [] }
       ],
       [
-        { front: 'copper_caddy', queue: ['origami_dripper'] },
+        { front: 'yokan_prism', queue: [] },
+        { front: 'copper_caddy', queue: [] },
+        { front: null, queue: ['origami_dripper'] }
+      ],
+      [
+        { front: 'copper_caddy', queue: ['matcha_roll'] },
         { front: 'origami_dripper', queue: [] },
         { front: null, queue: [] }
       ],
       [
-        { front: 'origami_dripper', queue: ['coldbrew_flask'] },
-        { front: 'coldbrew_flask', queue: [] },
-        { front: null, queue: [] }
-      ],
-      [
-        { front: 'coldbrew_flask', queue: ['brass_sphere'] },
-        { front: 'brass_sphere', queue: [] },
-        { front: null, queue: ['matcha_roll', 'shou_sugi_block', 'shou_sugi_block'] }
-      ],
-      [
-        { front: 'brass_sphere', queue: ['shou_sugi_block'] },
+        { front: 'origami_dripper', queue: [] },
         { front: 'matcha_roll', queue: [] },
         { front: 'matcha_roll', queue: [] }
       ]
     ]
   },
+  // Level 3 – 5 Regale, 6 Matches. Rest von Batch 3&4 (shou_sugi_block,
+  // coldbrew_flask, brass_sphere) + Rueckkehr der drei Tutorial-Items mit
+  // erster echter Regal-Zweitnutzung (ein Regal wird nach dem ersten Match
+  // ueber die Queue fuer ein zweites Item weiterverwendet).
   {
-    moves: 14,
-    targetMatches: 8,
-    layout: [
-      [
-        { front: 'matcha_montblanc', queue: [] },
-        { front: 'matcha_montblanc', queue: [] },
-        { front: null, queue: [] }
-      ],
-      [
-        { front: 'matcha_montblanc', queue: ['chashaku_scoop'] },
-        { front: 'chashaku_scoop', queue: [] },
-        { front: null, queue: [] }
-      ],
-      [
-        { front: 'chashaku_scoop', queue: ['incense_burner'] },
-        { front: 'incense_burner', queue: ['dango_plate', 'cast_iron_bell'] },
-        { front: null, queue: [] }
-      ],
-      [
-        { front: 'incense_burner', queue: ['mizuhiki_knot'] },
-        { front: 'mizuhiki_knot', queue: ['gotoku_trivet', 'kuro_mame_dome', 'dango_plate', 'cast_iron_bell'] },
-        { front: null, queue: ['gotoku_trivet', 'kuro_mame_dome', 'dango_plate', 'cast_iron_bell'] }
-      ],
-      [
-        { front: 'mizuhiki_knot', queue: [] },
-        { front: 'gotoku_trivet', queue: [] },
-        { front: 'kuro_mame_dome', queue: [] }
-      ]
-    ]
-  },
-  // Level 4 – 5 Regale, 5 Matches, Einsteiger-Puzzle mit Queues
-  {
-    moves: 12,
-    targetMatches: 5,
+    moves: 13,
+    targetMatches: 6,
     layout: [
       [
         { front: 'chawan_cup', queue: [] },
         { front: 'chawan_cup', queue: [] },
-        { front: null, queue: [] }
+        { front: null, queue: ['chasen_whisk'] }
       ],
       [
-        { front: 'tetsubin_kettle', queue: ['chawan_cup'] },
+        { front: 'chawan_cup', queue: ['tetsubin_kettle'] },
         { front: 'tetsubin_kettle', queue: [] },
-        { front: null, queue: [] }
+        { front: 'brass_sphere', queue: [] }
       ],
       [
-        { front: 'chasen_whisk', queue: ['tetsubin_kettle'] },
+        { front: 'tetsubin_kettle', queue: [] },
         { front: 'chasen_whisk', queue: [] },
-        { front: null, queue: [] }
+        { front: null, queue: ['shou_sugi_block', 'brass_sphere'] }
       ],
       [
-        { front: 'kissa_toast', queue: ['chasen_whisk'] },
-        { front: 'kissa_toast', queue: [] },
-        { front: null, queue: [] }
+        { front: 'chasen_whisk', queue: [] },
+        { front: 'shou_sugi_block', queue: [] },
+        { front: null, queue: ['coldbrew_flask'] }
       ],
       [
-        { front: 'yokan_prism', queue: ['kissa_toast'] },
-        { front: 'yokan_prism', queue: [] },
-        { front: 'yokan_prism', queue: [] }
+        { front: 'shou_sugi_block', queue: ['brass_sphere'] },
+        { front: 'coldbrew_flask', queue: [] },
+        { front: 'coldbrew_flask', queue: [] }
       ]
     ]
   },
-  // Level 5 – 6 Regale, 9 Matches, Planungstiefe
+  // Level 4 – 5 Regale, 7 Matches. Erste Mastery-Welle (matcha_montblanc,
+  // chashaku_scoop, incense_burner, mizuhiki_knot) gemischt mit drei
+  // wiederkehrenden Favoriten (kissa_toast, yokan_prism, origami_dripper).
   {
-    moves: 18,
-    targetMatches: 9,
+    moves: 15,
+    targetMatches: 7,
     layout: [
       [
-        { front: 'matcha_roll', queue: [] },
-        { front: 'matcha_roll', queue: [] },
-        { front: null, queue: [] }
+        { front: 'matcha_montblanc', queue: [] },
+        { front: 'matcha_montblanc', queue: [] },
+        { front: null, queue: ['chashaku_scoop', 'origami_dripper'] }
       ],
       [
-        { front: 'brass_sphere', queue: ['matcha_roll'] },
-        { front: 'brass_sphere', queue: [] },
-        { front: null, queue: [] }
+        { front: 'matcha_montblanc', queue: ['incense_burner'] },
+        { front: 'chashaku_scoop', queue: [] },
+        { front: 'kissa_toast', queue: ['origami_dripper'] }
       ],
       [
-        { front: 'coldbrew_flask', queue: ['brass_sphere'] },
-        { front: 'coldbrew_flask', queue: [] },
-        { front: null, queue: [] }
+        { front: 'chashaku_scoop', queue: [] },
+        { front: 'incense_burner', queue: [] },
+        { front: null, queue: ['mizuhiki_knot', 'kissa_toast', 'yokan_prism'] }
       ],
       [
-        { front: 'shou_sugi_block', queue: ['coldbrew_flask'] },
-        { front: 'shou_sugi_block', queue: [] },
-        { front: null, queue: [] }
+        { front: 'incense_burner', queue: [] },
+        { front: 'mizuhiki_knot', queue: [] },
+        { front: null, queue: ['yokan_prism'] }
       ],
       [
-        { front: 'copper_caddy', queue: ['shou_sugi_block'] },
-        { front: 'copper_caddy', queue: [] },
-        { front: null, queue: [] }
-      ],
-      [
-        { front: 'origami_dripper', queue: ['copper_caddy'] },
-        { front: 'origami_dripper', queue: [] },
+        { front: 'mizuhiki_knot', queue: ['yokan_prism'] },
+        { front: 'kissa_toast', queue: [] },
         { front: 'origami_dripper', queue: [] }
       ]
     ]
   },
-  // Level 6 – 6 Regale, 12 Matches, Endgame mit tiefen Queues
+  // Level 5 – 6 Regale, 8 Matches. Zweite Mastery-Welle (gotoku_trivet,
+  // kuro_mame_dome, dango_plate, cast_iron_bell) + vier Favoriten aus
+  // Batch 1-4 (dango_stick, copper_caddy, matcha_roll, shou_sugi_block).
   {
-    moves: 22,
-    targetMatches: 12,
+    moves: 16,
+    targetMatches: 8,
     layout: [
       [
-        { front: 'mizuhiki_knot', queue: ['gotoku_trivet'] },
         { front: 'gotoku_trivet', queue: [] },
-        { front: null, queue: [] }
-      ],
-      [
-        { front: 'cast_iron_bell', queue: ['mizuhiki_knot'] },
-        { front: 'kuro_mame_dome', queue: ['cast_iron_bell'] },
-        { front: null, queue: [] }
-      ],
-      [
-        { front: 'dango_plate', queue: ['kuro_mame_dome'] },
-        { front: 'incense_burner', queue: ['dango_plate'] },
-        { front: null, queue: [] }
-      ],
-      [
-        { front: 'matcha_montblanc', queue: ['incense_burner'] },
-        { front: 'chashaku_scoop', queue: ['matcha_montblanc'] },
-        { front: null, queue: [] }
-      ],
-      [
-        { front: 'chawan_cup', queue: ['chashaku_scoop'] },
-        { front: 'tetsubin_kettle', queue: ['chawan_cup'] },
-        { front: 'chasen_whisk', queue: ['tetsubin_kettle'] }
-      ],
-      [
         { front: 'gotoku_trivet', queue: [] },
+        { front: null, queue: ['kuro_mame_dome'] }
+      ],
+      [
+        { front: 'gotoku_trivet', queue: ['dango_plate'] },
         { front: 'kuro_mame_dome', queue: [] },
-        { front: 'yokan_prism', queue: ['chasen_whisk', 'dango_plate', 'incense_burner', 'matcha_montblanc', 'chashaku_scoop', 'yokan_prism'] }
+        { front: 'dango_stick', queue: [] }
+      ],
+      [
+        { front: 'kuro_mame_dome', queue: [] },
+        { front: 'dango_plate', queue: [] },
+        { front: null, queue: ['cast_iron_bell', 'dango_stick'] }
+      ],
+      [
+        { front: 'dango_plate', queue: [] },
+        { front: 'cast_iron_bell', queue: [] },
+        { front: null, queue: ['copper_caddy', 'copper_caddy'] }
+      ],
+      [
+        { front: 'cast_iron_bell', queue: ['copper_caddy', 'matcha_roll'] },
+        { front: 'matcha_roll', queue: [] },
+        { front: 'matcha_roll', queue: [] }
+      ],
+      [
+        { front: 'dango_stick', queue: ['shou_sugi_block'] },
+        { front: 'shou_sugi_block', queue: [] },
+        { front: 'shou_sugi_block', queue: [] }
+      ]
+    ]
+  },
+  // Level 6 – 6 Regale, 10 Matches. Finale: die komplette Mastery-Reihe
+  // (matcha_montblanc, chashaku_scoop, incense_burner, mizuhiki_knot,
+  // gotoku_trivet, kuro_mame_dome, dango_plate, cast_iron_bell) plus die
+  // beiden letzten offenen Items coldbrew_flask und brass_sphere -- damit
+  // waren im Verlauf des Spiels alle 20 Items mindestens einmal im Einsatz.
+  // Regal 6 startet mit dem einzigen leeren Slot des Levels: der erste Zug
+  // (mizuhiki_knot aus Regal 5 dorthin) loest sofort eine Kettenreaktion aus.
+  {
+    moves: 18,
+    targetMatches: 10,
+    layout: [
+      [
+        { front: 'coldbrew_flask', queue: [] },
+        { front: 'coldbrew_flask', queue: [] },
+        { front: 'brass_sphere', queue: ['gotoku_trivet', 'kuro_mame_dome'] }
+      ],
+      [
+        { front: 'brass_sphere', queue: [] },
+        { front: 'brass_sphere', queue: [] },
+        { front: 'matcha_montblanc', queue: ['gotoku_trivet', 'dango_plate'] }
+      ],
+      [
+        { front: 'matcha_montblanc', queue: [] },
+        { front: 'matcha_montblanc', queue: [] },
+        { front: 'chashaku_scoop', queue: ['kuro_mame_dome', 'cast_iron_bell'] }
+      ],
+      [
+        { front: 'chashaku_scoop', queue: [] },
+        { front: 'chashaku_scoop', queue: [] },
+        { front: 'incense_burner', queue: ['dango_plate', 'cast_iron_bell'] }
+      ],
+      [
+        { front: 'incense_burner', queue: [] },
+        { front: 'incense_burner', queue: [] },
+        { front: 'mizuhiki_knot', queue: ['gotoku_trivet', 'dango_plate'] }
+      ],
+      [
+        { front: 'mizuhiki_knot', queue: [] },
+        { front: 'mizuhiki_knot', queue: [] },
+        { front: null, queue: ['coldbrew_flask', 'kuro_mame_dome', 'cast_iron_bell'] }
       ]
     ]
   }
