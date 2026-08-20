@@ -243,6 +243,77 @@ function knockOutPanel(data, width, height) {
   return { left: x0, top: y0, width: x1 - x0 + 1, height: y1 - y0 + 1 };
 }
 
+// Misst die lichte Nische an einem Rahmen, dessen Innenflaeche im Render offen
+// ist -- der Hintergrund scheint also durch und wird beim Keying transparent.
+//
+// knockOutPanel darueber setzt eine geschlossene, unbunte und *helle* Rueckwand
+// voraus (Kanalspreizung < 30, Helligkeit 140 bis 250). Mit dem Nachtstil gilt
+// das nicht mehr: ein dunkles Moebel vor dunklem Grund hat keine helle
+// Rueckwand, und ein dunkler Rahmen wuerde die Flutfuellung nicht stoppen.
+//
+// Aus dem Alphakanal gelesen ist die Messung ohnehin genauer: gesucht ist die
+// groesste zusammenhaengende transparente Flaeche, die vom Bildrand aus *nicht*
+// erreichbar ist. Das ist per Definition die eingeschlossene Nische.
+function findCavityHole(data, width, height) {
+  const n = width * height;
+  const isClear = i => data[i * 4 + 3] < 128;
+
+  const seen = new Uint8Array(n);
+  const stack = new Int32Array(n);
+  let sp = 0;
+
+  const push = i => { if (!seen[i] && isClear(i)) { seen[i] = 1; stack[sp++] = i; } };
+
+  for (let x = 0; x < width; x++) { push(x); push((height - 1) * width + x); }
+  for (let y = 0; y < height; y++) { push(y * width); push(y * width + width - 1); }
+
+  while (sp > 0) {
+    const cur = stack[--sp];
+    const cx = cur % width;
+    const cy = (cur - cx) / width;
+    if (cx > 0) push(cur - 1);
+    if (cx < width - 1) push(cur + 1);
+    if (cy > 0) push(cur - width);
+    if (cy < height - 1) push(cur + width);
+  }
+
+  const comp = new Int32Array(n);
+  let best = null;
+
+  for (let start = 0; start < n; start++) {
+    if (seen[start] || !isClear(start)) continue;
+
+    let cp = 0, head = 0;
+    comp[cp++] = start;
+    seen[start] = 1;
+    let x0 = width, y0 = height, x1 = -1, y1 = -1;
+
+    while (head < cp) {
+      const cur = comp[head++];
+      const cx = cur % width;
+      const cy = (cur - cx) / width;
+      if (cx < x0) x0 = cx;
+      if (cx > x1) x1 = cx;
+      if (cy < y0) y0 = cy;
+      if (cy > y1) y1 = cy;
+      const add = i => { if (!seen[i] && isClear(i)) { seen[i] = 1; comp[cp++] = i; } };
+      if (cx > 0) add(cur - 1);
+      if (cx < width - 1) add(cur + 1);
+      if (cy > 0) add(cur - width);
+      if (cy < height - 1) add(cur + width);
+    }
+
+    if (!best || cp > best.area) {
+      best = { area: cp, left: x0, top: y0, width: x1 - x0 + 1, height: y1 - y0 + 1 };
+    }
+  }
+
+  // Eine Nische fuellt einen nennenswerten Teil des Moebels. Alles darunter ist
+  // eine Fuge zwischen zwei Brettern oder ein Rest vom Keying.
+  if (!best || best.area < n * 0.02) return null;
+  return best;
+}
+
 // Freigestellt wird gegen Weiss -- bei einem cremeweissen Objekt trifft das
 // auch dessen hellste Stellen. Bei der Katze riss das Loecher in Kopf und Fell.
 //
@@ -746,7 +817,11 @@ async function processImages() {
       // danach die exakte lichte Nische -- praeziser als die Helligkeits-Heuristik
       // von measureCavityRatio, weil es direkt aus dem Alphakanal kommt.
       if (BGL_KNOCKOUT.includes(baseName)) {
-        const hole = knockOutPanel(data, info.width, info.height);
+        // Offene Nische zuerst: der Nachtstil rendert sie ohne Rueckwand.
+        // knockOutPanel bleibt als Rueckfall fuer die alten Renders mit
+        // geschlossener Putzwand.
+        const hole = findCavityHole(data, info.width, info.height)
+          || knockOutPanel(data, info.width, info.height);
         if (hole) {
           cavityRects[baseName] = {
             x: parseFloat(((hole.left + hole.width / 2) / info.width).toFixed(4)),

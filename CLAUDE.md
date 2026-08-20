@@ -426,7 +426,11 @@ Checkliste im Browser (DevTools auf ein Telefon mit DPR 3 stellen — bei DPR 1 
 Den tatsächlich verwendeten Prompt in Abschnitt 3 aktualisieren, inkl. Versionsnotiz, warum die Vorgängerversion ersetzt wurde. Der Katalog ist die einzige Quelle für Re-Renders.
 
 ### Das Regalgehäuse
-`bgl_niche_frame` kommt mit geschlossener Putzrückwand aus dem Modell. Die Pipeline stanzt sie aus (`knockOutPanel`): Flutfüllung von der Bildmitte über unbunte, mittelhelle Pixel. Der Holzrahmen ist stark warm (Kanalspreizung > 80) und stoppt die Füllung zuverlässig, der reinweiße Außenbereich wird nie erreicht.
+Die lichte Nische wird auf zwei Wegen vermessen, `findCavityHole` zuerst:
+
+**Offene Nische (ab v4).** Der Render zeigt die Innenfläche offen, der Hintergrund scheint also durch und wird beim Keying transparent. Gesucht ist dann die größte zusammenhängende transparente Fläche, die vom Bildrand aus *nicht* erreichbar ist — per Definition die eingeschlossene Nische. Daraus folgt die einzige harte Regel für den Render: **kein Mittelpfosten und keine Querstrebe in der Nische.** Zwei Kammern wären zwei getrennte Löcher, und gemessen würde nur das größere.
+
+**Geschlossene Putzrückwand (v2/v3, Rückfall).** `knockOutPanel` flutet von der Bildmitte über unbunte, mittelhelle Pixel (Kanalspreizung < 30, Helligkeit 140 bis 250) und wird vom stark warmen Holzrahmen gestoppt. Das setzt eine helle Rückwand *und* einen farbigen Rahmen voraus — mit dem Nachtstil gilt beides nicht mehr, deshalb der Weg über den Alphakanal.
 
 Das Loch ist danach die exakte lichte Nische und wird als `BG_CAVITY_RECTS` exportiert — präziser als die Helligkeits-Heuristik, weil es direkt aus dem Alphakanal kommt. Zusätzlich geht die äußere Kontur als `BG_FRAME_RECTS` mit: das Spiel skaliert das Möbel danach so, dass es vollständig zwischen Header und Booster-Reihe steht und unten auf der Wiese aufsitzt. Cover-Scaling hätte es oben und unten angeschnitten — dann liest es sich wie ein Wandausschnitt statt wie ein Möbel im Garten.
 
