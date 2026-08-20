@@ -36,149 +36,133 @@ Schrift: **M PLUS Rounded 1c** (`@fontsource/m-plus-rounded-1c`, nur Latin 500 +
 
 ---
 
-## 3. Nano Banana Pro Asset Generation Catalog
+## 3. Nano Banana Asset Generation Catalog — Kiri-e Stil
 
-### Hintergrundfarbe: Weiß oder Magenta
+### Stilwechsel: Art Toy → Kiri-e (切り絵)
 
-Freigestellt wird gegen die Hintergrundfarbe des Renders. Welche zu wählen ist, hängt am Motiv:
+Ab dieser Version werden alle Assets im **japanischen Kiri-e-Papierschnitt-Stil** gerendert. Statt 3D-mattierter Art-Toy-Renders entstehen flache, geschichtete Washi-Papier-Kompositionen mit sichtbarer Fasertextur, weichen Schlagschatten zwischen den Papierlagen und handgeschnittenen Kanten. Der Stil ist grafischer, wärmer und unverwechselbar japanisch.
 
-- **Dunkle oder kräftig farbige Motive** → `pure solid white background (#FFFFFF)`. Funktioniert seit jeher.
-- **Helle, cremefarbene oder weiße Motive** → `pure solid magenta background (#FF00FF)`. **Pflicht**, nicht optional.
+Referenz-Renders: `raw_renders/1787213128763.png` (chawan_cup, Kiri-e) und `raw_renders/1787211537905.png` (tetsubin_kettle, Kiri-e).
 
-Der Grund: der Studio-Hintergrund kommt nie als exaktes Weiß aus dem Modell, sondern mit Vignette. Beim Katzen-Render lief er von 241 bis 251 Grau, während das cremeweiße Fell bei 249 bis 251 liegt — an der Stirn sind Motiv und Hintergrund exakt dieselbe Farbe. Das Keying riss daraufhin eine Kerbe in den Kopf, und bei `btn_undo` fehlte ein ganzes Stück der rechten Kante. Weil dadurch auch die Inhaltsbox schrumpfte, wurden die drei Booster-Buttons noch dazu ungleich groß.
+### Hintergrundfarbe: Magenta für alle Kiri-e-Items
 
-Gegen Magenta ist die Trennung eindeutig: kein Ton der Kissa-Palette kommt ihm nahe (das dunkle Azuki-Rosé liegt weit entfernt). Die Pipeline erkennt den Chroma-Hintergrund automatisch an den Bildecken — es ist **keine Konfiguration nötig**, nur der richtige Prompt. Der Saum wird beim Keying zusätzlich entfärbt, damit kein bunter Rand stehen bleibt.
+Alle Kiri-e-Items werden gegen **Magenta (#FF00FF)** gerendert. Der Papierton (Washi, Kraft) ist immer hell genug, dass Weiss nicht funktioniert — die Hintergrundfarben-Regel aus dem alten Katalog vereinfacht sich: **immer Magenta**. Die Pipeline erkennt den Chroma-Hintergrund automatisch an den Bildecken.
 
-### Master Negative Prompt (Append to all runs)
-hyper-realistic, high gloss reflections, shiny liquid specular, crumbs, baked floor shadows, blurry edges, gradient background, photorealism, text, watermark, logo, perspective tilt, 3d render artifacts, multiple objects, second object, duplicate, collage, grid layout, product lineup
+### Master Negative Prompt — Kiri-e (Append to all runs)
+hyper-realistic, high gloss reflections, shiny liquid specular, 3d render, photorealism, gradient background, text, watermark, logo, perspective tilt, multiple objects, duplicate, collage, grid layout, product lineup, smooth plastic, glossy surface, digital painting, cel shading
 
-### Master Base Prompt Formula
-[Subject] [Geometric Primitive], Japanese modern kissa aesthetic, unglazed biscuit porcelain and tactile matte wood CMF, orthographic front-facing view, softbox ambient studio lighting, pure solid white background (#FFFFFF), zero floor shadow, sharp silhouette edge definition, art toy product render, 8k resolution --style raw
+### Master Base Prompt Formula — Kiri-e
+[Subject description] in Japanese kiri-e washi paper cutout style, layered handmade washi paper with visible fiber texture, soft drop shadows between paper layers creating gentle depth, simplified bold graphic shapes with slightly irregular hand-cut edges, compact proportions roughly as wide as tall, front-facing view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
 
-### Core Item Prompts
-1. **chawan_cup:**
-   Squat cylindrical Japanese chawan tea bowl in off-white biscuit porcelain, filled with velvety flat matcha-green foam, minimalist straight-profile silhouette, orthographic front view, pure white background, zero floor shadow.
-2. **tetsubin_kettle:**
-   Squat flat-profile cast iron kettle in charcoal black matte finish with a clean right-angle brushed brass handle and angled spout, orthographic front view, pure white background, zero floor shadow.
-3. **chasen_whisk:**
-   Stylized geometric bamboo matcha whisk (chasen) carved from pale Hinoki blonde wood with clean rhythmic carved tines, orthographic front view, pure white background, zero floor shadow.
-4. **kissa_toast:**
-   Sculptural Shokupan bread toast cube with golden-brown baked edges and a single sharp yellow cube of butter centered on top, matte polymer clay finish, orthographic front view, pure white background, zero floor shadow.
-5. **dango_stick:**
-   Three perfectly spherical matte clay dango beads in pastel pink, chalk white, and matcha green on a pale wooden skewer, orthographic front view, pure white background, zero floor shadow.
-6. **yokan_prism:**
-   Triangular geometric slice of red bean yokan jelly in deep azuki maroon-purple with razor-sharp beveled edges and a tiny gold foil flake, orthographic front view, pure white background, zero floor shadow.
-7. **copper_caddy:**
-   Minimalist cylindrical tea caddy in brushed satin copper with a flush brushed brass lid, architectural silhouette, orthographic front view, pure white background, zero floor shadow.
-8. **origami_dripper:**
-   Conical origami coffee dripper in sage-green matte stoneware with 16 sharp vertical facets resting on a round blonde Hinoki base ring, orthographic front view, pure white background, zero floor shadow.
+### Silhouetten-Regel
 
-### Regalbrett-Prompt (v2)
-v1 war ein flaches Brett: ein reiner Helligkeitsverlauf von 231 auf 198 ohne Tiefenkante, die dunkle Lippe nur in den letzten 16 px. Vor dem hellen Shoji-Panel verschwand es fast. v2 zeigt die Materialstärke, damit die Goods sichtbar **auf** dem Brett stehen statt davor zu schweben.
+Für dieses Spiel zählt vor allem die **Silhouette**: drei gleiche Objekte zu erkennen ist die ganze Mechanik. Jedes der 20 Items muss sich **allein am Umriss** von allen anderen unterscheiden. Kompakt, ungefähr quadratisch, klare Umrisslinie. Nichts hängt, alles steht auf einer Standfläche. Ein Item wird bei `ITEM_SIZE` 58 px Design angezeigt — bei dieser Größe muss die Silhouette noch lesbar sein.
 
-Das Brett wird im Spiel **gleichmäßig skaliert** gezeichnet, nicht per NineSlice. NineSlice zeichnet seine Endkappen in Texturgröße; bei einem Brett, das auf rund 45 % herunterskaliert wird, wären die Messingstifte an den Enden doppelt so groß wie das Holz daneben. Die Höhe folgt dem Seitenverhältnis der Textur, es wird also nichts verzerrt — die Mitte muss deshalb **nicht** wiederholbar sein.
+### Item-Prompts — Kiri-e (20 Items)
 
-Die Stifte an den Enden sind die Befestigung: das Brett wird so breit gezogen, dass sie den Rahmen berühren. `SHELF_CAVITY_FILL` in `src/main.ts` ist dafür am Asset gemessen — das ausgestanzte Loch endet an der inneren Schattenkante des Putzpanels, das sichtbare Holz beginnt 6 von 402 px weiter außen, also Faktor 1.015.
+Die Items decken breite japanische Kultur ab, nicht nur Kissa/Teehaus. Jedes hat eine einzigartige Silhouette und eine eigene Primärfarbe. Alle auf Magenta-Hintergrund.
 
-Die Auflagelinie wird von der Pipeline am Asset vermessen (`SHELF_PLATFORM_RATIOS`) — die Kantenhöhe darf sich also frei ändern.
-Magenta-Hintergrund, weil blondes Hinoki hell ist.
+**Bestehend (bereits gerendert im Kiri-e-Stil):**
 
-**shelf_wood:**
-Single long horizontal shelf board of warm blonde hinoki wood seen from slightly above, aspect ratio 5:1, the flat top surface clearly visible as a lighter plane and the front edge showing a distinct band of material thickness in a deeper toasted walnut tone, a slim brushed brass pin support at each far end, completely plain and unornamented along the middle, straight clean silhouette with softly eased corners, Japanese modern kissa aesthetic, tactile matte finish with zero gloss, art toy product render, orthographic front view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
+1. **chawan_cup** *(breite Schale — ivory/cream + matcha-grün):*
+   Squat cylindrical Japanese chawan tea bowl in ivory cream washi paper with a small indigo four-petal flower motif on the front, filled with flat matcha-green paper, compact proportions, in Japanese kiri-e washi paper cutout style, layered handmade washi with visible fiber texture, soft drop shadows between paper layers, front-facing view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
 
-### Item-Neuauflagen (v2)
-Sieben Goods lesen sich auf dem Regal schlecht. Die Ursachen sind bei allen ähnlich: zu filigran, zu breit, oder eine Silhouette, die bei 72 px nichts mehr aussagt.
+2. **tetsubin_kettle** *(Kanne mit Bogenhenkel — charcoal + gold):*
+   Squat Japanese cast iron tetsubin kettle with a curved handle in gold kraft paper and a small spout, the body in dark charcoal washi paper with subtle creased texture, in Japanese kiri-e washi paper cutout style, layered handmade paper with visible fiber texture, soft drop shadows between paper layers, compact proportions, front-facing view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
 
-Ein Goods wird mit `ITEM_SIZE` (58 px Design) gezeichnet. Die Bottom-Offsets der Pipeline rechnen in `ITEM_OFFSET_BASE` (72 px) — wird die Anzeigegröße geändert, muss der Offset denselben Faktor bekommen, sonst schweben die Goods über dem Brett.
+**Aus dem alten Katalog übernommen (müssen als Kiri-e neu gerendert werden):**
 
-Für dieses Spiel zählt vor allem die **Silhouette**: drei gleiche Objekte zu erkennen ist die ganze Mechanik. Also kompakt, ungefähr quadratisch, dicke Formen, klare Umrisslinie — und jedes Item muss sich schon am Umriss von den anderen unterscheiden. Nichts hängt, alles steht auf einer Standfläche.
-Magenta-Hintergrund für alle sieben (auch die dunklen — der Abstand zu Magenta ist bei Gusseisen und Messing groß genug).
+3. **kissa_toast** *(Quadrat mit Butter-Tab oben — golden/honey + gelb):*
+   Sculptural shokupan bread toast cube with golden-brown baked edges in warm honey kraft paper and a single small yellow square of butter centered on top in pale yellow washi, compact cube proportions, in Japanese kiri-e washi paper cutout style, layered handmade paper with visible fiber texture, soft drop shadows between paper layers, front-facing view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
 
-**chasen_whisk** *(v1 las sich wie ein Käfig oder eine Lampe, nicht wie ein Teebesen):*
-Stylized bamboo matcha whisk standing upright on its base, compact and chunky proportions roughly as wide as it is tall, a short cylindrical pale hinoki handle carrying a dense rounded dome of many fine carved tines, the tines reading as one solid rounded mass rather than separate loops, Japanese modern kissa aesthetic, unglazed biscuit and tactile matte wood CMF, art toy product render, orthographic front view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
+4. **dango_stick** *(vertikaler 3-Kugel-Stapel — pink/weiss/grün):*
+   Three round dango balls stacked vertically on a pale wooden skewer, the top ball in soft pink washi, the middle in chalk white washi, the bottom in matcha-green washi, each ball a separate paper layer with visible edges, in Japanese kiri-e washi paper cutout style, layered handmade paper with visible fiber texture, soft drop shadows between paper layers, front-facing view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
 
-**chashaku_scoop** *(v1 war ein extrem breiter dünner Stab quer über einer Rolle — bei Spielgröße nur noch ein Strich):*
-Bamboo tea scoop chashaku resting in a small upright stand, compact composition roughly as wide as it is tall, the scoop angled diagonally rather than horizontally so its curved bowl and thick handle both read clearly, pale blonde bamboo with a chalk white ceramic block base, Japanese modern kissa aesthetic, tactile matte CMF, art toy product render, orthographic front view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
+5. **yokan_prism** *(spitzes Dreieck — azuki-maroon):*
+   Triangular slice of yokan red bean jelly in deep azuki maroon washi paper with razor-sharp beveled edges and a tiny gold foil diamond accent, geometric wedge shape, in Japanese kiri-e washi paper cutout style, layered handmade paper with visible fiber texture, soft drop shadows between paper layers, front-facing view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
 
-**gotoku_trivet** *(v1 wirkte wie eine gezackte Krone):*
-Squat round cast iron trivet gotoku with three short stubby rounded posts rising from a thick ring base, compact and heavy proportions, matte charcoal black sand-cast finish with visible grain, blunt rounded tips instead of sharp spikes, Japanese modern kissa aesthetic, art toy product render, orthographic front view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
+6. **matcha_roll** *(Zylinder mit Spirale — forest green + cream):*
+   Cross-section of a matcha roll cake showing a bold cream and deep green spiral pattern on the circular face, the cylindrical body in dark matcha-green washi paper, compact round proportions, in Japanese kiri-e washi paper cutout style, layered handmade paper with visible fiber texture, soft drop shadows between paper layers, front-facing view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
 
-**incense_burner** *(v1 war ein generischer Messingkegel auf einer Scheibe):*
-Small round incense burner koro in matte charcoal ceramic with a domed brushed brass lid pierced by a few round vent holes, squat rounded bell-like silhouette sitting on three tiny feet, a single thin wisp of sculpted smoke curling from the top, Japanese modern kissa aesthetic, tactile matte CMF with zero gloss, art toy product render, orthographic front view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
+7. **incense_burner** *(runder Topf mit Kuppeldeckel — charcoal + gold):*
+   Small round incense burner koro with a squat charcoal body in dark washi paper and a domed lid in gold foil paper pierced by a few round holes, sitting on three tiny feet, a single thin paper wisp of smoke, in Japanese kiri-e washi paper cutout style, layered handmade paper with visible fiber texture, soft drop shadows between paper layers, front-facing view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
 
-**shou_sugi_block** *(v1 war eine flache Kachel und las sich wie ein UI-Element, nicht wie ein Objekt):*
-Small solid cube of shou sugi ban charred cedar standing on a shelf, clearly three-dimensional with the top face and one side face visible, deep matte charcoal black with a cracked alligator-skin char texture, a single small brushed brass inlay disc on the front face, softly eased edges, Japanese modern kissa aesthetic, art toy product render, orthographic three-quarter front view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
+**Neue Items (breit japanisch, nicht nur Kissa):**
 
-**brass_sphere** *(v1 hing an einer Kette — die Goods stehen aber im Regal):*
-Faceted brushed brass sphere resting in a shallow charcoal ceramic ring stand, no chain and no suspension, large clean hexagonal facets with a few small pierced dots, compact proportions roughly as wide as it is tall, warm satin brass with zero mirror reflection, Japanese modern kissa aesthetic, art toy product render, orthographic front view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
+8. **daruma** *(gedrungener Tropfen mit Gesicht — vermillion-rot):*
+   Japanese daruma good-luck doll, squat rounded egg shape with a flat bottom, bold vermilion red washi paper body, a stern stylized face with thick black eyebrows and a gold circle on the forehead, in Japanese kiri-e washi paper cutout style, layered handmade paper with visible fiber texture, soft drop shadows between paper layers, compact proportions, front-facing view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
 
-**cast_iron_bell** *(v1 hing frei in der Luft — wie `brass_sphere`; die Goods stehen aber im Regal):*
-Small cast iron furin wind bell resting upright on a low charcoal ceramic ring stand, no cord and no suspension, squat rounded dome silhouette roughly as wide as it is tall, matte charcoal black sand-cast finish with visible grain and a thin brushed brass rim band, a short pale paper tanzaku strip tucked against the base rather than dangling, Japanese modern kissa aesthetic, art toy product render, orthographic front view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
+9. **maneki_neko** *(Winkekatze mit erhobener Pfote — weiss + gold):*
+   Japanese beckoning cat maneki neko figurine sitting upright with one paw raised, white washi paper body with calico patches in warm orange and charcoal, a gold foil coin held in the raised paw, simplified rounded geometry, in Japanese kiri-e washi paper cutout style, layered handmade paper with visible fiber texture, soft drop shadows between paper layers, compact proportions, front-facing view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
 
-### Vollbild-Layout (v3) — noch nicht gerendert
+10. **kokeshi** *(Kegel mit rundem Kopf — naturholz + bunt):*
+    Japanese kokeshi wooden doll with a large round head and a simple cylindrical body, the head in pale cream washi with a sweet painted face and two red cheek dots, the body in warm kraft paper with horizontal stripes in red and indigo washi, in Japanese kiri-e washi paper cutout style, layered handmade paper with visible fiber texture, soft drop shadows between paper layers, compact proportions, front-facing view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
 
-Der Rahmen wird heute *zwischen* Header und Booster-Reihe eingepasst und ist mit Seitenverhaeltnis 0.44 schmaler als ein Telefon (0.46 bis 0.51). Randlos ginge deshalb nur mit Verzerren oder mit Anschnitt oben und unten. Die drei Renders unten loesen das am Asset statt im Code: das Moebel bringt selbst Handy-Format mit.
+11. **sensu_fan** *(aufgespreizter Halbkreis-Fächer — gold + indigo):*
+    Japanese folding fan sensu spread open in a half-circle shape, gold foil paper ribs with an indigo washi surface decorated with a simple wave pattern, a small tassel at the pivot point, in Japanese kiri-e washi paper cutout style, layered handmade paper with visible fiber texture, soft drop shadows between paper layers, compact proportions, front-facing view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
 
-Pflichten aus der Pipeline, die nicht verhandelbar sind:
-- Der Magenta-Rand links und rechts muss bleiben. `detectKeyColor` liest den Hintergrund an den Bildecken; ohne Rand wuerde das Keying das Holz selbst treffen. Im Spiel liegt er ausserhalb des Bildschirms.
-- Die Rueckwand bleibt geschlossener weisser Putz. `knockOutPanel` flutet sie von der Bildmitte aus und misst daran `BG_CAVITY_RECTS` -- ohne Rueckwand gibt es keine Nischenvermessung.
-- Das Brett wird gleichmaessig auf Nischenbreite skaliert. Bei fast voller Bildschirmbreite waere es mit dem alten Seitenverhaeltnis rund 40 px hoch, daher 12:1.
+12. **onigiri** *(abgerundetes Dreieck mit Nori-Band — weiss + schwarz):*
+    Japanese rice ball onigiri in a rounded triangle shape, white washi paper body with a wide band of dark nori seaweed in charcoal black washi wrapped around the bottom half, a single small red umeboshi dot visible at the center, in Japanese kiri-e washi paper cutout style, layered handmade paper with visible fiber texture, soft drop shadows between paper layers, compact proportions, front-facing view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
 
-**bgl_niche_frame (v3):**
-Front-facing freestanding tall display cabinet made of warm blonde hinoki wood, the cabinet fills the entire height of the canvas with its flat top board touching the very top edge and its flat bottom board touching the very bottom edge, slim vertical side posts, an even magenta margin on the left and right side only, the open inner cavity as large as the structure allows and occupying at least 88% of the cabinet height and 84% of its width, generously rounded outer corners and softly rounded inner cavity corners, deep matte white plaster back panel filling the entire cavity as one closed surface, small brushed brass corner brackets, no doors and no shelves and no crossbars inside the cavity, single isolated object, Japanese modern kissa aesthetic, tall portrait orientation 9:16, orthographic front view, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, art toy product render, 8k resolution --style raw
+13. **origami_crane** *(eckiger Kranich mit Flügeln — rot/gold):*
+    Japanese origami paper crane tsuru with spread wings, folded from rich vermilion red washi paper, angular geometric creases clearly visible, the classic origami crane silhouette with pointed tail and beak, in Japanese kiri-e washi paper cutout style, layered handmade paper with visible fiber texture, soft drop shadows between paper layers, compact proportions, front-facing view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
 
-**shelf_wood (v3):**
-Single long horizontal shelf board of warm blonde hinoki wood seen from slightly above, extremely wide and slim proportions with an aspect ratio of 12:1, the flat top surface clearly visible as a lighter plane and the front edge showing a distinct narrow band of material thickness in a deeper toasted walnut tone, a slim brushed brass pin support at each far end flush with the board ends, completely plain and unornamented along the middle, straight clean silhouette with softly eased corners, Japanese modern kissa aesthetic, tactile matte finish with zero gloss, art toy product render, orthographic front view, centered on a portrait 9:16 canvas with generous even padding above and below the board, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
+14. **torii_gate** *(Miniatur-Torii-Tor — vermillion + charcoal):*
+    Miniature Japanese torii shrine gate, two vertical pillars and two horizontal crossbeams in bold vermilion red washi paper on a charcoal washi base, simplified chunky proportions, in Japanese kiri-e washi paper cutout style, layered handmade paper with visible fiber texture, soft drop shadows between paper layers, compact proportions roughly as wide as tall, front-facing view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
 
-**bg_kissa_garden (neu):**
-Vollbild-Hintergrund hinter dem randlosen Rahmen. Prefix `bg_`, wird also nicht freigestellt -- deshalb kein Hintergrundfarben-Hinweis im Prompt. Der Dunst im mittleren Band ist mitgerendert, damit das halbtransparente Shoji-Rechteck aus dem Code entfallen kann. Im Negativ fehlt bewusst `gradient background`: der Himmelsverlauf ist hier das Motiv.
-Japanese modern kissa garden backdrop filling the entire frame edge to edge, soft pale blue morning sky with a gentle vertical wash from dusty cornflower blue at the top to warm ivory at the horizon, three or four simplified rounded chalk white clouds in the upper third, a low silhouette range of gentle rolling hills in muted sage green and dusty blue-grey layered in two depths across the lower third, a strip of soft matcha-green meadow with a few simplified tufts along the bottom fifth, the entire middle band left calm and nearly empty and softly hazed as if seen through shoji paper so that objects placed in front of it stay readable, flat matte art-toy poster finish with zero gloss, no lanterns, no animals, no buildings, no people, no border and no margin, tall portrait orientation 9:16, orthographic front view, 8k resolution --style raw
+15. **furoshiki** *(eingewickeltes Bündel mit Knoten — indigo + cream):*
+    Japanese furoshiki wrapped bundle with two rabbit-ear knot ends poking up from a rounded cloth body, indigo blue washi paper with a simple cream wave pattern, sitting on a small flat base, in Japanese kiri-e washi paper cutout style, layered handmade paper with visible fiber texture, soft drop shadows between paper layers, compact proportions, front-facing view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
 
-Offen im Code, sobald die Renders da sind: der Rahmen muss von Einpassen auf Cover-Scaling ueber `BG_FRAME_RECTS` umgestellt werden, und das Shoji-Rechteck in `GameScene.create` entfaellt.
+16. **sake_tokkuri** *(Sake-Flasche mit engem Hals — celadon-grün):*
+    Japanese sake flask tokkuri with a narrow neck and a wide round body, celadon green washi paper with a subtle crackle texture, a small sake cup ochoko in cream washi resting beside it, in Japanese kiri-e washi paper cutout style, layered handmade paper with visible fiber texture, soft drop shadows between paper layers, compact proportions, front-facing view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
 
-### Niche Background Prompts (3 Tiers)
-Each tier maintains the same Japanese kissa aesthetic: warm hinoki wood frame, matte white plaster interior, soft ambient lighting from above. The inner cavity width increases per tier to visually distinguish level groups.
-Format: Portrait 9:16 mobile canvas. Anchor: `raw_renders/bg_kissa_niche.jpeg`.
+17. **chochin** *(ovale Papierlaterne — ivory/red + bamboo):*
+    Japanese paper lantern chochin in an oval shape, the body alternating between warm ivory and soft red washi paper panels separated by thin bamboo ribs in kraft paper, a small tassel hanging from the bottom, in Japanese kiri-e washi paper cutout style, layered handmade paper with visible fiber texture, soft drop shadows between paper layers, compact proportions, front-facing view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
 
-9. **bg_kissa_niche** *(existing – Levels 1–3, cavity ≈66% of frame):*
-   Front-facing rectangular wall niche carved into warm blonde hinoki wood frame, matte white plaster interior cavity, soft ambient overhead light casting gentle warmth, Japanese modern kissa aesthetic, tall portrait orientation 9:16, orthographic front view, pure solid white background (#FFFFFF), art toy product render, 8k resolution --style raw
+18. **temari** *(Fadenball mit geometrischem Muster — bunt):*
+    Japanese decorative temari thread ball, a perfect sphere wrapped in geometric interlocking diamond and star patterns in matcha green, indigo blue, and gold washi paper on a cream base, in Japanese kiri-e washi paper cutout style, layered handmade paper with visible fiber texture, soft drop shadows between paper layers, compact proportions, front-facing view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
 
-10. **bg_kissa_niche_mid** *(Levels 4–5, cavity ≈78% of frame):*
-    Front-facing wide rectangular wall niche carved into warm blonde hinoki wood frame with thinner side pillars, matte white plaster interior cavity, soft ambient overhead light, Japanese modern kissa aesthetic, tall portrait orientation 9:16, orthographic front view, pure solid white background (#FFFFFF), art toy product render, 8k resolution --style raw
+19. **wagashi** *(Nerikiri-Süssigkeit in Blütenform — pastell):*
+    Japanese nerikiri wagashi sweet sculpted into a five-petal flower shape, soft pastel lavender washi paper petals with a small matcha-green center, sitting on a tiny dark wooden plate in charcoal washi, in Japanese kiri-e washi paper cutout style, layered handmade paper with visible fiber texture, soft drop shadows between paper layers, compact proportions, front-facing view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
 
-11. **bg_kissa_niche_wide** *(Level 6, cavity ≈88% of frame):*
-    Front-facing very wide panoramic wall niche carved into warm blonde hinoki wood frame with minimal thin side pillars, matte white plaster interior cavity, soft ambient overhead light, Japanese modern kissa aesthetic, tall portrait orientation 9:16, orthographic front view, pure solid white background (#FFFFFF), art toy product render, 8k resolution --style raw
+20. **omamori** *(Glücksamulett — Brokat gold/rot):*
+    Japanese omamori good-luck charm, a small rectangular brocade pouch in deep red washi with a gold foil decorative border and a short tassel hanging from the bottom, a thin cord loop at the top, in Japanese kiri-e washi paper cutout style, layered handmade paper with visible fiber texture, soft drop shadows between paper layers, compact proportions, front-facing view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
 
-### UI Card Prompts (v2 — echte Balkenformate)
-Die v1-Renders waren nahezu quadratisch (`ui_card_kuro` kam als 1606×1702 aus dem Modell) und mussten im Spiel auf Headerbreite gezogen werden. Ab v2 wird das Seitenverhältnis mitgeneriert. Die Karte wird per NineSlice gezeichnet, d.h. nur die Mitte darf gedehnt werden — **Ecken und Kanten müssen deshalb vollständig im äußeren Drittel der Kartenhöhe liegen**, und das Mittelfeld muss eine ruhige, wiederholbare Fläche ohne Ornament sein.
-Format: Portrait 9:16 Canvas, Karte horizontal zentriert, großzügiges Weiß über und unter der Karte.
+### Combined Cabinet Prompts — Kiri-e (bgl_cabinet)
 
-**Kein Anchor bei UI-Karten.** Mit `bg_kissa_niche.jpeg` als Anchor hat das Modell die Nische ein zweites Mal mit ins Bild gerendert — die Pipeline fängt das inzwischen ab (Strategie `widest`), aber der Render bleibt Verschwendung. Farbton stattdessen im Prompt beschreiben.
+Rahmen und Regalbretter werden als **ein einziges Bild** gerendert statt separat positioniert. Das eliminiert das Alignment-Problem, bei dem die Bretter exakt den Rahmen berühren mussten, und gibt dem Render volle Kontrolle über Proportionen und Verzierungen.
 
-12. **ui_card_kuro** *(Header-Plakette: Score / Bar / Moves):*
-    Extremely wide horizontal nameplate bar, aspect ratio 6:1, matte charcoal black kuro steel body with a thin brushed brass pinstripe running along the top and bottom edge, small brass corner brackets at the far left and far right ends only, completely plain and unornamented center field, softly rounded corners, Japanese modern kissa aesthetic, portrait 9:16 canvas with the bar centered horizontally and generous white padding above and below, orthographic front view, pure solid white background (#FFFFFF), art toy product render, 8k resolution --style raw
+Das Kabinett ist ein freistehendes Washi-Papier-Möbel im Kiri-e-Stil: geschichtetes Kraftpapier mit sichtbarer Fasertextur, Asanoha-Muster (麻の葉) in Goldfolie als Verzierung auf Ober- und Unterbrett, dünne Goldfolie-Akzente an den Seitenpfosten. Alle Bretter sind **von leicht oben** gezeigt — die hellere Cream-Oberfläche als breite sichtbare Fläche, darunter die schmale dunklere Toasted-Brown-Vorderkante. Alle Zellen strikt rechteckig, gleiche Höhe, gerade horizontale Kanten.
 
-13. **ui_card_hinoki** *(Booster-Tray, trägt Undo / Shuffle / Hammer):*
-    Wide horizontal tray bar, aspect ratio 4:1, warm blonde hinoki wood with clean chamfered edges and subtle straight grain, a shallow recessed inner channel running the full length, two small brass end caps at the far left and far right ends only, completely plain and unornamented center field, Japanese modern kissa aesthetic, portrait 9:16 canvas with the bar centered horizontally and generous white padding above and below, orthographic front view, pure solid white background (#FFFFFF), art toy product render, 8k resolution --style raw
+Drei Varianten für die Level-Gruppen:
 
-### Booster Button Prompts (v3)
-v2 waren schwarze Kuro-Steel-Kacheln. Vor dem Gartenhintergrund wirken sie hart und düster — v3 ist heller, runder und freundlicher, bleibt aber in der Palette der Szene (Creme, Matcha, Azuki, Hinoki, Messing).
-Format: Portrait 9:16 Canvas, Objekt mittig, **genau ein Objekt im Bild**. Alle drei mit identischem Körper, nur das Relief unterscheidet sich — sonst wirkt die Reihe unruhig.
-**Magenta-Hintergrund**, weil der Körper cremefarben ist (siehe oben).
+| Variante | Bretter | Zellen | Levels |
+|---|---|---|---|
+| `bgl_cabinet_4row` | 3 interne Bretter | 4 Zellen | 1–3 (4 Reihen) |
+| `bgl_cabinet_5row` | 4 interne Bretter | 5 Zellen | 2–4 (5 Reihen) |
+| `bgl_cabinet_6row` | 5 interne Bretter | 6 Zellen | 5–6 (6 Reihen) |
 
-14. **btn_undo:**
-    Single chunky rounded-square push button in soft warm cream ceramic with generously rounded corners and a soft pillowy silhouette, a thick raised matcha-green counter-clockwise curved arrow sculpted in smooth low relief on its face, friendly modern art toy look, tactile matte finish with zero gloss, Japanese modern kissa palette, orthographic front view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
+**Pipeline-Verarbeitung:**
+- Prefix `bgl_cabinet_` → freigestellt gegen Magenta, Position im Frame bleibt erhalten.
+- `knockOutPanel` läuft **nicht** für `bgl_cabinet_*` — die helle Washi-Rückwand bleibt als solide Fläche. Items sitzen auf den Bretter-Oberflächen, die Rückwand liefert den neutralen Kontrast — ein Shoji-Panel im Code ist nicht mehr nötig.
+- Die Shelf-Y-Positionen werden am fertigen Bild per Luminanz-Scan vermessen (helle Oberfläche → dunkle Vorderkante = Übergang) und als `CABINET_SHELF_RATIOS` exportiert.
+- `BG_FRAME_RECTS` und `BG_CAVITY_RECTS` werden weiterhin am Alphakanal gemessen.
+- Magenta-Rand links und rechts bleibt (für `detectKeyColor`).
 
-15. **btn_shuffle:**
-    Single chunky rounded-square push button in soft warm cream ceramic with generously rounded corners and a soft pillowy silhouette, two thick raised azuki-rose arrows crossing each other in an X sculpted in smooth low relief on its face, friendly modern art toy look, tactile matte finish with zero gloss, Japanese modern kissa palette, orthographic front view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
+**bgl_cabinet_6row** *(5 Bretter, 6 Zellen — Levels 5–6, finales genehmigtes Prompt):*
+Tall freestanding display shelf cabinet in Japanese kiri-e washi paper cutout style, front-facing view, the cabinet fills the entire canvas height from top edge to bottom edge with an even magenta margin on left and right only, built from layered warm honey-toned kraft paper with visible handmade washi fiber texture throughout, slim vertical side posts and wider horizontal top and bottom boards, the top board decorated with a paper-cut asanoha hemp leaf geometric pattern in gold foil, the bottom board with a smaller matching asanoha accent, the side posts with a thin vertical gold foil line, five evenly spaced horizontal shelf boards of plain kraft paper inside the cavity creating six equal rectangular cells of identical height with no exceptions, every single shelf board shown from a consistent slightly elevated viewpoint so that each board clearly displays its full lighter cream top surface as a wide visible plane with a narrow darker toasted-brown front edge below, small gold foil corner brackets at the four outer frame corners, pale ivory washi back panel in every cell, generously rounded outer frame corners, all six cell openings strictly rectangular with straight horizontal edges and identical proportions, the inner cavity at least 88 percent of cabinet height and 84 percent of width, single isolated object, soft drop shadows between paper layers, tall portrait 9:16, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
 
-16. **btn_hammer:**
-    Single chunky rounded-square push button in soft warm cream ceramic with generously rounded corners and a soft pillowy silhouette, a thick raised blonde hinoki wood mallet sculpted in smooth low relief on its face, friendly modern art toy look, tactile matte finish with zero gloss, Japanese modern kissa palette, orthographic front view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
+**bgl_cabinet_5row** *(4 Bretter, 5 Zellen — Levels 2–4):*
+Wie `bgl_cabinet_6row`, aber: „four evenly spaced horizontal shelf boards… creating five equal rectangular cells" statt fünf/sechs. „all five cell openings" statt six. Alles andere identisch.
 
-### Parallax-Hintergrund "Engawa-Garten" (bgl_ Layer)
-Statt eines einzelnen Bildes wird der Hintergrund aus freigestellten Ebenen gebaut, damit sich Wolken, Laternen und Tiere unabhängig bewegen können. Die Szene: die Regalnische steht auf einer Engawa-Veranda, dahinter öffnet sich ein Garten — blauer Himmel, ferne Hügel, Wiese, oben hängende Chōchin-Laternen unter dem Dachvorsprung, unten spielen Shiba und Katze.
+**bgl_cabinet_4row** *(3 Bretter, 4 Zellen — Levels 1–3):*
+Wie `bgl_cabinet_6row`, aber: „three evenly spaced horizontal shelf boards… creating four equal rectangular cells" statt fünf/sechs. „all four cell openings" statt six. Alles andere identisch.
 
-**Regel für alle Layer:** dieselbe gedeckte Kissa-Palette (Hinoki-Blond, Mattweiß, Matcha, Messing, Azuki), Art-Toy-Matt-Render, kein Fotorealismus, kein Text. Alle Layer außer `bgl_sky` werden freigestellt — daher **reines Weiß (#FFFFFF) als Hintergrund** und keine Bodenschatten. Das mittlere Band hinter der Nische bleibt bewusst leer, damit die Regale lesbar bleiben.
+### Parallax-Hintergrund "Engawa-Garten" — Kiri-e (bgl_ Layer)
+
+Statt eines einzelnen Bildes wird der Hintergrund aus freigestellten Ebenen gebaut, damit sich Wolken, Laternen und Tiere unabhängig bewegen können. Die Szene: das Regalgehäuse steht auf einer Engawa-Veranda, dahinter öffnet sich ein Garten — blauer Himmel, ferne Hügel, Wiese, oben hängende Chōchin-Laternen unter dem Dachvorsprung, unten spielen Shiba und Katze.
+
+**Regel für alle Layer:** Kiri-e-Washi-Stil, geschichtetes Papier mit sichtbarer Fasertextur, weiche Schlagschatten zwischen Lagen. Kein Fotorealismus, kein Text, keine 3D-Renders. Alle Layer außer `bgl_sky` werden freigestellt — daher **reines Weiß (#FFFFFF) als Hintergrund** und keine Bodenschatten. Das mittlere Band hinter der Nische bleibt bewusst leer, damit die Regale lesbar bleiben.
 Format aller Layer: Portrait 9:16 Canvas. `BG_LAYERS` in `src/main.ts` kennt drei Modi:
 
 | Modus | Layer | Verarbeitung |
@@ -187,42 +171,59 @@ Format aller Layer: Portrait 9:16 Canvas. `BG_LAYERS` in `src/main.ts` kennt dre
 | `band` | meadow | auf den Inhalt beschnitten, volle Breite, unten bündig |
 | `sprite` | cat, dog | freigestellt, über `xRatio`/`yRatio` platziert |
 
-`band` gibt es, weil der Wiesen-Render unterhalb des Motivs Weißraum ließ (Inhalt endete bei 84 % der Frame-Höhe) — als Vollbild-Ebene hätte das Band in der Luft gehangen. Wenn ein Render sein Motiv nicht bis zur gedachten Kante führt, ist `band` die Reparatur, nicht ein neuer Render.
+Die Halo-Entfernung des Defringings läuft für `bgl_`-Vollbild-Ebenen **nicht**: flache Kiri-e-Layer haben keinen Schlagschatten zum Hintergrund, dafür absichtlich sehr helle Flächen. Mit aktiver Regel war das Wolken-Layer komplett verschwunden.
 
-Die Halo-Entfernung des Defringings läuft für `bgl_`-Vollbild-Ebenen **nicht**: flache Grafik-Layer haben keinen Schlagschatten, dafür absichtlich sehr helle Flächen. Mit aktiver Regel war das Wolken-Layer komplett verschwunden.
+**bgl_sky** *(Vollbild, statisch, unterste Ebene):*
+Soft pale blue morning sky in flat washi paper style filling the entire frame, gentle vertical wash from dusty cornflower blue at the top to warm ivory at the horizon, visible paper fiber texture throughout, completely empty with no clouds and no objects, flat matte kiri-e finish, tall portrait orientation 9:16, no text, no watermark, 8k resolution --style raw
 
-17. **bgl_sky** *(Vollbild, statisch, unterste Ebene):*
-    Soft pale blue morning sky filling the entire frame, gentle vertical gradient from dusty cornflower blue at the top to warm ivory at the horizon, completely empty with no clouds and no objects, flat matte art-toy poster finish, tall portrait orientation 9:16, no text, no watermark, 8k resolution --style raw
+**bgl_clouds** *(driftet langsam horizontal):*
+A horizontal band of four simplified rounded clouds cut from soft chalk white and pale grey washi paper, flat layered kiri-e cutout shapes with slightly irregular hand-cut edges and soft drop shadows, spread evenly across the upper third of the frame, tall portrait 9:16 canvas with everything below the cloud band completely empty, pure solid white background (#FFFFFF), no sky gradient, no text, 8k resolution --style raw
 
-18. **bgl_clouds** *(driftet langsam horizontal):*
-    A horizontal band of four simplified rounded stylized clouds in soft chalk white and pale grey, flat matte art-toy shapes with clean silhouettes and no fine detail, spread evenly across the upper third of the frame, tall portrait 9:16 canvas with everything below the cloud band completely empty, pure solid white background (#FFFFFF), no sky gradient, no text, 8k resolution --style raw
+**bgl_hills** *(statisch, hinter der Nische):*
+A low silhouette range of gentle rolling hills cut from layered muted sage green and dusty blue-grey washi paper, simplified flat kiri-e cutout shapes in two depths with soft drop shadows between layers, occupying only the lower third of the frame with a perfectly flat horizontal bottom edge, tall portrait 9:16 canvas with everything above the hills completely empty, pure solid white background (#FFFFFF), zero floor shadow, no text, 8k resolution --style raw
 
-19. **bgl_hills** *(statisch, hinter der Nische):*
-    A low silhouette range of gentle rolling hills in muted sage green and dusty blue-grey, simplified flat matte art-toy shapes layered in two depths, occupying only the lower third of the frame with a perfectly flat horizontal bottom edge, tall portrait 9:16 canvas with everything above the hills completely empty, pure solid white background (#FFFFFF), zero floor shadow, no text, 8k resolution --style raw
+**bgl_meadow** *(statisch, sitzt unten auf):*
+A wide strip of soft matcha-green meadow grass cut from layered washi paper with a few simplified paper tufts and three small white clover blossoms, flat kiri-e cutout finish with visible fiber texture, clean straight bottom edge and a gently undulating top edge, occupying only the bottom fifth of the frame, tall portrait 9:16 canvas with everything above completely empty, pure solid white background (#FFFFFF), zero floor shadow, no text, 8k resolution --style raw
 
-20. **bgl_meadow** *(statisch, sitzt unten auf):*
-    A wide strip of soft matcha-green meadow grass with a few simplified tufts and three small white clover blossoms, flat matte art-toy finish, clean straight bottom edge and a gently undulating top edge, occupying only the bottom fifth of the frame, tall portrait 9:16 canvas with everything above completely empty, pure solid white background (#FFFFFF), zero floor shadow, no text, 8k resolution --style raw
+**bgl_lanterns** *(schwingt sanft, hängt oben):*
+A horizontal row of five round paper chochin lanterns hanging from thin dark cords of differing lengths, alternating warm ivory and soft azuki red washi paper, bamboo rib texture in kraft paper and small gold foil caps, flat kiri-e cutout style with soft drop shadows between layers, all cords starting exactly at the very top edge of the frame, occupying only the upper quarter, tall portrait 9:16 canvas with everything below completely empty, pure solid white background (#FFFFFF), zero floor shadow, no text, 8k resolution --style raw
 
-21. **bgl_lanterns** *(schwingt sanft, hängt oben):*
-    A horizontal row of five round paper chochin lanterns hanging from thin dark cords of differing lengths, alternating warm ivory and soft azuki red, bamboo rib texture and small brass caps, flat matte art-toy finish with a warm glow from within, all cords starting exactly at the very top edge of the frame, occupying only the upper quarter, tall portrait 9:16 canvas with everything below completely empty, pure solid white background (#FFFFFF), zero floor shadow, no text, 8k resolution --style raw
+**bgl_cat** *(Idle-Bob, unten links, Magenta-Hintergrund):*
+A single small chubby calico cat figurine sitting upright with its tail curled around its paws, built from layered washi paper in cream white with soft azuki and charcoal patches, simplified rounded geometry with slightly irregular hand-cut edges, in Japanese kiri-e paper cutout style with visible fiber texture and soft drop shadows between paper layers, orthographic side-facing three-quarter view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
 
-22. **bgl_cat** *(Idle-Bob, unten links):*
-    *(v2 — Magenta-Hintergrund. Die v1-Fassung auf Weiß ließ sich nicht freistellen: das cremeweiße Fell und der Studio-Hintergrund waren an der Stirn farbgleich.)*
-    A single small chubby calico cat art toy figurine sitting upright with its tail curled around its paws, matte unglazed ceramic finish in cream white with soft azuki and charcoal patches, simplified rounded geometry, Japanese modern kissa aesthetic, orthographic side-facing three-quarter view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
+**bgl_dog** *(Idle-Bob, unten rechts):*
+A single small round shiba inu figurine standing playfully with its curled tail up, built from layered washi paper in warm toast gold and chalk white, simplified rounded geometry with slightly irregular hand-cut edges, in Japanese kiri-e paper cutout style with visible fiber texture and soft drop shadows between paper layers, orthographic side-facing three-quarter view, centered on a portrait 9:16 canvas with generous white padding, pure solid white background (#FFFFFF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
 
-23. **bgl_niche_frame** *(v2 — abgerundete Ecken; v1 war scharfkantig und passte nicht zur runden Formensprache von Buttons und Schrift):*
-    Freistehendes Möbel, kein Wandausschnitt. Die weiße Rückwand ist gewollt — die Pipeline stanzt sie aus und misst daran die lichte Nische:
-    Front-facing freestanding tall display cabinet made of warm blonde hinoki wood with slim side posts and a flat top and bottom board, generously rounded outer corners and softly rounded inner cavity corners, deep matte white plaster back panel inside the open cavity, small brushed brass corner brackets, no doors and no shelves inside, single isolated object, Japanese modern kissa aesthetic, tall portrait orientation 9:16 with the cabinet filling the central 80% of the frame, orthographic front view, pure solid white background (#FFFFFF), zero floor shadow, sharp silhouette edge definition, art toy product render, 8k resolution --style raw
+### UI Card Prompts — Kiri-e
 
-24. **bgl_dog** *(Idle-Bob, unten rechts):*
-    A single small round shiba inu art toy figurine standing playfully with its curled tail up, matte unglazed ceramic finish in warm toast gold and chalk white, simplified rounded geometry, Japanese modern kissa aesthetic, orthographic side-facing three-quarter view, centered on a portrait 9:16 canvas with generous white padding, pure solid white background (#FFFFFF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
+Die Karte wird per NineSlice gezeichnet, d.h. nur die Mitte darf gedehnt werden — **Ecken und Kanten müssen deshalb vollständig im äußeren Drittel der Kartenhöhe liegen**, und das Mittelfeld muss eine ruhige, wiederholbare Fläche ohne Ornament sein.
+Format: Portrait 9:16 Canvas, Karte horizontal zentriert, großzügiges Padding. Magenta-Hintergrund für alle (Washi-Papier ist hell).
 
-### Match Feedback FX
-Format: Portrait 9:16 mobile canvas with a centered square effect and generous white padding. Primary anchor: `raw_renders/bg_kissa_niche.jpeg`. Optional placement reference: `raw_renders/shelf_wood.png`.
+**ui_card_kuro** *(Header-Plakette: Score / Bar / Moves):*
+Extremely wide horizontal nameplate bar in Japanese kiri-e washi paper cutout style, aspect ratio 6:1, body cut from dark charcoal washi paper with visible fiber texture, a thin gold foil pinstripe along the top and bottom edge, small gold foil corner brackets at the far left and far right ends only, completely plain and unornamented center field, softly rounded corners, soft drop shadows between paper layers, portrait 9:16 canvas with the bar centered horizontally and generous padding above and below, orthographic front view, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
 
-14. **fx_match_burst:**
-    Elegant Japanese tea-kissa triple-match celebration effect, centered radial bloom of warm ivory light, brushed brass rays, tiny matcha-green and hinoki-gold diamond sparkles, three subtle concentric seal rings, crisp isolated front-facing graphic, no objects, no text, no numbers, no characters, no floor shadow, portrait 9:16 mobile canvas, generous white padding around the centered square effect, pure solid white background (#FFFFFF), tactile matte art-toy graphic, sharp silhouette edges, 8k resolution --style raw
-   
+**ui_card_hinoki** *(Booster-Tray, trägt Undo / Shuffle / Hammer):*
+Wide horizontal tray bar in Japanese kiri-e washi paper cutout style, aspect ratio 4:1, warm honey-toned kraft paper body with visible handmade washi fiber texture, a shallow recessed inner channel cut from slightly darker kraft paper running the full length, two small gold foil end caps at the far left and far right ends only, completely plain and unornamented center field, softly rounded corners, soft drop shadows between paper layers, portrait 9:16 canvas with the bar centered horizontally and generous padding above and below, orthographic front view, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
+
+### Booster Button Prompts — Kiri-e
+
+Format: Portrait 9:16 Canvas, Objekt mittig, **genau ein Objekt im Bild**. Alle drei mit identischem Körper aus warmem Creme-Washi, nur das Relief unterscheidet sich — sonst wirkt die Reihe unruhig. Magenta-Hintergrund (Washi-Papier ist cremefarben).
+
+**btn_undo:**
+Single chunky rounded-square push button cut from soft warm cream washi paper with generously rounded corners and a soft pillowy silhouette, a thick matcha-green counter-clockwise curved arrow cut from layered washi in smooth relief on its face, in Japanese kiri-e paper cutout style with visible fiber texture and soft drop shadows between paper layers, front-facing view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
+
+**btn_shuffle:**
+Single chunky rounded-square push button cut from soft warm cream washi paper with generously rounded corners and a soft pillowy silhouette, two thick azuki-rose arrows crossing each other in an X cut from layered washi in smooth relief on its face, in Japanese kiri-e paper cutout style with visible fiber texture and soft drop shadows between paper layers, front-facing view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
+
+**btn_hammer:**
+Single chunky rounded-square push button cut from soft warm cream washi paper with generously rounded corners and a soft pillowy silhouette, a thick honey-toned kraft paper mallet cut from layered washi in smooth relief on its face, in Japanese kiri-e paper cutout style with visible fiber texture and soft drop shadows between paper layers, front-facing view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
+
+### Match Feedback FX — Kiri-e
+
+Format: Portrait 9:16 mobile canvas with a centered square effect and generous padding. Magenta-Hintergrund.
+
+**fx_match_burst:**
+Japanese kiri-e paper cutout celebration effect, centered radial bloom of warm ivory washi light, gold foil rays radiating outward, tiny matcha-green and honey-gold diamond sparkles cut from layered washi paper, three subtle concentric circles in gold foil, visible paper fiber texture and soft drop shadows between paper layers, crisp isolated front-facing graphic, no objects, no text, no numbers, no characters, no floor shadow, portrait 9:16 mobile canvas, generous padding around the centered square effect, pure solid magenta background (#FF00FF), sharp silhouette edges, 8k resolution --style raw
 
 ---
 
@@ -231,11 +232,10 @@ Format: Portrait 9:16 mobile canvas with a centered square effect and generous w
 Der komplette Weg von einem Prompt aus Abschnitt 3 bis zum fertigen Asset im Spiel.
 
 ### Schritt 1 — Rendern
-**Dateiformat:** PNG bevorzugen. JPEG funktioniert (der ganze bestehende Katalog ist JPEG) — freigestellt wird ohnehin gegen Weiß, nicht über einen Alphakanal. JPEG-Ringing an harten Kanten hinterlässt aber graue Sprenkel, und bei `bgl_`-Layern fällt das stärker auf als bei Items, weil die Layer auf volle Bildschirmbreite skaliert werden statt auf 256 px. `bgl_sky` ist egal, das Layer ist deckend.
+**Dateiformat:** PNG bevorzugen. JPEG funktioniert (der ganze bestehende Katalog ist JPEG) — freigestellt wird ohnehin gegen Magenta, nicht über einen Alphakanal. JPEG-Ringing an harten Kanten hinterlässt aber graue Sprenkel, und bei `bgl_`-Layern fällt das stärker auf als bei Items, weil die Layer auf volle Bildschirmbreite skaliert werden statt auf 384 px. `bgl_sky` ist egal, das Layer ist deckend.
 
-Prompt aus Abschnitt 3 nehmen, **Master Negative Prompt anhängen**, in Nano Banana Pro rendern.
+Prompt aus Abschnitt 3 nehmen, **Master Negative Prompt (Kiri-e)** anhängen, in Nano Banana rendern.
 Immer **Portrait 9:16** wählen — auch für quadratische Objekte. Das Modell liefert sonst Landscape und der Alpha-Crop schneidet Kanten ab.
-Bei Layern und Karten den passenden Anchor mitgeben (siehe Prompt-Eintrag), sonst driftet der Farbton weg.
 
 ### Schritt 2 — Ablegen
 Datei unter ihrem **exakten Asset-Namen** nach `raw_renders/` legen (`.png`, `.jpg` oder `.jpeg`).
@@ -243,16 +243,16 @@ Der Dateiname steuert die gesamte Verarbeitung — es gibt keine Konfiguration a
 
 | Prefix | Verarbeitung | Ausgabe |
 |---|---|---|
-| `bg_` | Resize auf `FRAME_WIDTH` (1440px) Breite, kein Freistellen. Nischenweite wird gemessen. | `BG_CAVITY_RATIOS` in `src/item_offsets.generated.ts` |
-| `bgl_` | Defringe, freigestellt, 1440px Breite, **Position im Frame bleibt erhalten** | Parallax-Layer |
+| `bgl_cabinet_` | Defringe, freigestellt, 1440px Breite, Shelf-Y-Positionen vermessen, **kein** `knockOutPanel` | `CABINET_SHELF_RATIOS`, `BG_FRAME_RECTS`, `BG_CAVITY_RECTS` |
+| `bgl_` (Cover) | Defringe, freigestellt, 1440px Breite, **Position im Frame bleibt erhalten** | Parallax-Layer |
 | `bgl_` (Sprite) | Defringe, exakter Alpha-Crop, Höhe 1024 | Katze, Shiba |
-| `shelf_` | Defringe, exakter Alpha-Crop, auf 1216px Breite gezogen | Regalbrett |
+| `bgl_` (Band) | Defringe, auf Inhalt beschnitten, volle Breite, unten bündig | Wiese |
 | `ui_card_` | Defringe, exakter Alpha-Crop, Höhe auf 256 normalisiert, Breite proportional | NineSlice-Karte |
 | `btn_` / `ui_` | Defringe, exakter Alpha-Crop, 384×384 zentriert | Buttons & Icons |
 | `fx_` | Defringe, exakter Alpha-Crop, 384×384 zentriert | Match-Effekt |
 | Item-ID | Defringe, exakter Alpha-Crop, 384×384, Bottom-Offset gemessen | `ITEM_BOTTOM_OFFSETS` |
 
-Die Zielgrößen stehen als Konstanten oben in `scripts/process_assets.js` und sind an der Canvasbreite bei `devicePixelRatio` 3 bemessen (rund 1240 px, siehe Abschnitt 1a). Vorher lag alles bei der Hälfte, und jede bildfüllende Ebene wurde im Spiel um Faktor 1.7 hochskaliert.
+Die Zielgrößen stehen als Konstanten oben in `scripts/process_assets.js` und sind an der Canvasbreite bei `devicePixelRatio` 3 bemessen (rund 1240 px, siehe Abschnitt 1a).
 
 Wird eine Zielgröße geändert, muss der Despill-Radius (`EDGE_SPRITE` / `EDGE_LAYER`) denselben Faktor bekommen: er ist eine Pixelbreite am fertigen Bild und deckt sonst nur noch den halben Saum ab.
 
@@ -262,46 +262,42 @@ Items müssen zusätzlich in `ITEM_IDS` (`scripts/process_assets.js:13`) stehen,
 ```
 npm run process:assets
 ```
-Schreibt nach `public/assets/items/` und regeneriert `src/item_offsets.generated.ts` mit drei Exports:
+Schreibt nach `public/assets/items/` und regeneriert `src/item_offsets.generated.ts` mit folgenden Exports:
 
 - `ITEM_BOTTOM_OFFSETS` — sichtbare Unterkante je Item
-- `BG_CAVITY_RATIOS` — lichte Nischenweite je Hintergrund
+- `BG_CAVITY_RECTS` — lichte Nischenweite (nur für Legacy-`bg_`-Hintergründe)
+- `BG_FRAME_RECTS` — äußere Kontur des Gehäuses
+- `CABINET_SHELF_RATIOS` — Array von Y-Verhältnissen der Brettoberflächen je Cabinet-Variante
 - `AVAILABLE_ASSETS` — alles, was tatsächlich in `public/assets/items/` liegt
 
-**Ausgabeformat ist WebP** (`OUT_EXT`), nicht PNG. Mit der verdoppelten Kantenlänge wäre der Katalog als PNG über 10 MB groß — ein Verlaufshimmel komprimiert in PNG praktisch gar nicht (`bgl_sky` allein: 1.7 MB als PNG, 21 KB als WebP). `alphaQuality: 100` hält den Alphakanal verlustfrei, die freigestellte Silhouette und die geglätteten Kanten bleiben also exakt so, wie die Pipeline sie berechnet hat; verlustbehaftet ist nur die Farbe innerhalb der Fläche. Der Loader hängt die Endung über den generierten Export `ASSET_EXT` an, im Code steht sie nirgends fest. Der Gesamtkatalog liegt damit bei rund 2.4 MB statt 5.7 MB — bei doppelter Auflösung.
+**Ausgabeformat ist WebP** (`OUT_EXT`), nicht PNG. `alphaQuality: 100` hält den Alphakanal verlustfrei. Der Loader hängt die Endung über den generierten Export `ASSET_EXT` an, im Code steht sie nirgends fest.
 
 Reste eines früheren Ausgabeformats werden beim Lauf aus `public/assets/items/` gelöscht, sonst lägen dieselben Assets doppelt im Build.
 
-Alle drei werden **am fertigen PNG** gemessen bzw. gelistet — nie im Code hardcoden.
+Alle Exports werden **am fertigen Bild** gemessen bzw. gelistet — nie im Code hardcoden.
 `AVAILABLE_ASSETS` steuert das Laden optionaler Assets: der Vite-Dev-Server liefert für fehlende Dateien das HTML-Fallback mit Status 200, der Phaser-Loader würde daran hängenbleiben.
 
 **Freistellen in zwei Stufen.** Erst wird die Maske in zusammenhängende Flächen zerlegt, dann erst die Bounding-Box gezogen:
 
 - `union` (Items, Buttons, FX): alle Flächen ab 8 % der größten zusammen. Abgesetzte Details wie der Butterwürfel auf dem Toast oder die Goldflocke auf dem Yokan bleiben erhalten, Defringe-Krimskrams fällt raus.
-- `widest` (UI-Karten, Regalbrett): die Fläche mit dem breitesten Seitenverhältnis, als einzige. Wenn das Modell ein zweites Objekt mit ins Bild legt, ist das Störobjekt meist flächiger als die gesuchte Leiste — nach Fläche zu wählen greift daneben.
+- `widest` (UI-Karten): die Fläche mit dem breitesten Seitenverhältnis, als einzige.
 
-**Innenlöcher.** Freigestellt wird gegen Weiß — bei einem cremeweißen Objekt trifft das auch dessen hellste Stellen. Bei der Katze riss das Löcher in Kopf und Fell. `fillInteriorHoles` flutet nach dem Keying von den Bildrändern durch die transparenten Pixel; was dabei nicht erreicht wird, liegt im Objektinneren und bekommt seine Deckung zurück. Weiche Außenkanten bleiben unangetastet, weil sie vom Rand aus erreichbar sind.
+**Innenlöcher.** Freigestellt wird gegen Magenta — bei hellen Washi-Objekten trifft das Keying auch helle Innenflächen. `fillInteriorHoles` flutet nach dem Keying von den Bildrändern durch die transparenten Pixel; was dabei nicht erreicht wird, liegt im Objektinneren und bekommt seine Deckung zurück.
 
-**Weiche Ränder.** `trimSoftEdges` schrumpft die Box, solange eine Randreihe unter 90 % Deckung liegt. Für Band-Layer nötig: der Wiesen-Render lief rechts und unten weich aus, die Box umfasste diese fast transparenten Reihen noch — im Spiel blieb dadurch unten und unten rechts eine Lücke zum Bildrand.
+**Weiche Ränder.** `trimSoftEdges` schrumpft die Box, solange eine Randreihe unter 90 % Deckung liegt.
 
-**Schattenränder.** Der weiche Schlagschatten der Renders liegt auf weißem Papier und kommt deshalb als hellgrauer, voll deckender Streifen an — die Alpha-Logik greift dort nicht, und auf dem Putz-Hintergrund des Spiels liest er sich als Glühen unter dem Objekt. `trimShadowEdges` schrumpft die Box kantenweise, solange eine Randreihe zu ≥ 90 % aus unbunten hellen Pixeln besteht. Das läuft **nur für `ui_card_` und `shelf_`** — flache Rechtecke, bei denen der Streifen auffällt. Global angewandt hat es flache helle Items zerlegt (ein Bambuslöffel schrumpfte von 301 auf 64 px Höhe), weil blasses Holz demselben Muster entspricht.
+**Schattenränder.** `trimShadowEdges` schrumpft die Box kantenweise, solange eine Randreihe zu ≥ 90 % aus unbunten hellen Pixeln besteht. Läuft **nur für `ui_card_`** — flache Rechtecke, bei denen der Streifen auffällt.
 
-**Chroma-Spill und Kantenglättung.** `cleanEdges` läuft als letzter Schritt auf dem fertig skalierten Bild (`writeClean`), bewusst nicht bei voller Renderauflösung — das Band entlang der Silhouette wäre dort 15× breiter als nötig.
+**Chroma-Spill und Kantenglättung.** `cleanEdges` läuft als letzter Schritt auf dem fertig skalierten Bild (`writeClean`), bewusst nicht bei voller Renderauflösung.
 
-Zwei Dinge werden dort erledigt:
-
-- **Despill.** Die Chroma-Fläche strahlt im Render auf das Motiv ab. Das Keying trennt sauber, aber der Saum bleibt rosa — am Chasen-Sockel, unter dem Chashaku-Löffel, am Rand des Kōro. Der Kanal, in dem der Hintergrund am dunkelsten ist (bei Magenta das Grün), ist der Referenzwert; was in den beiden anderen darüber liegt, wird abgezogen. Am Rand voll, in der Fläche zu 75 % — der Spill reicht bis ins Innere, steht dort aber mit der Eigenfarbe des Motivs in Konkurrenz. Für gewollt warme Töne ist das ungefährlich: Messing und das azuki-rote Relief der Buttons haben `b < g` und werden vom Kriterium gar nicht erfasst (gemessener Anteil bei `btn_shuffle`: 0 %).
-- **Alphaglättung.** 3×3-Mittel, aber nur wo im Umfeld sowohl deckende als auch transparente Pixel liegen. Flächen bleiben unberührt. Damit sind harte Alphastufen (Treppen) über alle Assets hinweg auf 0 gefallen, gemessen als „deckendes Pixel mit direkt transparentem Nachbarn": `shou_sugi_block` 268 → 0, `gotoku_trivet` 62 → 0.
-
-Was der Despill **nicht** kann: eine Farbe reparieren, die schon falsch aus dem Modell kommt. Wenn ein ganzes Objekt im falschen Ton rendert, hilft nur ein neuer Render.
-
-Anschließend zählt der Crop deckende Pixel pro Zeile/Spalte und ignoriert Reihen unter 0,5 % Deckung. Ohne das hatte ein einzelnes Streupixel (JPEG-Artefakt, Rest einer Signatur) die Box von `ui_card_kuro` auf die doppelte Höhe aufgebläht.
+- **Despill.** Die Magenta-Fläche strahlt im Render auf das Motiv ab. Der Kanal, in dem der Hintergrund am dunkelsten ist (bei Magenta das Grün), ist der Referenzwert; was in den beiden anderen darüber liegt, wird abgezogen.
+- **Alphaglättung.** 3×3-Mittel, aber nur wo im Umfeld sowohl deckende als auch transparente Pixel liegen.
 
 Das Log meldet `N relevante Objekte im Render` — steht da mehr als 1, hat der Render Ballast und die Strategie hat geraten. Dann lieber neu rendern.
 
 ### Schritt 4 — Registrieren
 Pflicht-Assets in `PreloadScene.preload()` (`src/main.ts`) mit `this.load.image(...)` laden, optionale mit `loadOptional(key)`.
-`bgl_`-Layer und höhere BG-Tiers brauchen gar nichts: sie stehen in `BG_LAYERS` bzw. `BG_TIERS` und werden geladen, sobald sie im Manifest auftauchen. Fehlt ein Layer, wird er still übersprungen.
+`bgl_`-Layer werden geladen, sobald sie im Manifest (`AVAILABLE_ASSETS`) auftauchen. Cabinet-Varianten stehen in einer eigenen Liste und werden je nach Level-Tier geladen. Fehlt ein Layer, wird er still übersprungen.
 
 ### Schritt 5 — Prüfen
 ```
@@ -309,24 +305,24 @@ npm run build && npm run dev
 ```
 Checkliste im Browser (DevTools auf ein Telefon mit DPR 3 stellen — bei DPR 1 fällt eine Auflösungsregression nicht auf):
 - `document.querySelector('canvas').width` ist die CSS-Breite **mal DPR**, nicht die CSS-Breite
-- Regalbrett sitzt mittig **in** der Nische, ohne den Hinoki-Rahmen zu überlappen
-- UI-Karten: Ecken/Messingkanten unverzerrt, Buttons liegen innerhalb des Trays
-- Items stehen mit der Unterkante auf der Regallippe auf
+- Cabinet-Variante passt zum Level-Tier (4/5/6 Reihen)
+- Items stehen mit der Unterkante auf der Regallippe (Shelf-Oberfläche) auf
+- Kein separates Shoji-Panel mehr nötig — die Washi-Rückwand im Cabinet übernimmt den Kontrast
 - Ein Zug fliegt in einer Parabel zum Zielslot, nicht seitlich herein
 
 ### Schritt 6 — Prompt zurückschreiben
 Den tatsächlich verwendeten Prompt in Abschnitt 3 aktualisieren, inkl. Versionsnotiz, warum die Vorgängerversion ersetzt wurde. Der Katalog ist die einzige Quelle für Re-Renders.
 
-### Das Regalgehäuse
-`bgl_niche_frame` kommt mit geschlossener Putzrückwand aus dem Modell. Die Pipeline stanzt sie aus (`knockOutPanel`): Flutfüllung von der Bildmitte über unbunte, mittelhelle Pixel. Der Holzrahmen ist stark warm (Kanalspreizung > 80) und stoppt die Füllung zuverlässig, der reinweiße Außenbereich wird nie erreicht.
+### Das Combined Cabinet
 
-Das Loch ist danach die exakte lichte Nische und wird als `BG_CAVITY_RECTS` exportiert — präziser als die Helligkeits-Heuristik, weil es direkt aus dem Alphakanal kommt. Zusätzlich geht die äußere Kontur als `BG_FRAME_RECTS` mit: das Spiel skaliert das Möbel danach so, dass es vollständig zwischen Header und Booster-Reihe steht und unten auf der Wiese aufsitzt. Cover-Scaling hätte es oben und unten angeschnitten — dann liest es sich wie ein Wandausschnitt statt wie ein Möbel im Garten.
+Das Kabinett (`bgl_cabinet_*`) kommt als freistehendes Washi-Möbel mit Bretter und Rückwand als Einheit aus dem Render. Anders als beim alten `bgl_niche_frame` wird `knockOutPanel` **nicht** ausgeführt — die ivory Washi-Rückwand bleibt geschlossen und dient als neutraler Hintergrund für die Items. Das Shoji-Panel im Code (`GameScene.create`, Deckkraft 0.55) entfällt ersatzlos.
 
-Im Gehäuse liegt ein Shoji-Panel (Deckkraft 0.55) zwischen Garten und Regalbrettern. Ohne das milchige Papier stehen die Goods direkt auf Himmel und Hügeln und verlieren ihren Kontrast; bei 0.9 war der Garten dahinter komplett weg.
+`BG_FRAME_RECTS` wird weiterhin am Alphakanal gemessen (äußere Kontur des Möbels). `BG_CAVITY_RECTS` kommt aus der lichten Innenfläche. Zusätzlich exportiert die Pipeline `CABINET_SHELF_RATIOS` — ein Array von Y-Verhältnissen (0–1, relativ zur Bildhöhe) der sichtbaren Brettoberflächen. Im Code ersetzt das die alte `buildLevel`-Logik, die Bretter per `cavityHeight/(rows+0.5)` gleichmäßig verteilte.
 
 ### Offene Punkte
-- **`brass_sphere` rendert rosé statt Messing, `chasen_whisk` lachsfarben statt blondes Hinoki.** Das ist kein Spill, sondern die Eigenfarbe im Render — der Despill greift nicht (`min(r,b) - g` ist dort negativ bzw. null). Beide gegen **Weiß** neu rendern: es sind mittelhelle, kräftig getönte Motive, für die die Magenta-Regel gar nicht gilt, und Magenta färbt gerade warme Oberflächen ein.
-- **`bgl_cat` ist nach dem Despill brauchbar**, behält aber einen leichten Rosé-Ton in den Flecken. Nur nachziehen, wenn es im Spiel stört.
-- `bgl_niche_frame` v2 mit runden Ecken (Prompt 23) noch offen.
-- `bg_kissa_niche_mid` hat dieselbe gemessene Nischenweite wie `bg_kissa_niche` — nur relevant, falls der Fallback ohne `bgl_niche_frame` gebraucht wird.
-- `ui_card_kuro` / `ui_card_hinoki` fertig, werden aber **nicht gezeichnet** — der Header steht frei über der Szene. `addCardNineSlice` bleibt im Code.
+- **Kiri-e-Nebeneffekt:** Der flache Papierstil erzeugt weniger Chroma-Spill als die alten 3D-Renders, aber helle Kraft-/Washi-Töne nahe am Magenta-Saum brauchen trotzdem Despill.
+- **`bgl_cat` Kiri-e-Version** steht noch aus — die alte Art-Toy-Version hat einen leichten Rosé-Ton in den Flecken.
+- **`bgl_dog` Kiri-e-Version** steht noch aus.
+- **Cabinet-Varianten 4row und 5row** noch nicht gerendert — nur 6row liegt als genehmigter Render vor.
+- **UI-Karten** (`ui_card_kuro` / `ui_card_hinoki`) werden aktuell **nicht gezeichnet** — der Header steht frei über der Szene. `addCardNineSlice` bleibt im Code.
+- **Pipeline-Anpassungen** für `bgl_cabinet_*`: `CABINET_SHELF_RATIOS`-Export, Skip von `knockOutPanel`, Vermessung der Shelf-Y-Positionen — noch zu implementieren.
