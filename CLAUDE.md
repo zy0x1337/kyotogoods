@@ -152,6 +152,75 @@ vector, flat design, sticker, die cut outline, uniform stroke, keyline, clip art
 
 Sometsuke-Blau (Blau auf weissem Porzellan) ist ausdruecklich Teil der Palette. Es war in der alten Palette nicht vorgesehen, ist aber eine der kanonischsten japanischen Keramiktraditionen und liefert den Akzent, den ein zweites weisses Item braucht.
 
+### Item-Katalog v4 — Stilklausel und Matrix
+
+Ersetzt die Abschnitte "Core Item Prompts" und "Item-Neuauflagen (v2)". Gemessen an `chawan_cup` und `tetsubin_kettle`, die beide nach dieser Vorlage entstanden sind: Helligkeit 186 bzw. 75, Deckung 76 % bzw. 40 %.
+
+**Aufbau eines Prompts:** `Overhead photograph of a real hand-cut washi paper collage of ` + Motivzeile aus der Matrix + Stilklausel. Die Stilklausel gibt es in zwei Fassungen, die sich nur in der Hintergrundfarbe unterscheiden — welche gilt, steht in der Matrix.
+
+**Stilklausel (Magenta, fuer helle Motive):**
+, a physical artwork made of separate sheets of Japanese kozo paper cut with a blade and stacked, every cut edge showing the tiny nicks and slight wobble of a real hand-held knife and never a perfectly smooth machine curve, visible long kozo fibres and a faint tooth in every sheet, gentle mottling and uneven dye across each sheet so no colour is perfectly uniform, each layer casting a crisp hairline shadow onto the layer beneath it so the stack reads as physically thick, absolutely no painted shading and no gradient within a sheet, bold unmistakable silhouette that stays readable at thumbnail size, the object standing on its own base with nothing hanging and nothing floating, Japanese modern kissa subject, single isolated object, lit by soft even frontal light with no shadow falling onto the background, shot straight down and perfectly square to the camera, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), sharp silhouette edge definition, 8k resolution --style raw
+
+**Stilklausel (Weiss, fuer dunkle und kraeftig farbige Motive):** identisch, nur `pure solid white background (#FFFFFF)` statt Magenta.
+
+**Negativ fuer alle v4-Items:**
+vector, flat design, sticker, die cut outline, uniform stroke, keyline, clip art, icon, app icon, logo, perfectly smooth bezier curve, digital illustration, cel shading, airbrush, gradient, glossy, specular, 3d render, photorealistic ceramic, drop shadow on the background, chibi, kawaii, pastel colours, cartoon, childrens toy, text, watermark, multiple objects, second object, duplicate, collage of several items, grid layout, product lineup
+
+**Farb- und Formmatrix.** Keine zwei Goods teilen sich dieselbe Kombination aus Grundform und dominanter Farbe. Vier Items sind bewusst schwarz — sie bilden die dunkle Stufe, gegen die die hellen lesbar werden.
+
+| Item | Grundform | Dominante Farbe | Akzent | Grund |
+|---|---|---|---|---|
+| chawan_cup | breite flache Schale | Knochenweiss | Sometsuke-Blau, Matcha | Magenta |
+| tetsubin_kettle | Kanne mit Buegelbogen | Anthrazit | Messing | Weiss |
+| chasen_whisk | Tinendom auf Zylinder | blasses Bambus | Anthrazit-Schnur | Magenta |
+| kissa_toast | stehende Scheibe | Toastgold | Buttergelb | Magenta |
+| dango_stick | drei Kugeln senkrecht | Dango-Rosa | Creme, Matcha | Magenta |
+| yokan_prism | Dreieckskeil | Azuki-Bordeaux | Blattgold | Weiss |
+| copper_caddy | hoher Zylinder | Kupfer | Messing | Weiss |
+| origami_dripper | facettierter Kegel | Salbeigruen | blondes Holz | Weiss |
+| matcha_roll | liegende Rolle, Spirale vorn | Matchagruen | Creme-Spirale | Weiss |
+| shou_sugi_block | Wuerfel in Dreiviertelsicht | Sumi-Schwarz | Zinnober | Weiss |
+| coldbrew_flask | Flasche mit Hals | Kaffeebraun | Eisgrau, Kork | Magenta |
+| brass_sphere | Kugel im Ringstaender | Messing | Anthrazit | Weiss |
+| matcha_montblanc | Streifendom auf Sockel | Kinako-Ocker | Kastanie | Magenta |
+| chashaku_scoop | Diagonale auf Block | Kreideweiss | Bambus | Magenta |
+| incense_burner | Kuppeldeckel auf drei Fuessen | Elfenbein | Messing | Magenta |
+| mizuhiki_knot | flache verschlungene Rosette | Azuki-Bordeaux | Creme | Magenta |
+| gotoku_trivet | Ring mit drei Stollen | Anthrazit | keiner | Weiss |
+| kuro_mame_dome | Kuppel in flacher Schale | Aubergine-Schwarz | Kreideweiss | Magenta |
+| dango_plate | breite flache Ellipse | Salbeigrau | Goldlinie | Magenta |
+| cast_iron_bell | Glocke auf Ringstaender | Anthrazit | Messing, Papier | Weiss |
+
+Pruefung je Item, drei Schritte: auf 8 px weichzeichnen, auf zwei Farben reduzieren, als reine schwarze Silhouette. Jedes Mal muss es unterscheidbar bleiben.
+
+**Motivzeilen:**
+- **chasen_whisk:** a bamboo matcha whisk standing upright, compact and roughly as wide as it is tall, a short pale bamboo handle carrying one dense rounded dome of many fine tines cut as a single solid mass rather than separate loops, a thin charcoal binding cord around the base of the dome
+- **kissa_toast:** a thick slice of shokupan toast standing upright on its crust, a warm toast gold crust cut as a border around a pale cream crumb, one small bright butter yellow cube resting on the top edge
+- **dango_stick:** three round dango balls stacked vertically on a short pale skewer, the balls in dango pink and chalk white and matcha green from top to bottom, the skewer ending in a small block base so the object stands upright
+- **yokan_prism:** a thick triangular wedge of azuki yokan jelly, deep maroon purple paper with razor sharp bevelled edges, one tiny brass gold foil flake near the top corner
+- **copper_caddy:** a tall cylindrical tea caddy in warm copper paper with a flush brass gold lid and a single horizontal seam line, architectural and completely plain
+- **origami_dripper:** a conical coffee dripper in sage green paper with a few sharp vertical facets, resting on a round pale blonde wooden ring base
+- **matcha_roll:** a matcha roll cake lying on its side with the spiral end facing the viewer, a deep matcha green sponge cut as one broad band spiralling around a cream white centre
+- **shou_sugi_block:** a solid cube of charred shou sugi ban cedar seen slightly from the front left so the top face and one side face both read, deep sumi black paper with a cracked char pattern cut into it, one small vermilion inlay disc on the front face
+- **coldbrew_flask:** a cold brew flask with a narrow neck and a broad shoulder, the glass cut from very pale ice grey paper and the coffee inside cut from deep roasted coffee brown paper filling the lower two thirds, one small pale cork stopper
+- **brass_sphere:** a faceted brass sphere resting in a shallow charcoal ceramic ring stand, warm brass gold paper with a few large flat facets, no chain and no suspension
+- **matcha_montblanc:** a small mont blanc cake, a rounded dome built from many narrow strips of kinako ochre paper laid side by side like piped cream, sitting on a short cream base, one small dark chestnut on top
+- **chashaku_scoop:** a bamboo tea scoop resting diagonally across a small chalk white ceramic block, the scoop in pale blonde bamboo paper with its curved bowl clearly visible, the block plain and rectangular
+- **incense_burner:** a small round incense burner koro in warm ivory ceramic paper with a domed brass gold lid pierced by a few round vent holes, standing on three tiny feet, one thin wisp of pale smoke curling from the top
+- **mizuhiki_knot:** a mizuhiki knot of stiff cord tied into a flat interlaced rosette, deep azuki maroon and cream white cords woven over and under each other, the knot resting on a small pale base
+- **gotoku_trivet:** a squat round cast iron trivet with three short stubby rounded posts rising from a thick ring base, matte charcoal black paper, blunt rounded tips instead of spikes
+- **kuro_mame_dome:** a low rounded mound of glazed kuromame black beans in deep aubergine black paper, sitting in a small shallow chalk white dish
+- **dango_plate:** a wide shallow stoneware plate seen from slightly above so it reads as one broad flat ellipse, sage grey green paper with a single toasted gold rim line, completely empty
+- **cast_iron_bell:** a small cast iron furin wind bell standing upright on a low charcoal ring stand, a squat rounded dome with a flared rim, matte charcoal black paper with a thin brass gold rim band, a short pale paper tanzaku strip tucked against the base rather than dangling
+
+### Hintergrund fuer Reve
+
+Reve nimmt keine Midjourney-Flags und hat kein eigenes Negativfeld -- Ausschluesse gehoeren als Satz in den Prompt, das Seitenverhaeltnis wird in der Oberflaeche gesetzt (9:16). Deshalb Prosa statt Stichwortkette:
+
+A flat, hand-printed wall of a quiet Japanese tea house at night, shown perfectly straight on with no perspective, no room corner, no floor and no ceiling. The image is a stencil print on washi paper: completely flat areas of ink with no shading and no rendering, visible paper fibre across the whole surface, and only two inks, a deep indigo black and a muted warm ochre, printed slightly out of register so the colour plates sit a hair apart. Faint horizontal wood grain lines are barely visible inside the dark ink. A single broad and very soft ochre glow sits low in the upper half like a distant ember. The entire image stays dark, and even its brightest area is no more than a third as bright as white. The wall is empty: no lamps, no windows, no shoji screens, no doorways, no curtains, no furniture, no shelves, no people, no animals and no writing. The composition runs edge to edge with no border, no margin and no printed frame around it.
+
+Zielwerte am fertigen Bild: Lichtband 40 bis 60 Helligkeit, dunkle Zonen unter 30. Ueber 100 loesen sich die Goods darin auf (gemessen am ersten Versuch: Bloom 141 gegen Objekte 107).
+
 ### Vollbild-Layout (v3) — noch nicht gerendert
 
 Der Rahmen wird heute *zwischen* Header und Booster-Reihe eingepasst und ist mit Seitenverhaeltnis 0.44 schmaler als ein Telefon (0.46 bis 0.51). Randlos ginge deshalb nur mit Verzerren oder mit Anschnitt oben und unten. Die drei Renders unten loesen das am Asset statt im Code: das Moebel bringt selbst Handy-Format mit.
