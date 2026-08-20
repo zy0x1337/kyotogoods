@@ -1082,8 +1082,11 @@ export class PreloadScene extends Phaser.Scene {
 export class GameScene extends Phaser.Scene {
   private shelves: Shelf[] = [];
   private selected: { shelfIdx: number; slotIdx: number; item: GoodsItem } | null = null;
-  private cavityWidth = 0;
-  private cavityCenterX = 0;
+  // Oeffentlich lesbar, weil UIScene die Header-Spalten daran vorbei positioniert
+  // (siehe UIScene.create) -- der Rahmenpfosten sitzt je nach Render an einer
+  // anderen Stelle, ein fester Abstand vom Canvasrand reicht nicht garantiert.
+  public cavityWidth = 0;
+  public cavityCenterX = 0;
   private cavityTop = 0;
   private cavityHeight = 0;
 
@@ -1468,17 +1471,49 @@ export class UIScene extends Phaser.Scene {
     };
 
     // Label und Wert teilen sich dieselbe x-Mitte und stehen beide auf
-    // Origin 0.5 -- damit sitzt die Zahl exakt unter der Wortmitte.
-    const stack = (cx: number, text: string, initial: string) => {
-      this.add.text(cx, labelY, text, { ...labelStyle(13 * uiScale, LABEL), ...halo }).setOrigin(0.5);
-      return this.add.text(cx, valueY, initial, { ...valueStyle(24 * uiScale, VALUE), ...halo }).setOrigin(0.5);
+    // Origin 0.5 -- damit sitzt die Zahl exakt unter der Wortmitte. stack()
+    // erzeugt zunaechst an x=0 und liefert die echte gerenderte Breite mit
+    // zurueck, weil die Aussenspalten sie gleich brauchen -- eine angenommene
+    // Boxbreite waere entweder zu grosszuegig (Text sitzt naeher am Rahmen als
+    // noetig) oder zu knapp (Text ragt trotzdem in die Nische).
+    const stack = (text: string, initial: string) => {
+      const label = this.add.text(0, labelY, text, { ...labelStyle(13 * uiScale, LABEL), ...halo }).setOrigin(0.5);
+      const value = this.add.text(0, valueY, initial, { ...valueStyle(24 * uiScale, VALUE), ...halo }).setOrigin(0.5);
+      const halfWidth = Math.max(label.width, value.width) / 2;
+      const setX = (cx: number) => { label.setX(cx); value.setX(cx); };
+      return { value, halfWidth, setX };
     };
 
-    // Aussenspalten so breit wie noetig, damit die Bloecke nicht am Rand kleben
-    const colW = 78 * uiScale;
-    this.scoreTxt = stack(pad + colW / 2, 'SCORE', '0');
-    stack(width / 2, 'TEA BAR', `${State.currentLevel}`);
-    this.movesTxt = stack(width - pad - colW / 2, 'MOVES', `${State.moves}`);
+    const scoreCol = stack('SCORE', '0');
+    const movesCol = stack('MOVES', `${State.moves}`);
+    stack('TEA BAR', `${State.currentLevel}`).setX(width / 2);
+
+    let leftColX = pad + scoreCol.halfWidth;
+    let rightColX = width - pad - movesCol.halfWidth;
+
+    // Der Rahmenpfosten sitzt je nach Render an einer anderen Stelle -- bei
+    // einem schmaleren Rahmen (mehr Aussenrand um das Moebel) ruecken die
+    // Pfosten weiter nach innen, genau dorthin, wo SCORE/MOVES bei festem
+    // Randabstand landen wuerden. Die Spalten weichen deshalb nach aussen aus,
+    // sobald der gemessene Nischenrand naeher als die halbe Textbreite plus
+    // Sicherheitsabstand liegt -- ueber dem massiven Pfosten liest sich der
+    // Text dank Halo weiterhin klar, genau auf der Kante zum Hohlraum nicht.
+    const gs = this.scene.get('GameScene') as GameScene;
+    if (gs.cavityWidth > 0) {
+      const gap = 10 * uiScale;
+      const cavityLeft = gs.cavityCenterX - gs.cavityWidth / 2;
+      const cavityRight = gs.cavityCenterX + gs.cavityWidth / 2;
+      leftColX = Math.min(leftColX, cavityLeft - scoreCol.halfWidth - gap);
+      rightColX = Math.max(rightColX, cavityRight + movesCol.halfWidth + gap);
+    }
+    // Nie ueber den Canvasrand hinaus, auch wenn die Nische das nahelegen wuerde
+    leftColX = Math.max(leftColX, scoreCol.halfWidth + 4 * uiScale);
+    rightColX = Math.min(rightColX, width - movesCol.halfWidth - 4 * uiScale);
+
+    scoreCol.setX(leftColX);
+    movesCol.setX(rightColX);
+    this.scoreTxt = scoreCol.value;
+    this.movesTxt = movesCol.value;
 
     // Booster-Reihe, ebenfalls ohne Tray-Karte
     const boosterSize = 52 * uiScale;

@@ -29,17 +29,17 @@ export const BG_CAVITY_RATIOS: Record<string, number> = {
   bg_kissa_niche_wide: 0.8167,
   bg_kissa_room: 0.3715,
   bg_plaster: 0.9306,
-  bgl_niche_frame: 0.5729
+  bgl_niche_frame: 0.6484
 };
 
 // Lichte Nische als Rechteck in Bildanteilen: x ist die Mitte, y die Oberkante.
 export const BG_CAVITY_RECTS: Record<string, { x: number; y: number; w: number; h: number }> = {
-  bgl_niche_frame: { x: 0.5026, y: 0.1228, w: 0.5729, h: 0.7289 }
+  bgl_niche_frame: { x: 0.5013, y: 0.1097, w: 0.6484, h: 0.7326 }
 };
 
 // Aeussere Kontur eines freistehenden Rahmens in Bildanteilen.
 export const BG_FRAME_RECTS: Record<string, { x: number; y: number; w: number; h: number }> = {
-  bgl_niche_frame: { x: 0.5052, y: 0.0496, w: 0.8285, h: 0.9124 }
+  bgl_niche_frame: { x: 0.5042, y: 0.0744, w: 0.7653, h: 0.9147 }
 };
 
 // Auflageflaeche eines Regalbretts als Anteil seiner Bildhoehe.
