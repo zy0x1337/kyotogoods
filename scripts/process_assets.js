@@ -11,11 +11,11 @@ if (!fs.existsSync(OUT_DIR)) {
 }
 
 const ITEM_IDS = [
-  'brass_sphere', 'cast_iron_bell', 'chasen_whisk', 'chashaku_scoop',
-  'chawan_cup', 'coldbrew_flask', 'copper_caddy', 'dango_plate',
-  'dango_stick', 'gotoku_trivet', 'incense_burner', 'kissa_toast',
-  'kuro_mame_dome', 'matcha_montblanc', 'matcha_roll', 'mizuhiki_knot',
-  'origami_dripper', 'shou_sugi_block', 'tetsubin_kettle', 'yokan_prism'
+  'chawan_cup', 'chochin', 'dango_stick', 'daruma',
+  'furoshiki', 'incense_burner', 'kissa_toast', 'kokeshi',
+  'maneki_neko', 'matcha_roll', 'omamori', 'onigiri',
+  'origami_crane', 'sake_tokkuri', 'sensu_fan', 'temari',
+  'tetsubin_kettle', 'torii_gate', 'wagashi', 'yokan_prism'
 ];
 
 // Parallax-Layer, die als freigestelltes Einzelobjekt platziert werden statt
