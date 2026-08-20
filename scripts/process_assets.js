@@ -33,7 +33,32 @@ const BGL_BANDS = ['bgl_meadow'];
 // -- ohne Ausstanzen waere die Gartenszene dahinter unsichtbar.
 const BGL_KNOCKOUT = ['bgl_niche_frame'];
 
-const TARGET_SIZE = 256;
+// Ausgabeformat. WebP statt PNG: die Vollbild-Ebenen laufen mit der doppelten
+// Kantenlaenge (siehe FRAME_WIDTH) und waeren als PNG zusammen ueber 10 MB
+// gross -- ein Verlaufshimmel komprimiert in PNG praktisch gar nicht.
+// alphaQuality 100 haelt den Alphakanal verlustfrei: die freigestellte
+// Silhouette und die geglaetteten Kanten bleiben exakt so, wie die Pipeline sie
+// berechnet hat, verlustbehaftet ist nur die Farbe innerhalb der Flaeche.
+const OUT_EXT = 'webp';
+const ENCODE = { quality: 95, alphaQuality: 100, effort: 6 };
+
+// Zielaufloesungen. Ein Telefon mit devicePixelRatio 3 zeichnet die Szene auf
+// rund 1240 Geraetepixel Breite. Bei 720 px Texturbreite wurde jede
+// Vollbild-Ebene um Faktor 1.7 hochskaliert -- zusammen mit der in CSS-Pixeln
+// gerenderten Canvas war das die Unschaerfe im Deploy.
+const FRAME_WIDTH = 1440;   // bg_ und bgl_ Vollbild-Ebenen
+const SPRITE_HEIGHT = 1024; // bgl_ Einzelobjekte (Katze, Shiba)
+const SHELF_WIDTH = 1216;   // shelf_
+const CARD_HEIGHT = 256;    // ui_card_
+const TARGET_SIZE = 384;    // Goods, Buttons, FX
+
+// Radius des Despill-/Kantenbands in cleanEdges. Der Wert ist eine Pixelbreite
+// am fertigen Bild und muss mit der Zielaufloesung mitwachsen, sonst deckt er
+// nur noch den halben Saum ab. Basis: 5 px bei 256er Sprites, 3 px bei 720er
+// Ebenen.
+const EDGE_SPRITE = 8;
+const EDGE_LAYER = 6;
+
 const ITEM_DISPLAY_SIZE = 72;
 const DEFAULT_OFFSET = 36;
 
@@ -225,11 +250,12 @@ function knockOutPanel(data, width, height) {
 // dabei nicht erreicht wird, liegt im Inneren des Objekts und bekommt seine
 // Deckung zurueck. Weiche Aussenkanten bleiben unangetastet, weil sie vom Rand
 // aus erreichbar sind.
-function fillInteriorHoles(data, width, height, alphaMax = 250) {
+function fillInteriorHoles(data, width, height, alphaMax = 250, maxShare = 0.02) {
+  const n = width * height;
   const isHole = i => data[i * 4 + 3] <= alphaMax;
 
-  const seen = new Uint8Array(width * height);
-  const stack = new Int32Array(width * height);
+  const seen = new Uint8Array(n);
+  const stack = new Int32Array(n);
   let sp = 0;
 
   const push = i => {
@@ -249,11 +275,47 @@ function fillInteriorHoles(data, width, height, alphaMax = 250) {
     if (cy < height - 1) push(cur + width);
   }
 
+  // Flaeche des Motivs als Bezugsgroesse fuer die Lochpruefung unten.
+  let solid = 0;
+  for (let i = 0; i < n; i++) if (data[i * 4 + 3] > alphaMax) solid++;
+  const limit = Math.max(64, Math.round(solid * maxShare));
+
+  // Nicht jede eingeschlossene Flaeche ist ein Keying-Schaden. Der Buegel einer
+  // Tetsubin schliesst ein echtes Durchgangsloch ein -- wird das gefuellt, steht
+  // im Spiel eine weisse Platte im Griff. Unterschieden wird nach Groesse: ein
+  // vom Keying gerissenes Loch ist klein gegen das Motiv, ein Durchgangsloch
+  // nicht. Der Buegel kam auf 25 % der Motivflaeche, die Risse im Katzenfell
+  // liegen um Groessenordnungen darunter.
+  const comp = new Int32Array(n);
   let filled = 0;
-  for (let i = 0; i < width * height; i++) {
-    if (!seen[i] && data[i * 4 + 3] < 255) { data[i * 4 + 3] = 255; filled++; }
+  let holes = 0;
+
+  for (let start = 0; start < n; start++) {
+    if (seen[start] || !isHole(start)) continue;
+
+    let cp = 0;
+    let head = 0;
+    comp[cp++] = start;
+    seen[start] = 1;
+
+    while (head < cp) {
+      const cur = comp[head++];
+      const cx = cur % width;
+      const cy = (cur - cx) / width;
+      const add = i => { if (!seen[i] && isHole(i)) { seen[i] = 1; comp[cp++] = i; } };
+      if (cx > 0) add(cur - 1);
+      if (cx < width - 1) add(cur + 1);
+      if (cy > 0) add(cur - width);
+      if (cy < height - 1) add(cur + width);
+    }
+
+    if (cp > limit) { holes++; continue; }
+    for (let k = 0; k < cp; k++) {
+      if (data[comp[k] * 4 + 3] < 255) { data[comp[k] * 4 + 3] = 255; filled++; }
+    }
   }
-  return filled;
+
+  return { filled, holes };
 }
 
 // Erkennt, wogegen freigestellt werden muss. Standard ist Weiss. Ist der Rand
@@ -534,11 +596,11 @@ function cleanEdges(data, width, height, key, radius = 5) {
 // Schreibt eine fertig skalierte Pipeline und laeuft davor einmal ueber die
 // Kante. Bewusst am Ende der Kette: bei voller Renderaufloesung waere das Band
 // entlang der Silhouette 15x breiter als noetig und entsprechend langsam.
-async function writeClean(pipeline, targetPath, key, radius = 5) {
+async function writeClean(pipeline, targetPath, key, radius = EDGE_SPRITE) {
   const { data, info } = await pipeline.ensureAlpha().raw().toBuffer({ resolveWithObject: true });
   cleanEdges(data, info.width, info.height, key, radius);
   await sharp(data, { raw: { width: info.width, height: info.height, channels: 4 } })
-    .png({ compressionLevel: 9 })
+    .webp(ENCODE)
     .toFile(targetPath);
   return { data, info };
 }
@@ -549,8 +611,9 @@ async function cropToContent(filePath, strategy = 'union', trimShadow = false, s
   if (key.chroma) console.log(`    Chroma rgb(${key.r},${key.g},${key.b}), Schwelle ${findKeyThreshold(data, key).cut.toFixed(0)}`);
   defringe(data, true, key);
 
-  const holes = fillInteriorHoles(data, info.width, info.height);
-  if (holes > 0) console.log(`    ${holes} Innenpixel wiederhergestellt`);
+  const { filled, holes } = fillInteriorHoles(data, info.width, info.height);
+  if (filled > 0) console.log(`    ${filled} Innenpixel wiederhergestellt`);
+  if (holes > 0) console.log(`    ${holes} Durchgangsloch/-loecher erkannt und offen gelassen`);
 
   const region = strategy === 'none' ? null : findBlobRegion(data, info.width, info.height, strategy);
   const rawBox = findAlphaBox(data, info.width, info.height, 80, region);
@@ -628,15 +691,15 @@ async function processImages() {
   for (const file of files) {
     const filePath = path.join(RAW_DIR, file);
     const baseName = path.parse(file).name;
-    const targetPath = path.join(OUT_DIR, `${baseName}.png`);
+    const targetPath = path.join(OUT_DIR, `${baseName}.${OUT_EXT}`);
 
     console.log(`Processing: ${file}`);
 
-    // FALL 1: Hintergrund-Vollbild (Seitenverhaeltnis erhalten, Breite 720)
+    // FALL 1: Hintergrund-Vollbild (Seitenverhaeltnis erhalten, Breite FRAME_WIDTH)
     if (baseName.startsWith('bg_')) {
       await sharp(filePath)
-        .resize(720, null, { fit: 'inside' })
-        .png({ quality: 90 })
+        .resize(FRAME_WIDTH, null, { fit: 'inside' })
+        .webp(ENCODE)
         .toFile(targetPath);
       const { data: bgData, info: bgInfo } = await sharp(targetPath).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
       cavities[baseName] = await measureCavityRatio(bgData, bgInfo.width, bgInfo.height);
@@ -644,7 +707,7 @@ async function processImages() {
       continue;
     }
 
-    // FALL 1b: Parallax-Layer (freigestellt, Breite 720, Hoehe proportional).
+    // FALL 1b: Parallax-Layer (freigestellt, Breite FRAME_WIDTH, Hoehe proportional).
     // Position im Frame bleibt erhalten -> Layer koennen 1:1 uebereinander liegen.
     if (baseName.startsWith('bgl_')) {
       // Einzelobjekt-Layer: freistellen und auf den Inhalt beschneiden, damit
@@ -655,7 +718,7 @@ async function processImages() {
         // heller Fleck. Die Koerper sind durchgehend warm getoent, das
         // Kanten-Trimming kann sie nicht anknabbern.
         const { pipeline, box, key } = await cropToContent(filePath, 'union', true);
-        const targetH = 512;
+        const targetH = SPRITE_HEIGHT;
         const targetW = Math.max(32, Math.round(box.width * (targetH / box.height)));
         await writeClean(pipeline.resize(targetW, targetH, { fit: 'fill' }), targetPath, key);
         console.log(`  ${baseName}: sprite ${box.width}x${box.height} -> ${targetW}x${targetH}`);
@@ -665,9 +728,9 @@ async function processImages() {
       // Band-Layer: auf den Inhalt beschnitten, volle Breite, unten buendig.
       if (BGL_BANDS.includes(baseName)) {
         const { pipeline, box, key } = await cropToContent(filePath, 'union', false, 0.9);
-        const targetW = 720;
+        const targetW = FRAME_WIDTH;
         const targetH = Math.max(16, Math.round(box.height * (targetW / box.width)));
-        await writeClean(pipeline.resize(targetW, targetH, { fit: 'fill' }), targetPath, key, 3);
+        await writeClean(pipeline.resize(targetW, targetH, { fit: 'fill' }), targetPath, key, EDGE_LAYER);
         console.log(`  ${baseName}: band ${box.width}x${box.height} -> ${targetW}x${targetH}`);
         continue;
       }
@@ -698,8 +761,8 @@ async function processImages() {
       }
 
       await sharp(data, { raw: { width: info.width, height: info.height, channels: 4 } })
-        .resize(720, null, { fit: 'inside' })
-        .png({ compressionLevel: 9 })
+        .resize(FRAME_WIDTH, null, { fit: 'inside' })
+        .webp(ENCODE)
         .toFile(targetPath);
 
       // Aeussere Kontur des Gehaeuses. Das Spiel skaliert danach, damit das
@@ -721,28 +784,28 @@ async function processImages() {
       continue;
     }
 
-    // FALL 2: Regal-Leiste (exakter Alpha-Crop, dann auf 608x184 gestreckt)
+    // FALL 2: Regal-Leiste (exakter Alpha-Crop, dann auf SHELF_WIDTH gestreckt)
     if (baseName.startsWith('shelf_')) {
       // Nicht mehr auf ein festes Format ziehen: die Hoehe folgt der Breite im
       // Seitenverhaeltnis des Renders, sonst wird die Maserung gestaucht.
       const { pipeline, box, key } = await cropToContent(filePath, 'widest', true);
-      const targetW = 608;
+      const targetW = SHELF_WIDTH;
       const targetH = Math.max(32, Math.round(box.height * (targetW / box.width)));
       const { data: sd, info: si } = await writeClean(
-        pipeline.resize(targetW, targetH, { fit: 'fill' }), targetPath, key, 3);
+        pipeline.resize(targetW, targetH, { fit: 'fill' }), targetPath, key, EDGE_LAYER);
       shelfPlatforms[baseName] = measurePlatformRatio(sd, si.width, si.height);
       console.log(`  ${baseName}: ${targetW}x${targetH}, Auflage bei ${shelfPlatforms[baseName]}`);
       continue;
     }
 
     // FALL 3: UI-Karten. Randlos auf den sichtbaren Inhalt beschnitten, damit
-    // NineSlice im Spiel exakt an der Kante der Karte ansetzt. Hoehe auf 128
+    // NineSlice im Spiel exakt an der Kante der Karte ansetzt. Hoehe auf CARD_HEIGHT
     // normalisiert, Breite proportional (kein Verzerren des Rahmens).
     if (baseName.startsWith('ui_card_')) {
       const { pipeline, box, key } = await cropToContent(filePath, 'widest', true);
-      const targetH = 128;
+      const targetH = CARD_HEIGHT;
       const targetW = Math.max(64, Math.round(box.width * (targetH / box.height)));
-      await writeClean(pipeline.resize(targetW, targetH, { fit: 'fill' }), targetPath, key, 3);
+      await writeClean(pipeline.resize(targetW, targetH, { fit: 'fill' }), targetPath, key, EDGE_LAYER);
       console.log(`  ${baseName}: content ${box.width}x${box.height} -> ${targetW}x${targetH}`);
       continue;
     }
@@ -751,7 +814,7 @@ async function processImages() {
     if (baseName.startsWith('fx_')) {
       const { pipeline, key } = await cropToContent(filePath);
       await writeClean(
-        pipeline.resize(256, 256, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } }),
+        pipeline.resize(TARGET_SIZE, TARGET_SIZE, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } }),
         targetPath, key);
       continue;
     }
@@ -760,15 +823,15 @@ async function processImages() {
     if (baseName.startsWith('btn_') || baseName.startsWith('ui_')) {
       const { pipeline, key } = await cropToContent(filePath);
       await writeClean(
-        pipeline.resize(256, 256, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } }),
+        pipeline.resize(TARGET_SIZE, TARGET_SIZE, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } }),
         targetPath, key);
       continue;
     }
 
-    // FALL 5: Goods & UI-Icons (Freistellen, 256x256, Bottom-Offset berechnen)
+    // FALL 5: Goods & UI-Icons (Freistellen, TARGET_SIZE, Bottom-Offset berechnen)
     if (!ITEM_IDS.includes(baseName)) continue;
 
-    // Defringing + exakter Alpha-Crop + Resize auf 256x256. Die finale Textur ist
+    // Defringing + exakter Alpha-Crop + Resize auf TARGET_SIZE. Die finale Textur ist
     // die einzige verlaessliche Quelle fuer die sichtbare Unterkante im Spiel.
     const { pipeline, key } = await cropToContent(filePath);
     const processed = pipeline
@@ -799,8 +862,18 @@ async function processImages() {
   // Manifest: was liegt am Ende wirklich in OUT_DIR? Der Client laedt optionale
   // Assets (bgl_ Layer, hoehere BG-Tiers) nur, wenn sie hier stehen -- sonst
   // liefert der Dev-Server das HTML-Fallback und der Loader stolpert darueber.
+  // Altbestand aus einem frueheren Ausgabeformat entfernen -- sonst laegen
+  // dieselben Assets zweimal in public/ und der Build schleppte sie mit.
   for (const f of fs.readdirSync(OUT_DIR)) {
-    if (path.extname(f).toLowerCase() === '.png') produced.add(path.parse(f).name);
+    const ext = path.extname(f).toLowerCase();
+    if (ext !== `.${OUT_EXT}` && ['.png', '.jpg', '.jpeg', '.webp'].includes(ext)) {
+      fs.unlinkSync(path.join(OUT_DIR, f));
+      console.log(`  entfernt (altes Format): ${f}`);
+    }
+  }
+
+  for (const f of fs.readdirSync(OUT_DIR)) {
+    if (path.extname(f).toLowerCase() === `.${OUT_EXT}`) produced.add(path.parse(f).name);
   }
 
   const rectLines = Object.keys(cavityRects).sort()
@@ -828,7 +901,7 @@ export const ITEM_BOTTOM_OFFSETS: Record<string, number> = {
 ${lines}
 };
 
-// Lichte Weite der Nische je Hintergrund, gemessen am fertigen PNG (Anteil der Bildbreite).
+// Lichte Weite der Nische je Hintergrund, gemessen an der fertigen Textur (Anteil der Bildbreite).
 export const BG_CAVITY_RATIOS: Record<string, number> = {
 ${cavityLines}
 };
@@ -847,6 +920,9 @@ ${frameLines}
 export const SHELF_PLATFORM_RATIOS: Record<string, number> = {
 ${platformLines}
 };
+
+// Dateiendung der erzeugten Texturen. Der Loader haengt sie an den Asset-Key an.
+export const ASSET_EXT = '${OUT_EXT}';
 
 // Alle Texturen, die tatsaechlich in public/assets/items/ liegen.
 export const AVAILABLE_ASSETS: ReadonlySet<string> = new Set([

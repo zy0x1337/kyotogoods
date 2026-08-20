@@ -9,6 +9,22 @@
 
 ---
 
+## 1a. Renderauflösung (DPR)
+
+Phaser rendert im Scale-Modus `RESIZE` in **CSS-Pixeln**: die Canvas bekommt exakt so viele Pixel, wie sie CSS-Pixel breit ist, und das Gerät bläst sie danach auf seine physischen Pixel auf. Auf einem Telefon mit `devicePixelRatio` 3 wird so jedes gerenderte Pixel zu einem 3×3-Block — das war die flächige Unschärfe im ersten Web-Deploy.
+
+Deshalb läuft das Spiel im Modus **`NONE`** mit `zoom: 1 / DPR`: die Canvas bekommt die volle Geräteauflösung (412×800 CSS → 1236×2400 Backingstore), `zoom` zieht sie per CSS wieder auf die richtige Anzeigegröße. Der Modus koppelt als einziger Auflösung und Anzeigegröße voneinander los — `zoom` wird in `RESIZE` komplett ignoriert.
+
+Konsequenzen, die beim Weiterbauen zählen:
+
+- **Weltkoordinaten sind Gerätepixel.** Alles Sichtbare hängt an `getLayoutScale()`, das den Faktor mitführt. Ein absoluter Pixelwert ohne diesen Faktor ist auf einem 3×-Display ein Drittel zu klein — das `WinModalScene` war genau dieser Fall.
+- Dinge, die aus Weltdistanzen abgeleitet werden und *keine* Pixel sind (Tween-Dauern), müssen mit `/ itemScale` zurück in Design-Pixel gerechnet werden.
+- `MAX_DPR` in `src/main.ts` ist der Perf-Hebel: die Szene stapelt mehrere bildfüllende Ebenen, die Füllrate wächst quadratisch mit dem Faktor. Ruckelt es auf schwachen Geräten, ist 2 der nächste Schritt.
+- Im Modus `NONE` folgt die Canvas dem Container nicht von selbst. Drehung und ein-/ausfahrende Browserleisten werden über einen `resize`-Listener nachgezogen.
+- Die Texturen müssen mitziehen: bei 720 px Layerbreite gegen 1236 px Canvas skaliert die Pipeline-Ausgabe hoch, und die Unschärfe ist wieder da. Siehe Abschnitt 4, Schritt 2.
+
+---
+
 ## 2. Typografie
 
 Schrift: **M PLUS Rounded 1c** (`@fontsource/m-plus-rounded-1c`, nur Latin 500 + 800 importiert). Stark gerundete japanische Schrift mit deutlich mehr Spiel als eine neutrale Gothic. Wird lokal gebundelt, also offline-tauglich im Capacitor-Build. Vorgänger war Zen Maru Gothic — zu brav.
@@ -98,6 +114,27 @@ Faceted brushed brass sphere resting in a shallow charcoal ceramic ring stand, n
 
 **cast_iron_bell** *(v1 hing frei in der Luft — wie `brass_sphere`; die Goods stehen aber im Regal):*
 Small cast iron furin wind bell resting upright on a low charcoal ceramic ring stand, no cord and no suspension, squat rounded dome silhouette roughly as wide as it is tall, matte charcoal black sand-cast finish with visible grain and a thin brushed brass rim band, a short pale paper tanzaku strip tucked against the base rather than dangling, Japanese modern kissa aesthetic, art toy product render, orthographic front view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
+
+### Vollbild-Layout (v3) — noch nicht gerendert
+
+Der Rahmen wird heute *zwischen* Header und Booster-Reihe eingepasst und ist mit Seitenverhaeltnis 0.44 schmaler als ein Telefon (0.46 bis 0.51). Randlos ginge deshalb nur mit Verzerren oder mit Anschnitt oben und unten. Die drei Renders unten loesen das am Asset statt im Code: das Moebel bringt selbst Handy-Format mit.
+
+Pflichten aus der Pipeline, die nicht verhandelbar sind:
+- Der Magenta-Rand links und rechts muss bleiben. `detectKeyColor` liest den Hintergrund an den Bildecken; ohne Rand wuerde das Keying das Holz selbst treffen. Im Spiel liegt er ausserhalb des Bildschirms.
+- Die Rueckwand bleibt geschlossener weisser Putz. `knockOutPanel` flutet sie von der Bildmitte aus und misst daran `BG_CAVITY_RECTS` -- ohne Rueckwand gibt es keine Nischenvermessung.
+- Das Brett wird gleichmaessig auf Nischenbreite skaliert. Bei fast voller Bildschirmbreite waere es mit dem alten Seitenverhaeltnis rund 40 px hoch, daher 12:1.
+
+**bgl_niche_frame (v3):**
+Front-facing freestanding tall display cabinet made of warm blonde hinoki wood, the cabinet fills the entire height of the canvas with its flat top board touching the very top edge and its flat bottom board touching the very bottom edge, slim vertical side posts, an even magenta margin on the left and right side only, the open inner cavity as large as the structure allows and occupying at least 88% of the cabinet height and 84% of its width, generously rounded outer corners and softly rounded inner cavity corners, deep matte white plaster back panel filling the entire cavity as one closed surface, small brushed brass corner brackets, no doors and no shelves and no crossbars inside the cavity, single isolated object, Japanese modern kissa aesthetic, tall portrait orientation 9:16, orthographic front view, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, art toy product render, 8k resolution --style raw
+
+**shelf_wood (v3):**
+Single long horizontal shelf board of warm blonde hinoki wood seen from slightly above, extremely wide and slim proportions with an aspect ratio of 12:1, the flat top surface clearly visible as a lighter plane and the front edge showing a distinct narrow band of material thickness in a deeper toasted walnut tone, a slim brushed brass pin support at each far end flush with the board ends, completely plain and unornamented along the middle, straight clean silhouette with softly eased corners, Japanese modern kissa aesthetic, tactile matte finish with zero gloss, art toy product render, orthographic front view, centered on a portrait 9:16 canvas with generous even padding above and below the board, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
+
+**bg_kissa_garden (neu):**
+Vollbild-Hintergrund hinter dem randlosen Rahmen. Prefix `bg_`, wird also nicht freigestellt -- deshalb kein Hintergrundfarben-Hinweis im Prompt. Der Dunst im mittleren Band ist mitgerendert, damit das halbtransparente Shoji-Rechteck aus dem Code entfallen kann. Im Negativ fehlt bewusst `gradient background`: der Himmelsverlauf ist hier das Motiv.
+Japanese modern kissa garden backdrop filling the entire frame edge to edge, soft pale blue morning sky with a gentle vertical wash from dusty cornflower blue at the top to warm ivory at the horizon, three or four simplified rounded chalk white clouds in the upper third, a low silhouette range of gentle rolling hills in muted sage green and dusty blue-grey layered in two depths across the lower third, a strip of soft matcha-green meadow with a few simplified tufts along the bottom fifth, the entire middle band left calm and nearly empty and softly hazed as if seen through shoji paper so that objects placed in front of it stay readable, flat matte art-toy poster finish with zero gloss, no lanterns, no animals, no buildings, no people, no border and no margin, tall portrait orientation 9:16, orthographic front view, 8k resolution --style raw
+
+Offen im Code, sobald die Renders da sind: der Rahmen muss von Einpassen auf Cover-Scaling ueber `BG_FRAME_RECTS` umgestellt werden, und das Shoji-Rechteck in `GameScene.create` entfaellt.
 
 ### Niche Background Prompts (3 Tiers)
 Each tier maintains the same Japanese kissa aesthetic: warm hinoki wood frame, matte white plaster interior, soft ambient lighting from above. The inner cavity width increases per tier to visually distinguish level groups.
@@ -206,13 +243,18 @@ Der Dateiname steuert die gesamte Verarbeitung — es gibt keine Konfiguration a
 
 | Prefix | Verarbeitung | Ausgabe |
 |---|---|---|
-| `bg_` | Resize auf 720px Breite, kein Freistellen. Nischenweite wird gemessen. | `BG_CAVITY_RATIOS` in `src/item_offsets.generated.ts` |
-| `bgl_` | Defringe, freigestellt, 720px Breite, **Position im Frame bleibt erhalten** | Parallax-Layer |
-| `shelf_` | Defringe, exakter Alpha-Crop, auf 608×184 gezogen | Regalbrett |
-| `ui_card_` | Defringe, exakter Alpha-Crop, Höhe auf 128 normalisiert, Breite proportional | NineSlice-Karte |
-| `btn_` / `ui_` | Defringe, exakter Alpha-Crop, 256×256 zentriert | Buttons & Icons |
-| `fx_` | Defringe, exakter Alpha-Crop, 256×256 zentriert | Match-Effekt |
-| Item-ID | Defringe, exakter Alpha-Crop, 256×256, Bottom-Offset gemessen | `ITEM_BOTTOM_OFFSETS` |
+| `bg_` | Resize auf `FRAME_WIDTH` (1440px) Breite, kein Freistellen. Nischenweite wird gemessen. | `BG_CAVITY_RATIOS` in `src/item_offsets.generated.ts` |
+| `bgl_` | Defringe, freigestellt, 1440px Breite, **Position im Frame bleibt erhalten** | Parallax-Layer |
+| `bgl_` (Sprite) | Defringe, exakter Alpha-Crop, Höhe 1024 | Katze, Shiba |
+| `shelf_` | Defringe, exakter Alpha-Crop, auf 1216px Breite gezogen | Regalbrett |
+| `ui_card_` | Defringe, exakter Alpha-Crop, Höhe auf 256 normalisiert, Breite proportional | NineSlice-Karte |
+| `btn_` / `ui_` | Defringe, exakter Alpha-Crop, 384×384 zentriert | Buttons & Icons |
+| `fx_` | Defringe, exakter Alpha-Crop, 384×384 zentriert | Match-Effekt |
+| Item-ID | Defringe, exakter Alpha-Crop, 384×384, Bottom-Offset gemessen | `ITEM_BOTTOM_OFFSETS` |
+
+Die Zielgrößen stehen als Konstanten oben in `scripts/process_assets.js` und sind an der Canvasbreite bei `devicePixelRatio` 3 bemessen (rund 1240 px, siehe Abschnitt 1a). Vorher lag alles bei der Hälfte, und jede bildfüllende Ebene wurde im Spiel um Faktor 1.7 hochskaliert.
+
+Wird eine Zielgröße geändert, muss der Despill-Radius (`EDGE_SPRITE` / `EDGE_LAYER`) denselben Faktor bekommen: er ist eine Pixelbreite am fertigen Bild und deckt sonst nur noch den halben Saum ab.
 
 Items müssen zusätzlich in `ITEM_IDS` (`scripts/process_assets.js:13`) stehen, sonst werden sie übersprungen.
 
@@ -225,6 +267,10 @@ Schreibt nach `public/assets/items/` und regeneriert `src/item_offsets.generated
 - `ITEM_BOTTOM_OFFSETS` — sichtbare Unterkante je Item
 - `BG_CAVITY_RATIOS` — lichte Nischenweite je Hintergrund
 - `AVAILABLE_ASSETS` — alles, was tatsächlich in `public/assets/items/` liegt
+
+**Ausgabeformat ist WebP** (`OUT_EXT`), nicht PNG. Mit der verdoppelten Kantenlänge wäre der Katalog als PNG über 10 MB groß — ein Verlaufshimmel komprimiert in PNG praktisch gar nicht (`bgl_sky` allein: 1.7 MB als PNG, 21 KB als WebP). `alphaQuality: 100` hält den Alphakanal verlustfrei, die freigestellte Silhouette und die geglätteten Kanten bleiben also exakt so, wie die Pipeline sie berechnet hat; verlustbehaftet ist nur die Farbe innerhalb der Fläche. Der Loader hängt die Endung über den generierten Export `ASSET_EXT` an, im Code steht sie nirgends fest. Der Gesamtkatalog liegt damit bei rund 2.4 MB statt 5.7 MB — bei doppelter Auflösung.
+
+Reste eines früheren Ausgabeformats werden beim Lauf aus `public/assets/items/` gelöscht, sonst lägen dieselben Assets doppelt im Build.
 
 Alle drei werden **am fertigen PNG** gemessen bzw. gelistet — nie im Code hardcoden.
 `AVAILABLE_ASSETS` steuert das Laden optionaler Assets: der Vite-Dev-Server liefert für fehlende Dateien das HTML-Fallback mit Status 200, der Phaser-Loader würde daran hängenbleiben.
@@ -261,7 +307,8 @@ Pflicht-Assets in `PreloadScene.preload()` (`src/main.ts`) mit `this.load.image(
 ```
 npm run build && npm run dev
 ```
-Checkliste im Browser:
+Checkliste im Browser (DevTools auf ein Telefon mit DPR 3 stellen — bei DPR 1 fällt eine Auflösungsregression nicht auf):
+- `document.querySelector('canvas').width` ist die CSS-Breite **mal DPR**, nicht die CSS-Breite
 - Regalbrett sitzt mittig **in** der Nische, ohne den Hinoki-Rahmen zu überlappen
 - UI-Karten: Ecken/Messingkanten unverzerrt, Buttons liegen innerhalb des Trays
 - Items stehen mit der Unterkante auf der Regallippe auf
