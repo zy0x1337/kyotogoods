@@ -9,6 +9,22 @@
 
 ---
 
+## 1a. Renderauflösung (DPR)
+
+Phaser rendert im Scale-Modus `RESIZE` in **CSS-Pixeln**: die Canvas bekommt exakt so viele Pixel, wie sie CSS-Pixel breit ist, und das Gerät bläst sie danach auf seine physischen Pixel auf. Auf einem Telefon mit `devicePixelRatio` 3 wird so jedes gerenderte Pixel zu einem 3×3-Block — das war die flächige Unschärfe im ersten Web-Deploy.
+
+Deshalb läuft das Spiel im Modus **`NONE`** mit `zoom: 1 / DPR`: die Canvas bekommt die volle Geräteauflösung (412×800 CSS → 1236×2400 Backingstore), `zoom` zieht sie per CSS wieder auf die richtige Anzeigegröße. Der Modus koppelt als einziger Auflösung und Anzeigegröße voneinander los — `zoom` wird in `RESIZE` komplett ignoriert.
+
+Konsequenzen, die beim Weiterbauen zählen:
+
+- **Weltkoordinaten sind Gerätepixel.** Alles Sichtbare hängt an `getLayoutScale()`, das den Faktor mitführt. Ein absoluter Pixelwert ohne diesen Faktor ist auf einem 3×-Display ein Drittel zu klein — das `WinModalScene` war genau dieser Fall.
+- Dinge, die aus Weltdistanzen abgeleitet werden und *keine* Pixel sind (Tween-Dauern), müssen mit `/ itemScale` zurück in Design-Pixel gerechnet werden.
+- `MAX_DPR` in `src/main.ts` ist der Perf-Hebel: die Szene stapelt mehrere bildfüllende Ebenen, die Füllrate wächst quadratisch mit dem Faktor. Ruckelt es auf schwachen Geräten, ist 2 der nächste Schritt.
+- Im Modus `NONE` folgt die Canvas dem Container nicht von selbst. Drehung und ein-/ausfahrende Browserleisten werden über einen `resize`-Listener nachgezogen.
+- Die Texturen müssen mitziehen: bei 720 px Layerbreite gegen 1236 px Canvas skaliert die Pipeline-Ausgabe hoch, und die Unschärfe ist wieder da. Siehe Abschnitt 4, Schritt 2.
+
+---
+
 ## 2. Typografie
 
 Schrift: **M PLUS Rounded 1c** (`@fontsource/m-plus-rounded-1c`, nur Latin 500 + 800 importiert). Stark gerundete japanische Schrift mit deutlich mehr Spiel als eine neutrale Gothic. Wird lokal gebundelt, also offline-tauglich im Capacitor-Build. Vorgänger war Zen Maru Gothic — zu brav.
@@ -206,13 +222,18 @@ Der Dateiname steuert die gesamte Verarbeitung — es gibt keine Konfiguration a
 
 | Prefix | Verarbeitung | Ausgabe |
 |---|---|---|
-| `bg_` | Resize auf 720px Breite, kein Freistellen. Nischenweite wird gemessen. | `BG_CAVITY_RATIOS` in `src/item_offsets.generated.ts` |
-| `bgl_` | Defringe, freigestellt, 720px Breite, **Position im Frame bleibt erhalten** | Parallax-Layer |
-| `shelf_` | Defringe, exakter Alpha-Crop, auf 608×184 gezogen | Regalbrett |
-| `ui_card_` | Defringe, exakter Alpha-Crop, Höhe auf 128 normalisiert, Breite proportional | NineSlice-Karte |
-| `btn_` / `ui_` | Defringe, exakter Alpha-Crop, 256×256 zentriert | Buttons & Icons |
-| `fx_` | Defringe, exakter Alpha-Crop, 256×256 zentriert | Match-Effekt |
-| Item-ID | Defringe, exakter Alpha-Crop, 256×256, Bottom-Offset gemessen | `ITEM_BOTTOM_OFFSETS` |
+| `bg_` | Resize auf `FRAME_WIDTH` (1440px) Breite, kein Freistellen. Nischenweite wird gemessen. | `BG_CAVITY_RATIOS` in `src/item_offsets.generated.ts` |
+| `bgl_` | Defringe, freigestellt, 1440px Breite, **Position im Frame bleibt erhalten** | Parallax-Layer |
+| `bgl_` (Sprite) | Defringe, exakter Alpha-Crop, Höhe 1024 | Katze, Shiba |
+| `shelf_` | Defringe, exakter Alpha-Crop, auf 1216px Breite gezogen | Regalbrett |
+| `ui_card_` | Defringe, exakter Alpha-Crop, Höhe auf 256 normalisiert, Breite proportional | NineSlice-Karte |
+| `btn_` / `ui_` | Defringe, exakter Alpha-Crop, 384×384 zentriert | Buttons & Icons |
+| `fx_` | Defringe, exakter Alpha-Crop, 384×384 zentriert | Match-Effekt |
+| Item-ID | Defringe, exakter Alpha-Crop, 384×384, Bottom-Offset gemessen | `ITEM_BOTTOM_OFFSETS` |
+
+Die Zielgrößen stehen als Konstanten oben in `scripts/process_assets.js` und sind an der Canvasbreite bei `devicePixelRatio` 3 bemessen (rund 1240 px, siehe Abschnitt 1a). Vorher lag alles bei der Hälfte, und jede bildfüllende Ebene wurde im Spiel um Faktor 1.7 hochskaliert.
+
+Wird eine Zielgröße geändert, muss der Despill-Radius (`EDGE_SPRITE` / `EDGE_LAYER`) denselben Faktor bekommen: er ist eine Pixelbreite am fertigen Bild und deckt sonst nur noch den halben Saum ab.
 
 Items müssen zusätzlich in `ITEM_IDS` (`scripts/process_assets.js:13`) stehen, sonst werden sie übersprungen.
 
@@ -225,6 +246,10 @@ Schreibt nach `public/assets/items/` und regeneriert `src/item_offsets.generated
 - `ITEM_BOTTOM_OFFSETS` — sichtbare Unterkante je Item
 - `BG_CAVITY_RATIOS` — lichte Nischenweite je Hintergrund
 - `AVAILABLE_ASSETS` — alles, was tatsächlich in `public/assets/items/` liegt
+
+**Ausgabeformat ist WebP** (`OUT_EXT`), nicht PNG. Mit der verdoppelten Kantenlänge wäre der Katalog als PNG über 10 MB groß — ein Verlaufshimmel komprimiert in PNG praktisch gar nicht (`bgl_sky` allein: 1.7 MB als PNG, 21 KB als WebP). `alphaQuality: 100` hält den Alphakanal verlustfrei, die freigestellte Silhouette und die geglätteten Kanten bleiben also exakt so, wie die Pipeline sie berechnet hat; verlustbehaftet ist nur die Farbe innerhalb der Fläche. Der Loader hängt die Endung über den generierten Export `ASSET_EXT` an, im Code steht sie nirgends fest. Der Gesamtkatalog liegt damit bei rund 2.4 MB statt 5.7 MB — bei doppelter Auflösung.
+
+Reste eines früheren Ausgabeformats werden beim Lauf aus `public/assets/items/` gelöscht, sonst lägen dieselben Assets doppelt im Build.
 
 Alle drei werden **am fertigen PNG** gemessen bzw. gelistet — nie im Code hardcoden.
 `AVAILABLE_ASSETS` steuert das Laden optionaler Assets: der Vite-Dev-Server liefert für fehlende Dateien das HTML-Fallback mit Status 200, der Phaser-Loader würde daran hängenbleiben.
@@ -261,7 +286,8 @@ Pflicht-Assets in `PreloadScene.preload()` (`src/main.ts`) mit `this.load.image(
 ```
 npm run build && npm run dev
 ```
-Checkliste im Browser:
+Checkliste im Browser (DevTools auf ein Telefon mit DPR 3 stellen — bei DPR 1 fällt eine Auflösungsregression nicht auf):
+- `document.querySelector('canvas').width` ist die CSS-Breite **mal DPR**, nicht die CSS-Breite
 - Regalbrett sitzt mittig **in** der Nische, ohne den Hinoki-Rahmen zu überlappen
 - UI-Karten: Ecken/Messingkanten unverzerrt, Buttons liegen innerhalb des Trays
 - Items stehen mit der Unterkante auf der Regallippe auf

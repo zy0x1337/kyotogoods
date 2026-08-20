@@ -1,7 +1,7 @@
 import '@fontsource/m-plus-rounded-1c/latin-500.css';
 import '@fontsource/m-plus-rounded-1c/latin-800.css';
 import Phaser from 'phaser';
-import { ITEM_BOTTOM_OFFSETS, BG_CAVITY_RATIOS, BG_CAVITY_RECTS, BG_FRAME_RECTS, SHELF_PLATFORM_RATIOS, AVAILABLE_ASSETS } from './item_offsets.generated';
+import { ITEM_BOTTOM_OFFSETS, BG_CAVITY_RATIOS, BG_CAVITY_RECTS, BG_FRAME_RECTS, SHELF_PLATFORM_RATIOS, AVAILABLE_ASSETS, ASSET_EXT } from './item_offsets.generated';
 
 // ==========================================
 // 1. CMF DESIGN SYSTEM & ITEM REGISTRY
@@ -37,6 +37,23 @@ function valueStyle(size: number, color: string): Phaser.Types.GameObjects.Text.
 
 const DESIGN_WIDTH = 420;
 const DESIGN_HEIGHT = 760;
+
+// Geraete-Pixelverhaeltnis. Phaser rendert im Scale-Modus RESIZE in
+// CSS-Pixeln: die Canvas bekommt exakt so viele Pixel, wie sie CSS-Pixel breit
+// ist, und das Geraet blaest sie danach auf seine physischen Pixel auf -- auf
+// einem 3x-Display wird jedes gerenderte Pixel zu einem 3x3-Block. Genau das
+// war die Unschaerfe im Web-Deploy. Deshalb laeuft das Spiel im Modus NONE:
+// die Canvas bekommt die volle Geraeteaufloesung, zoom = 1/DPR zieht sie per
+// CSS wieder auf die richtige Anzeigegroesse.
+//
+// Die Weltkoordinaten sind damit Geraetepixel -- alles Sichtbare haengt an
+// getLayoutScale(), das den Faktor mitfuehrt. Absolute Pixelwerte ohne diesen
+// Faktor waeren auf einem 3x-Display ein Drittel zu klein.
+//
+// Deckel: mehr als 3x kostet Fuellrate ohne sichtbaren Gewinn. Ruckelt es auf
+// schwachen Geraeten, ist MAX_DPR der Hebel (2 halbiert die Pixelmenge fast).
+const MAX_DPR = 3;
+export const DPR = Math.min(Math.max(window.devicePixelRatio || 1, 1), MAX_DPR);
 // Kantenlaenge eines Goods auf dem Regal. Die Bottom-Offsets aus der Pipeline
 // sind in ITEM_OFFSET_BASE gerechnet (ITEM_DISPLAY_SIZE dort) -- wird die
 // Anzeigegroesse geaendert, muss der Offset denselben Faktor bekommen.
@@ -119,8 +136,10 @@ function getBgTier(level: number) {
   return BG_TIERS.find(t => level >= t.levelRange[0] && level <= t.levelRange[1]) ?? BG_TIERS[0];
 }
 
+// width kommt in Geraetepixeln herein, der Deckel gilt aber in CSS-Pixeln --
+// sonst waere er auf einem 3x-Display schon bei einem Drittel der Breite erreicht.
 function getLayoutScale(width: number): number {
-  return Math.min(width / DESIGN_WIDTH, 1.15);
+  return Math.min(width / (DESIGN_WIDTH * DPR), 1.15) * DPR;
 }
 
 // Feinjustierung einzelner Goods gegenueber der Einheitsgroesse. Der Render
@@ -811,7 +830,10 @@ export class Shelf extends Phaser.GameObjects.Container {
       new Phaser.Math.Vector2(toX, toY)
     );
 
-    const duration = Phaser.Math.Clamp(160 + dist * 0.55, 200, 420);
+    // dist ist eine Weltdistanz und waechst mit DPR und Layout-Skalierung mit.
+    // Fuer die Dauer zaehlt aber die gefuehlte Strecke, also zurueck in Design-Pixel.
+    const designDist = dist / this.itemScale;
+    const duration = Phaser.Math.Clamp(160 + designDist * 0.55, 200, 420);
     const travel = { t: 0 };
     const point = new Phaser.Math.Vector2();
 
@@ -1041,31 +1063,33 @@ export class PreloadScene extends Phaser.Scene {
     // stehen. Der Vite-Dev-Server liefert fuer fehlende Dateien das HTML-Fallback
     // mit Status 200 -- der Loader wuerde daran haengenbleiben.
     const loadOptional = (key: string) => {
-      if (AVAILABLE_ASSETS.has(key)) this.load.image(key, `assets/items/${key}.png`);
+      if (AVAILABLE_ASSETS.has(key)) this.load.image(key, `assets/items/${key}.${ASSET_EXT}`);
     };
 
     this.load.on('loaderror', (file: Phaser.Loader.File) => {
       console.warn(`[assets] konnte ${file.key} nicht laden`);
     });
 
-    // 1. Goods
+    // 1. Goods. Auch die laufen ueber das Manifest: fehlt ein Render, faellt das
+    // Item auf seine Vektorgrafik zurueck, statt den Loader an einer 404 haengen
+    // zu lassen (der Dev-Server antwortet darauf mit HTML und Status 200).
     Object.keys(ITEMS).forEach(id => {
-      this.load.image(`item_${id}`, `assets/items/${id}.png`);
+      if (AVAILABLE_ASSETS.has(id)) this.load.image(`item_${id}`, `assets/items/${id}.${ASSET_EXT}`);
     });
 
     // 2. Environment & UI – Hintergrund-Tiers (höhere Tiers können fehlen, Fallback auf bg_kissa_niche)
     BG_TIERS.forEach(t => loadOptional(t.key));
     BG_LAYERS.forEach(l => loadOptional(l.key));
     loadOptional(NICHE_FRAME_KEY);
-    this.load.image('shelf_wood', 'assets/items/shelf_wood.png');
-    this.load.image('fx_match_burst', 'assets/items/fx_match_burst.png');
-    this.load.image('ui_card_kuro', 'assets/items/ui_card_kuro.png');
-    this.load.image('ui_card_hinoki', 'assets/items/ui_card_hinoki.png');
-    this.load.image('btn_undo', 'assets/items/btn_undo.png');
-    this.load.image('btn_shuffle', 'assets/items/btn_shuffle.png');
-    this.load.image('btn_hammer', 'assets/items/btn_hammer.png');
-    this.load.image('ui_star', 'assets/items/ui_star.png');
-    this.load.image('ui_star_empty', 'assets/items/ui_star_empty.png');
+    this.load.image('shelf_wood', `assets/items/shelf_wood.${ASSET_EXT}`);
+    this.load.image('fx_match_burst', `assets/items/fx_match_burst.${ASSET_EXT}`);
+    this.load.image('ui_card_kuro', `assets/items/ui_card_kuro.${ASSET_EXT}`);
+    this.load.image('ui_card_hinoki', `assets/items/ui_card_hinoki.${ASSET_EXT}`);
+    this.load.image('btn_undo', `assets/items/btn_undo.${ASSET_EXT}`);
+    this.load.image('btn_shuffle', `assets/items/btn_shuffle.${ASSET_EXT}`);
+    this.load.image('btn_hammer', `assets/items/btn_hammer.${ASSET_EXT}`);
+    this.load.image('ui_star', `assets/items/ui_star.${ASSET_EXT}`);
+    this.load.image('ui_star_empty', `assets/items/ui_star_empty.${ASSET_EXT}`);
   }
 
   create() {
@@ -1088,6 +1112,7 @@ export class GameScene extends Phaser.Scene {
 
   create() {
     const { width, height } = this.scale;
+    const uiScale = getLayoutScale(width);
     this.shelves = [];
     this.selected = null;
 
@@ -1125,7 +1150,6 @@ export class GameScene extends Phaser.Scene {
         // zwischen Header und Booster-Reihe steht und unten auf der Wiese
         // aufsitzt. Cover-Scaling wuerde es oben und unten anschneiden -- das
         // liess es wie einen Wandausschnitt wirken statt wie ein Moebel im Garten.
-        const uiScale = getLayoutScale(width);
         const bandTop = 78 * uiScale;
         const bandBottom = height - 74 * uiScale;
 
@@ -1173,7 +1197,7 @@ export class GameScene extends Phaser.Scene {
         const footW = frame.w * source.width * k;
         const shadow = this.add.graphics().setDepth(-11);
         for (let i = 6; i > 0; i--) {
-          shadow.fillStyle(0x3A4A32, 0.05).fillEllipse(width / 2, footY, footW * (0.6 + i * 0.06), 26 * (i / 6));
+          shadow.fillStyle(0x3A4A32, 0.05).fillEllipse(width / 2, footY, footW * (0.6 + i * 0.06), 26 * uiScale * (i / 6));
         }
       }
 
@@ -1391,7 +1415,7 @@ export class GameScene extends Phaser.Scene {
         offsetX: 0,
         offsetY: 3 * effectScale,
         color: '#1E2022',
-        blur: 4,
+        blur: 4 * effectScale,
         stroke: true,
         fill: true
       }
@@ -1528,7 +1552,7 @@ export class UIScene extends Phaser.Scene {
     const LABEL = '#5C4B33';
     const VALUE = '#1E2022';
     const halo = {
-      shadow: { offsetX: 0, offsetY: 0, color: '#FDFBF7', blur: 8, stroke: true, fill: true }
+      shadow: { offsetX: 0, offsetY: 0, color: '#FDFBF7', blur: 8 * uiScale, stroke: true, fill: true }
     };
 
     // Label und Wert teilen sich dieselbe x-Mitte und stehen beide auf
@@ -1625,13 +1649,18 @@ export class WinModalScene extends Phaser.Scene {
 
   create() {
     const { width, height } = this.scale;
+    // Die Karte wurde bisher in festen Pixeln gebaut. In Geraetepixeln waere sie
+    // damit auf einem 3x-Display ein Drittel so gross wie gedacht.
+    const s = getLayoutScale(width);
     this.add.graphics().fillStyle(0x000000, 0.45).fillRect(0, 0, width, height);
 
     const card = this.add.container(width / 2, height / 2);
-    const bg = this.add.graphics().fillStyle(KYOTO.cream, 1).fillRoundedRect(-140, -130, 280, 260, 16);
-    bg.lineStyle(2, KYOTO.hinoki, 0.7).strokeRoundedRect(-140, -130, 280, 260, 16);
+    const cardW = 280 * s;
+    const cardH = 260 * s;
+    const bg = this.add.graphics().fillStyle(KYOTO.cream, 1).fillRoundedRect(-cardW / 2, -cardH / 2, cardW, cardH, 16 * s);
+    bg.lineStyle(2 * s, KYOTO.hinoki, 0.7).strokeRoundedRect(-cardW / 2, -cardH / 2, cardW, cardH, 16 * s);
 
-    const title = this.add.text(0, -85, `TEA BAR ${State.currentLevel} CLEARED`, valueStyle(18, '#1E2022')).setOrigin(0.5);
+    const title = this.add.text(0, -85 * s, `TEA BAR ${State.currentLevel} CLEARED`, valueStyle(18 * s, '#1E2022')).setOrigin(0.5);
 
     // 3-Sterne Bewertung
     const movesRatio = State.moves / State.initialMoves;
@@ -1642,22 +1671,22 @@ export class WinModalScene extends Phaser.Scene {
       const key = hasStar ? 'ui_star' : 'ui_star_empty';
 
       if (this.textures.exists(key)) {
-        const star = this.add.image(xOffset, -40, key).setDisplaySize(32, 32);
+        const star = this.add.image(xOffset * s, -40 * s, key).setDisplaySize(32 * s, 32 * s);
         card.add(star);
       } else {
-        const g = this.add.graphics().fillStyle(hasStar ? KYOTO.brass : 0xCCCCCC, 1).fillCircle(xOffset, -40, 12);
+        const g = this.add.graphics().fillStyle(hasStar ? KYOTO.brass : 0xCCCCCC, 1).fillCircle(xOffset * s, -40 * s, 12 * s);
         card.add(g);
       }
     });
 
-    const scoreLabel = this.add.text(0, -6, 'SCORE', labelStyle(10, '#8C7A5E')).setOrigin(0.5);
-    const score = this.add.text(0, 14, `${State.score}`, valueStyle(24, '#4A6B47')).setOrigin(0.5);
+    const scoreLabel = this.add.text(0, -6 * s, 'SCORE', labelStyle(10 * s, '#8C7A5E')).setOrigin(0.5);
+    const score = this.add.text(0, 14 * s, `${State.score}`, valueStyle(24 * s, '#4A6B47')).setOrigin(0.5);
 
-    const btn = this.add.container(0, 65);
-    const btnBg = this.add.graphics().fillStyle(KYOTO.matcha, 1).fillRoundedRect(-65, -20, 130, 40, 10);
-    const btnTxt = this.add.text(0, 0, 'NEXT BAR', valueStyle(14, '#FFFFFF')).setOrigin(0.5);
+    const btn = this.add.container(0, 65 * s);
+    const btnBg = this.add.graphics().fillStyle(KYOTO.matcha, 1).fillRoundedRect(-65 * s, -20 * s, 130 * s, 40 * s, 10 * s);
+    const btnTxt = this.add.text(0, 0, 'NEXT BAR', valueStyle(14 * s, '#FFFFFF')).setOrigin(0.5);
 
-    btn.add([btnBg, btnTxt]).setSize(130, 40).setInteractive({ useHandCursor: true });
+    btn.add([btnBg, btnTxt]).setSize(130 * s, 40 * s).setInteractive({ useHandCursor: true });
     btn.on('pointerdown', () => {
       State.currentLevel = State.currentLevel >= LEVELS.length ? 1 : State.currentLevel + 1;
       this.scene.stop('WinModalScene');
@@ -1672,19 +1701,45 @@ export class WinModalScene extends Phaser.Scene {
 // ==========================================
 // 6. ENGINE BOOTSTRAP
 // ==========================================
+// Canvas-Groesse in Geraetepixeln. Die Anzeigegroesse ist das Container-Rechteck
+// in CSS-Pixeln, die Backingstore-Groesse ein Vielfaches davon.
+function getCanvasSize() {
+  const parent = document.getElementById('game-container');
+  const cssW = parent?.clientWidth || window.innerWidth;
+  const cssH = parent?.clientHeight || window.innerHeight;
+  return { width: Math.round(cssW * DPR), height: Math.round(cssH * DPR) };
+}
+
 function boot() {
+  const size = getCanvasSize();
+
   const game = new Phaser.Game({
     type: Phaser.AUTO,
     parent: 'game-container',
-    width: DESIGN_WIDTH,
-    height: DESIGN_HEIGHT,
+    width: size.width,
+    height: size.height,
     backgroundColor: '#F3EFEA',
     scale: {
-      mode: Phaser.Scale.RESIZE,
+      // NONE statt RESIZE: nur hier ist die Canvas-Aufloesung von der
+      // Anzeigegroesse entkoppelt. RESIZE setzt canvas.width hart auf die
+      // Elternbreite in CSS-Pixeln und ignoriert zoom komplett.
+      mode: Phaser.Scale.NONE,
+      zoom: 1 / DPR,
       autoCenter: Phaser.Scale.CENTER_BOTH
     },
     scene: [PreloadScene, GameScene, UIScene, WinModalScene]
   });
+
+  // Im Modus NONE folgt die Canvas dem Container nicht von selbst. Drehung und
+  // ein- oder ausfahrende Browserleisten aendern das Rechteck, also nachziehen.
+  const fitToParent = () => {
+    const next = getCanvasSize();
+    if (next.width !== game.scale.width || next.height !== game.scale.height) {
+      game.scale.resize(next.width, next.height);
+    }
+  };
+  window.addEventListener('resize', fitToParent);
+  window.addEventListener('orientationchange', () => window.setTimeout(fitToParent, 150));
 
   // Debug-Handle fuer die Layout-Pruefung im Browser
   if (import.meta.env.DEV) (window as unknown as { __game: Phaser.Game }).__game = game;

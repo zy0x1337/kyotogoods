@@ -12,22 +12,22 @@ export const ITEM_BOTTOM_OFFSETS: Record<string, number> = {
   gotoku_trivet: 21.94,
   incense_burner: 36,
   kissa_toast: 36,
-  kuro_mame_dome: 18.28,
-  matcha_montblanc: 33.47,
+  kuro_mame_dome: 18.19,
+  matcha_montblanc: 33.38,
   matcha_roll: 29.81,
   mizuhiki_knot: 36,
   origami_dripper: 25.88,
-  shou_sugi_block: 34.88,
+  shou_sugi_block: 34.69,
   tetsubin_kettle: 29.81,
-  yokan_prism: 25.88
+  yokan_prism: 25.69
 };
 
-// Lichte Weite der Nische je Hintergrund, gemessen am fertigen PNG (Anteil der Bildbreite).
+// Lichte Weite der Nische je Hintergrund, gemessen an der fertigen Textur (Anteil der Bildbreite).
 export const BG_CAVITY_RATIOS: Record<string, number> = {
-  bg_kissa_niche: 0.6458,
-  bg_kissa_niche_mid: 0.6458,
+  bg_kissa_niche: 0.6451,
+  bg_kissa_niche_mid: 0.6451,
   bg_kissa_niche_wide: 0.8167,
-  bg_plaster: 0.8958,
+  bg_plaster: 0.9306,
   bgl_niche_frame: 0.5592
 };
 
@@ -38,13 +38,16 @@ export const BG_CAVITY_RECTS: Record<string, { x: number; y: number; w: number; 
 
 // Aeussere Kontur eines freistehenden Rahmens in Bildanteilen.
 export const BG_FRAME_RECTS: Record<string, { x: number; y: number; w: number; h: number }> = {
-  bgl_niche_frame: { x: 0.5, y: 0.0682, w: 0.6833, h: 0.8674 }
+  bgl_niche_frame: { x: 0.5, y: 0.0682, w: 0.6819, h: 0.8674 }
 };
 
 // Auflageflaeche eines Regalbretts als Anteil seiner Bildhoehe.
 export const SHELF_PLATFORM_RATIOS: Record<string, number> = {
   shelf_wood: 0.6769
 };
+
+// Dateiendung der erzeugten Texturen. Der Loader haengt sie an den Asset-Key an.
+export const ASSET_EXT = 'webp';
 
 // Alle Texturen, die tatsaechlich in public/assets/items/ liegen.
 export const AVAILABLE_ASSETS: ReadonlySet<string> = new Set([
