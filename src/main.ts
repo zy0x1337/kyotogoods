@@ -64,14 +64,6 @@ const SHELF_PLATFORM_TOP_Y = 38;
 const DEFAULT_ITEM_BOTTOM_OFFSET = 36;
 const BG_CAVITY_RATIO = 0.6458;
 
-// Anteil der lichten Nischenweite, den ein Regalbrett einnimmt.
-//
-// Am Asset gemessen: das ausgestanzte Loch endet an der inneren Schattenkante
-// des Putzpanels, das sichtbare Holz beginnt 6 von 402 px weiter aussen -- also
-// Faktor 1.015. Damit stossen die Messingstifte an den Brettenden genau an den
-// Rahmen, statt darunter zu verschwinden. Dafuer sind die Stifte ja da.
-const SHELF_CAVITY_FILL = 1.015;
-
 // Hintergrund-Tiers: pro Level-Gruppe eine breiter werdende Nische. Das
 // cavityRatio wird von scripts/process_assets.js am fertigen PNG gemessen.
 const BG_TIERS: { key: string; levelRange: [number, number] }[] = [
@@ -80,53 +72,11 @@ const BG_TIERS: { key: string; levelRange: [number, number] }[] = [
   { key: 'bg_kissa_niche_wide', levelRange: [6, 6] },
 ];
 
-// Parallax-Layer des Hintergrunds. Jeder Layer ist ein eigenes freigestelltes
-// PNG (Prefix bgl_) und wird nur gezeichnet, wenn er im Asset-Manifest steht.
-//
-// mode 'cover':  bildfuellende Ebene. Wurde im 9:16-Frame an ihrer endgueltigen
-//   Position gerendert und wird wie der Hintergrund cover-skaliert -- die Layer
-//   liegen dadurch deckungsgleich uebereinander.
-// mode 'band':   auf den Inhalt beschnittenes Band, volle Breite, unten buendig.
-// mode 'sprite': freigestelltes Einzelobjekt, ueber xRatio/yRatio platziert.
-type BgMotion = 'none' | 'sway' | 'drift' | 'bob';
-type BgLayerMode = 'cover' | 'band' | 'sprite';
-
-interface BgLayer {
-  key: string;
-  mode: BgLayerMode;
-  depth: number;
-  motion: BgMotion;
-  amount?: number;
-  period?: number;
-  /** sprite: Mittelpunkt in Anteilen der Canvas-Groesse, y ist die Standlinie */
-  xRatio?: number;
-  yRatio?: number;
-  /** sprite: Breite als Anteil der Canvas-Breite */
-  widthRatio?: number;
-  /** sprite: horizontal spiegeln, damit die Figur zur Szene blickt */
-  flipX?: boolean;
-}
-
-// Freistehendes Regalgehaeuse, das ueber der Gartenszene liegt. Solange es
-// fehlt, bleibt der undurchsichtige Wand-Hintergrund bg_kissa_niche aktiv --
-// der wuerde die Parallax-Layer sonst komplett verdecken.
+// Freistehendes Regalgehaeuse vor der gedruckten Nachtwand (bg_kissa_room).
+// Solange es fehlt, bleibt der undurchsichtige Wand-Hintergrund bg_kissa_niche
+// aktiv -- der Fallback braucht kein freistehendes Moebel.
 const NICHE_FRAME_KEY = 'bgl_niche_frame';
-
-const BG_LAYERS: BgLayer[] = [
-  { key: 'bgl_sky',      mode: 'cover',  depth: -60, motion: 'none' },
-  { key: 'bgl_clouds',   mode: 'cover',  depth: -58, motion: 'drift', amount: 0.06, period: 38000 },
-  { key: 'bgl_hills',    mode: 'cover',  depth: -56, motion: 'none' },
-  { key: 'bgl_meadow',   mode: 'band',   depth: -54, motion: 'none' },
-  // Das Gehaeuse belegt rund x 0.17..0.85 -- die Tiere stehen in den schmalen
-  // Wiesenstreifen links und rechts davon, sonst verschwinden sie dahinter.
-  { key: 'bgl_cat',      mode: 'sprite', depth: -52, motion: 'bob', amount: 4, period: 2600,
-    xRatio: 0.085, yRatio: 0.965, widthRatio: 0.14, flipX: true },
-  { key: 'bgl_dog',      mode: 'sprite', depth: -52, motion: 'bob', amount: 5, period: 3100,
-    xRatio: 0.87, yRatio: 0.965, widthRatio: 0.17 },
-  // Laternen haengen an Schnueren, die an der Oberkante beginnen -- das Schwingen
-  // dreht die Ebene deshalb um ihren oberen Rand, nicht um die Bildmitte.
-  { key: 'bgl_lanterns', mode: 'cover',  depth: -50, motion: 'sway', amount: 1.2, period: 5200 },
-];
+const NIGHT_ROOM_KEY = 'bg_kissa_room';
 
 function getCavityRatio(key: string): number {
   return BG_CAVITY_RATIOS[key] ?? BG_CAVITY_RATIO;
@@ -745,8 +695,10 @@ export class Shelf extends Phaser.GameObjects.Container {
     this.shelfIdx = shelfIdx;
     this.itemScale = itemScale;
     // Drei Slots gleichmaessig ueber das Brett verteilt: Raender links und
-    // rechts sind damit immer gleich gross.
-    this.spacing = Phaser.Math.Clamp(shelfWidth / 3, 78 * itemScale, 104 * itemScale);
+    // rechts sind damit immer gleich gross. Keine Klammer mehr -- die war fuer
+    // ein einzelnes breites Brett kalibriert (78 bis 104px); bei zwei Brettern
+    // pro Zeile waere sie enger als das Brett selbst und liesse Slots ueberhaengen.
+    this.spacing = shelfWidth / 3;
     this.shelfWidth = shelfWidth;
 
     // Hoehe folgt dem Seitenverhaeltnis der Textur. Vorher war sie fest, das
@@ -1100,8 +1052,8 @@ export class PreloadScene extends Phaser.Scene {
 
     // 2. Environment & UI – Hintergrund-Tiers (höhere Tiers können fehlen, Fallback auf bg_kissa_niche)
     BG_TIERS.forEach(t => loadOptional(t.key));
-    BG_LAYERS.forEach(l => loadOptional(l.key));
     loadOptional(NICHE_FRAME_KEY);
+    loadOptional(NIGHT_ROOM_KEY);
     this.load.image('shelf_wood', `assets/items/shelf_wood.${ASSET_EXT}`);
     this.load.image('fx_match_burst', `assets/items/fx_match_burst.${ASSET_EXT}`);
     this.load.image('ui_card_kuro', `assets/items/ui_card_kuro.${ASSET_EXT}`);
@@ -1133,18 +1085,18 @@ export class GameScene extends Phaser.Scene {
 
   create() {
     const { width, height } = this.scale;
-    const uiScale = getLayoutScale(width);
     this.shelves = [];
     this.selected = null;
 
     // Hintergrund. Zwei Varianten:
-    //  a) Gartenszene aus bgl_ Layern plus freistehendem Regalgehaeuse
-    //  b) undurchsichtige Wand-Nische bg_kissa_niche (Fallback)
-    // Variante a braucht NICHE_FRAME_KEY -- ohne das Gehaeuse gaebe es kein
-    // Regal, und die Wand-Nische wuerde die Layer ohnehin verdecken.
+    //  a) Randloses Regalgehaeuse (NICHE_FRAME_KEY) vor der gedruckten
+    //     Nachtwand (NIGHT_ROOM_KEY) -- das Moebel spannt die volle
+    //     Canvashoehe auf, Header und Booster liegen darueber.
+    //  b) undurchsichtige Wand-Nische bg_kissa_niche (Fallback, falls das
+    //     Gehaeuse fehlt)
     const tier = getBgTier(State.currentLevel);
-    const useGarden = this.textures.exists(NICHE_FRAME_KEY);
-    const bgKey = useGarden
+    const useFrame = this.textures.exists(NICHE_FRAME_KEY);
+    const bgKey = useFrame
       ? NICHE_FRAME_KEY
       : (this.textures.exists(tier.key) ? tier.key : 'bg_kissa_niche');
     const cavityRatio = getCavityRatio(bgKey);
@@ -1153,8 +1105,13 @@ export class GameScene extends Phaser.Scene {
     this.cavityWidth = width * cavityRatio;
     this.cavityCenterX = width / 2;
 
-    if (useGarden) {
-      this.createBgLayers(width, height);
+    if (useFrame && this.textures.exists(NIGHT_ROOM_KEY)) {
+      // Gedruckte Wand als unterste Ebene. Der Rahmen liegt spaeter mit
+      // transparenter Nische darueber -- die Wand liefert den Kontrast fuer
+      // die Goods direkt, ohne ein zusaetzliches Shoji-Panel zu brauchen.
+      const room = this.textures.get(NIGHT_ROOM_KEY).getSourceImage();
+      const rk = Math.max(width / room.width, height / room.height);
+      this.add.image(width / 2, height / 2, NIGHT_ROOM_KEY).setScale(rk).setDepth(-60);
     }
 
     if (this.textures.exists(bgKey)) {
@@ -1167,19 +1124,17 @@ export class GameScene extends Phaser.Scene {
       let k: number;
 
       if (frame) {
-        // Freistehendes Moebel: so skalieren und setzen, dass es vollstaendig
-        // zwischen Header und Booster-Reihe steht und unten auf der Wiese
-        // aufsitzt. Cover-Scaling wuerde es oben und unten anschneiden -- das
-        // liess es wie einen Wandausschnitt wirken statt wie ein Moebel im Garten.
-        const bandTop = 78 * uiScale;
-        const bandBottom = height - 74 * uiScale;
-
+        // Freistehendes Moebel, randlos: das Brett bringt sein eigenes
+        // Handy-Seitenverhaeltnis mit (Oberkante und Unterkante sind im Render
+        // bereits an den Canvasrand gezogen). Cover-Scaling auf die volle
+        // Canvashoehe macht es deshalb randlos, statt es wie zuvor zwischen
+        // Header und Booster einzupassen.
         k = Math.min(
-          (bandBottom - bandTop) / (frame.h * source.height),
-          (width * 0.92) / (frame.w * source.width)
+          height / (frame.h * source.height),
+          width / (frame.w * source.width)
         );
         imgX = width / 2 - (frame.x - 0.5) * source.width * k;
-        imgY = bandBottom - (frame.y + frame.h - 0.5) * source.height * k;
+        imgY = height - (frame.y + frame.h - 0.5) * source.height * k;
       } else {
         k = Math.max(width / source.width, height / source.height);
       }
@@ -1195,31 +1150,6 @@ export class GameScene extends Phaser.Scene {
         this.cavityWidth = source.width * k * cavityRatio;
         this.cavityTop = 0;
         this.cavityHeight = 0;
-      }
-
-      // Shoji-Panel: hinter dem Rahmen, vor der Gartenszene. Ohne das milchige
-      // Papier stehen die Goods direkt auf Himmel und Huegeln und verlieren
-      // ihren Kontrast. Bewusst durchscheinend -- der Garten soll dahinter
-      // erkennbar bleiben.
-      if (useGarden && this.cavityHeight > 0) {
-        this.add.graphics().setDepth(-12)
-          .fillStyle(0xFFFDF6, 0.55)
-          .fillRect(
-            this.cavityCenterX - this.cavityWidth / 2,
-            this.cavityTop,
-            this.cavityWidth,
-            this.cavityHeight
-          );
-      }
-
-      // Bodenschatten: erdet das Moebel auf der Wiese, sonst schwebt es
-      if (frame) {
-        const footY = imgY + (frame.y + frame.h - 0.5) * source.height * k;
-        const footW = frame.w * source.width * k;
-        const shadow = this.add.graphics().setDepth(-11);
-        for (let i = 6; i > 0; i--) {
-          shadow.fillStyle(0x3A4A32, 0.05).fillEllipse(width / 2, footY, footW * (0.6 + i * 0.06), 26 * uiScale * (i / 6));
-        }
       }
 
       this.add.image(imgX, imgY, bgKey).setScale(k).setDepth(-10);
@@ -1249,90 +1179,27 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
-  // Zeichnet die optionalen Parallax-Layer und startet ihre Leerlauf-Animation.
-  private createBgLayers(width: number, height: number) {
-    BG_LAYERS.forEach(layer => {
-      if (!this.textures.exists(layer.key)) return;
-
-      const src = this.textures.get(layer.key).getSourceImage();
-      const amount = layer.amount ?? 0;
-      const period = layer.period ?? 3000;
-      const swaying = layer.motion === 'sway';
-
-      let img: Phaser.GameObjects.Image;
-
-      if (layer.mode === 'cover') {
-        const scale = Math.max(width / src.width, height / src.height);
-        // Beim Schwingen liegt der Drehpunkt an der Oberkante, sonst mittig
-        img = this.add.image(width / 2, swaying ? 0 : height / 2, layer.key)
-          .setOrigin(0.5, swaying ? 0 : 0.5)
-          .setScale(scale)
-          .setDepth(layer.depth);
-      } else if (layer.mode === 'band') {
-        // Zwei Pixel ueber den unteren Rand hinaus und minimal breiter als die
-        // Leinwand: der Rand des Renders laeuft weich aus, ohne diesen
-        // Ueberstand blitzt am Bildrand eine Fuge durch.
-        img = this.add.image(width / 2, height + 2, layer.key)
-          .setOrigin(0.5, 1)
-          .setScale((width + 4) / src.width)
-          .setDepth(layer.depth);
-      } else {
-        const targetW = width * (layer.widthRatio ?? 0.2);
-        img = this.add.image(width * (layer.xRatio ?? 0.5), height * (layer.yRatio ?? 1), layer.key)
-          .setOrigin(0.5, 1)
-          .setScale(targetW / src.width)
-          .setDepth(layer.depth)
-          .setFlipX(layer.flipX === true);
-      }
-
-      const baseX = img.x;
-      const baseY = img.y;
-
-      switch (layer.motion) {
-        case 'sway':
-          this.tweens.add({
-            targets: img,
-            angle: { from: -amount, to: amount },
-            duration: period,
-            ease: 'Sine.easeInOut',
-            yoyo: true,
-            repeat: -1
-          });
-          break;
-        case 'drift':
-          this.tweens.add({
-            targets: img,
-            x: { from: baseX - width * amount, to: baseX + width * amount },
-            duration: period,
-            ease: 'Sine.easeInOut',
-            yoyo: true,
-            repeat: -1
-          });
-          break;
-        case 'bob':
-          this.tweens.add({
-            targets: img,
-            y: { from: baseY, to: baseY - amount },
-            duration: period,
-            ease: 'Sine.easeInOut',
-            yoyo: true,
-            repeat: -1
-          });
-          break;
-      }
-    });
-  }
-
   private buildLevel(lvl: number) {
     const level = LEVELS[lvl - 1] ?? LEVELS[0];
     State.reset(level.moves, level.targetMatches);
 
     const itemScale = getLayoutScale(this.scale.width);
     const verticalScale = this.scale.height / DESIGN_HEIGHT;
-    const rows = level.layout.length;
-    const shelfWidth = Math.round(this.cavityWidth * SHELF_CAVITY_FILL);
+    const shelfCount = level.layout.length;
 
-    // Ist die lichte Hoehe der Nische bekannt, werden die Bretter gleichmaessig
+    // Zwei Bretter pro Zeile statt eines ueber die volle Breite -- das
+    // verdoppelt die Slotzahl gegenueber der alten Einspalten-Anordnung, ohne
+    // die Goods zu verkleinern. Ein Randabstand zwischen den Brettern haelt sie
+    // optisch getrennt.
+    const columnGap = 14 * itemScale;
+    const shelfWidth = Math.round((this.cavityWidth - columnGap) / 2);
+    const columnCenters = [
+      this.cavityCenterX - (shelfWidth + columnGap) / 2,
+      this.cavityCenterX + (shelfWidth + columnGap) / 2
+    ];
+    const rows = Math.ceil(shelfCount / 2);
+
+    // Ist die lichte Hoehe der Nische bekannt, werden die Zeilen gleichmaessig
     // darin verteilt statt nach festen Design-Werten gesetzt. Der halbe
     // Zeilenabstand oben und unten haelt Abstand zum Rahmen.
     let startY: number;
@@ -1347,7 +1214,13 @@ export class GameScene extends Phaser.Scene {
     }
 
     level.layout.forEach((data, i) => {
-      this.shelves.push(new Shelf(this, this.cavityCenterX, startY + i * shelfSpacing, i, data, itemScale, shelfWidth));
+      const row = Math.floor(i / 2);
+      const col = i % 2;
+      // Letztes Brett einer ungeraden Reihe: mittig statt in der linken Spalte,
+      // sonst haengt es sichtbar schief neben einer leeren rechten Haelfte.
+      const isDanglingLast = i === shelfCount - 1 && col === 0;
+      const x = isDanglingLast ? this.cavityCenterX : columnCenters[col];
+      this.shelves.push(new Shelf(this, x, startY + row * shelfSpacing, i, data, itemScale, shelfWidth));
     });
   }
 

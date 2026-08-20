@@ -29,22 +29,22 @@ export const BG_CAVITY_RATIOS: Record<string, number> = {
   bg_kissa_niche_wide: 0.8167,
   bg_kissa_room: 0.3715,
   bg_plaster: 0.9306,
-  bgl_niche_frame: 0.5592
+  bgl_niche_frame: 0.5729
 };
 
 // Lichte Nische als Rechteck in Bildanteilen: x ist die Mitte, y die Oberkante.
 export const BG_CAVITY_RECTS: Record<string, { x: number; y: number; w: number; h: number }> = {
-  bgl_niche_frame: { x: 0.5029, y: 0.1166, w: 0.5592, h: 0.7678 }
+  bgl_niche_frame: { x: 0.5026, y: 0.1228, w: 0.5729, h: 0.7289 }
 };
 
 // Aeussere Kontur eines freistehenden Rahmens in Bildanteilen.
 export const BG_FRAME_RECTS: Record<string, { x: number; y: number; w: number; h: number }> = {
-  bgl_niche_frame: { x: 0.5, y: 0.0682, w: 0.6819, h: 0.8674 }
+  bgl_niche_frame: { x: 0.5042, y: 0.0492, w: 0.8403, h: 0.914 }
 };
 
 // Auflageflaeche eines Regalbretts als Anteil seiner Bildhoehe.
 export const SHELF_PLATFORM_RATIOS: Record<string, number> = {
-  shelf_wood: 0.6769
+  shelf_wood: 0.7051
 };
 
 // Anteil deckender Pixel an der Texturflaeche je Item. Bezugsgroesse fuer die
