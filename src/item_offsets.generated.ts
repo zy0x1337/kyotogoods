@@ -39,7 +39,7 @@ export const BG_CAVITY_RECTS: Record<string, { x: number; y: number; w: number; 
 
 // Aeussere Kontur eines freistehenden Rahmens in Bildanteilen.
 export const BG_FRAME_RECTS: Record<string, { x: number; y: number; w: number; h: number }> = {
-  bgl_niche_frame: { x: 0.5042, y: 0.0492, w: 0.8403, h: 0.914 }
+  bgl_niche_frame: { x: 0.5052, y: 0.0496, w: 0.8285, h: 0.9124 }
 };
 
 // Auflageflaeche eines Regalbretts als Anteil seiner Bildhoehe.

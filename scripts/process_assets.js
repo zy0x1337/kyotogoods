@@ -111,6 +111,57 @@ function findAlphaBox(data, width, height, alphaMin = 80, region = null) {
   return { left: x0, top: y0, width: x1 - x0 + 1, height: y1 - y0 + 1 };
 }
 
+// Aeussere Kontur eines Gehaeuses, robust gegen einzelne verunglueckte Zeilen.
+//
+// findAlphaBox nimmt ein rohes Min/Max ueber alle Zeilen -- eine einzelne
+// Partie, die breiter geraet als der Rest (abstehende Fuesse am unteren Rand,
+// eine verrutschte Ecke), blaeht die ganze Box auf. Gemessen an einem Rahmen
+// mit gespreizten Fuessen: die Box lief von x=1 bis x=1439 (100% der
+// Leinwand), waehrend der eigentliche Moebelkoerper durchgehend bei x=150 bis
+// x=1290 lag (79%).
+//
+// Der Median je Zeile filtert das: jede Zeile bekommt ihren eigenen linken
+// und rechten Rand, die Aussenkontur ist der Median darueber. Eine einzelne
+// abweichende Partie faellt damit heraus, eine durchgehend breitere Form
+// (ein tatsaechlich massiverer Sockel) wuerde dagegen weiterhin erkannt, weil
+// sie genug Zeilen stellt, um den Median zu verschieben. Hoehe bleibt echtes
+// Min/Max -- ob der Rahmen oben/unten die Kante erreicht, ist keine
+// Ausreisser-Frage, sondern genau das, was gemessen werden soll.
+function findRobustOuterBox(data, width, height, alphaMin = 128) {
+  const lefts = [];
+  const rights = [];
+  let top = -1;
+  let bottom = -1;
+
+  for (let y = 0; y < height; y++) {
+    let l = -1;
+    let r = -1;
+    for (let x = 0; x < width; x++) {
+      if (data[(y * width + x) * 4 + 3] > alphaMin) {
+        if (l < 0) l = x;
+        r = x;
+      }
+    }
+    if (l >= 0) {
+      lefts.push(l);
+      rights.push(r);
+      if (top < 0) top = y;
+      bottom = y;
+    }
+  }
+
+  if (!lefts.length) return null;
+
+  const median = arr => {
+    const sorted = [...arr].sort((a, b) => a - b);
+    return sorted[sorted.length >> 1];
+  };
+
+  const left = median(lefts);
+  const right = median(rights);
+  return { left, top, width: right - left + 1, height: bottom - top + 1 };
+}
+
 // Zerlegt die Maske in zusammenhaengende Flaechen. Nano Banana Pro legt
 // gelegentlich ein zweites Objekt mit ins Bild (Spillover vom Anchor-Render);
 // eine globale Bounding-Box umschliesst dann beide und das Asset wird
@@ -841,12 +892,11 @@ async function processImages() {
         .webp(ENCODE)
         .toFile(targetPath);
 
-      // Aeussere Kontur des Gehaeuses. Das Spiel skaliert danach, damit das
-      // Moebel vollstaendig zwischen Header und Booster-Reihe steht statt vom
-      // Cover-Scaling oben und unten angeschnitten zu werden.
+      // Aeussere Kontur des Gehaeuses. Das Spiel skaliert danach per
+      // Cover-Scaling auf die volle Canvashoehe (siehe "Das Regalgehaeuse").
       if (BGL_KNOCKOUT.includes(baseName)) {
         const { data: od, info: oi } = await sharp(targetPath).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
-        const outer = findAlphaBox(od, oi.width, oi.height, 40);
+        const outer = findRobustOuterBox(od, oi.width, oi.height);
         if (outer) {
           frameRects[baseName] = {
             x: parseFloat(((outer.left + outer.width / 2) / oi.width).toFixed(4)),
