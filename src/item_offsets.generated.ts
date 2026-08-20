@@ -4,7 +4,7 @@ export const ITEM_BOTTOM_OFFSETS: Record<string, number> = {
   cast_iron_bell: 36,
   chasen_whisk: 36,
   chashaku_scoop: 36,
-  chawan_cup: 28.13,
+  chawan_cup: 36,
   coldbrew_flask: 36,
   copper_caddy: 36,
   dango_plate: 14.63,
@@ -18,7 +18,7 @@ export const ITEM_BOTTOM_OFFSETS: Record<string, number> = {
   mizuhiki_knot: 36,
   origami_dripper: 25.88,
   shou_sugi_block: 34.69,
-  tetsubin_kettle: 29.81,
+  tetsubin_kettle: 36,
   yokan_prism: 25.69
 };
 
@@ -27,6 +27,7 @@ export const BG_CAVITY_RATIOS: Record<string, number> = {
   bg_kissa_niche: 0.6451,
   bg_kissa_niche_mid: 0.6451,
   bg_kissa_niche_wide: 0.8167,
+  bg_kissa_room: 0.4764,
   bg_plaster: 0.9306,
   bgl_niche_frame: 0.5592
 };
@@ -54,6 +55,7 @@ export const AVAILABLE_ASSETS: ReadonlySet<string> = new Set([
   'bg_kissa_niche',
   'bg_kissa_niche_mid',
   'bg_kissa_niche_wide',
+  'bg_kissa_room',
   'bg_plaster',
   'bgl_cat',
   'bgl_clouds',

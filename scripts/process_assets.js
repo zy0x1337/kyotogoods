@@ -250,11 +250,12 @@ function knockOutPanel(data, width, height) {
 // dabei nicht erreicht wird, liegt im Inneren des Objekts und bekommt seine
 // Deckung zurueck. Weiche Aussenkanten bleiben unangetastet, weil sie vom Rand
 // aus erreichbar sind.
-function fillInteriorHoles(data, width, height, alphaMax = 250) {
+function fillInteriorHoles(data, width, height, alphaMax = 250, maxShare = 0.02) {
+  const n = width * height;
   const isHole = i => data[i * 4 + 3] <= alphaMax;
 
-  const seen = new Uint8Array(width * height);
-  const stack = new Int32Array(width * height);
+  const seen = new Uint8Array(n);
+  const stack = new Int32Array(n);
   let sp = 0;
 
   const push = i => {
@@ -274,11 +275,47 @@ function fillInteriorHoles(data, width, height, alphaMax = 250) {
     if (cy < height - 1) push(cur + width);
   }
 
+  // Flaeche des Motivs als Bezugsgroesse fuer die Lochpruefung unten.
+  let solid = 0;
+  for (let i = 0; i < n; i++) if (data[i * 4 + 3] > alphaMax) solid++;
+  const limit = Math.max(64, Math.round(solid * maxShare));
+
+  // Nicht jede eingeschlossene Flaeche ist ein Keying-Schaden. Der Buegel einer
+  // Tetsubin schliesst ein echtes Durchgangsloch ein -- wird das gefuellt, steht
+  // im Spiel eine weisse Platte im Griff. Unterschieden wird nach Groesse: ein
+  // vom Keying gerissenes Loch ist klein gegen das Motiv, ein Durchgangsloch
+  // nicht. Der Buegel kam auf 25 % der Motivflaeche, die Risse im Katzenfell
+  // liegen um Groessenordnungen darunter.
+  const comp = new Int32Array(n);
   let filled = 0;
-  for (let i = 0; i < width * height; i++) {
-    if (!seen[i] && data[i * 4 + 3] < 255) { data[i * 4 + 3] = 255; filled++; }
+  let holes = 0;
+
+  for (let start = 0; start < n; start++) {
+    if (seen[start] || !isHole(start)) continue;
+
+    let cp = 0;
+    let head = 0;
+    comp[cp++] = start;
+    seen[start] = 1;
+
+    while (head < cp) {
+      const cur = comp[head++];
+      const cx = cur % width;
+      const cy = (cur - cx) / width;
+      const add = i => { if (!seen[i] && isHole(i)) { seen[i] = 1; comp[cp++] = i; } };
+      if (cx > 0) add(cur - 1);
+      if (cx < width - 1) add(cur + 1);
+      if (cy > 0) add(cur - width);
+      if (cy < height - 1) add(cur + width);
+    }
+
+    if (cp > limit) { holes++; continue; }
+    for (let k = 0; k < cp; k++) {
+      if (data[comp[k] * 4 + 3] < 255) { data[comp[k] * 4 + 3] = 255; filled++; }
+    }
   }
-  return filled;
+
+  return { filled, holes };
 }
 
 // Erkennt, wogegen freigestellt werden muss. Standard ist Weiss. Ist der Rand
@@ -574,8 +611,9 @@ async function cropToContent(filePath, strategy = 'union', trimShadow = false, s
   if (key.chroma) console.log(`    Chroma rgb(${key.r},${key.g},${key.b}), Schwelle ${findKeyThreshold(data, key).cut.toFixed(0)}`);
   defringe(data, true, key);
 
-  const holes = fillInteriorHoles(data, info.width, info.height);
-  if (holes > 0) console.log(`    ${holes} Innenpixel wiederhergestellt`);
+  const { filled, holes } = fillInteriorHoles(data, info.width, info.height);
+  if (filled > 0) console.log(`    ${filled} Innenpixel wiederhergestellt`);
+  if (holes > 0) console.log(`    ${holes} Durchgangsloch/-loecher erkannt und offen gelassen`);
 
   const region = strategy === 'none' ? null : findBlobRegion(data, info.width, info.height, strategy);
   const rawBox = findAlphaBox(data, info.width, info.height, 80, region);
