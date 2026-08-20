@@ -213,6 +213,26 @@ Pruefung je Item, drei Schritte: auf 8 px weichzeichnen, auf zwei Farben reduzie
 - **dango_plate:** a wide shallow stoneware plate seen from slightly above so it reads as one broad flat ellipse, sage grey green paper with a single toasted gold rim line, completely empty
 - **cast_iron_bell:** a small cast iron furin wind bell standing upright on a low charcoal ring stand, a squat rounded dome with a flared rim, matte charcoal black paper with a thin brass gold rim band, a short pale paper tanzaku strip tucked against the base rather than dangling
 
+### Rahmen und Regalbrett v4 — Papier, zwei Spalten
+
+Ersetzt die v3-Fassungen. Zwei Entscheidungen stecken drin:
+
+**Die Nische bleibt offen.** Der Render zeigt keine Rueckwand mehr, der Hintergrund scheint durch. `findCavityHole` misst sie aus dem Alphakanal (siehe "Das Regalgehaeuse"). Damit entfaellt auch das halbtransparente Shoji-Rechteck im Code -- der Nachtgrund liefert den Kontrast selbst.
+
+**Das Brett traegt keine Messingstifte mehr.** Bei zwei Spalten steht das innere Ende eines Bretts frei in der Nische; ein Stift, der dort nichts beruehrt, sieht falsch aus. Damit wird `SHELF_CAVITY_FILL` (1.015) gegenstandslos, der Wert war dafuer da, die Stifte an den Rahmen zu schieben.
+
+Seitenverhaeltnis 12:1, weil ein Brett nur noch die halbe Nischenbreite einnimmt: 182 von 380 CSS-Pixeln. Bei 6:1 waere es doppelt so dick wie gedacht -- das Brett wird gleichmaessig skaliert, das Verhaeltnis muss also aus dem Render kommen.
+
+Beide gegen **Weiss**: dunkles Holz mit Messing, dieselbe Konstellation wie bei der Tetsubin. Magenta faerbt warme Mitteltoene ein, siehe die offenen Punkte.
+
+**bgl_niche_frame (v4):**
+Overhead photograph of a real hand-cut washi paper collage of a tall freestanding display cabinet, a physical artwork made of separate sheets of Japanese kozo paper cut with a blade and stacked, the cabinet built from exactly four paper strips being two slim vertical side posts and one horizontal top rail and one horizontal bottom rail, the strips overlapping at the four corners with a crisp hairline shadow where one lies over the next, the cabinet filling the entire height of the canvas with the top rail flush against the very top edge and the bottom rail flush against the very bottom edge, an even white margin on the left and right side only, the open inner cavity completely empty and showing the plain white background straight through it, the cavity at least 90% of the cabinet width and at least 92% of its height, absolutely no back panel and no shelves and no crossbars and no centre post and no doors inside the cavity and no shadow cast into it, the paper a warm aged cedar brown of medium tone roughly one third as bright as fresh white paper and never pale, one narrow strip of brushed brass gold paper laid across each of the four corners as a bracket, every cut edge showing the tiny nicks and slight wobble of a real hand-held knife and never a perfectly smooth machine line, visible long kozo fibres and gentle mottling in every sheet, absolutely no painted shading and no gradient within a sheet, no white or near-white areas anywhere on the cabinet itself, single isolated object, lit by soft even frontal light with no shadow falling onto the background, shot straight down and perfectly square to the camera, tall portrait 9:16 canvas, pure solid white background (#FFFFFF), sharp silhouette edge definition, 8k resolution --style raw
+
+**shelf_wood (v4):**
+Overhead photograph of a real hand-cut washi paper collage of a single long horizontal shelf board seen from slightly above, a physical artwork made of two sheets of Japanese kozo paper cut with a blade and laid one over the other, extremely wide and slim proportions with an aspect ratio of 12:1, a wider upper strip in a light warm cedar tone reading as the flat top surface of the board and a narrower lower strip in a deeper toasted walnut tone reading as the front edge showing the material thickness, a crisp hairline shadow between the two strips so the board reads as physically thick, every cut edge showing the tiny nicks and slight wobble of a real hand-held knife so the long edges are never perfectly straight machine lines, visible long kozo fibres and gentle mottling across both sheets, completely plain and unornamented along the whole length with no brackets and no pins and no fittings and no ornament, square clean ends, absolutely no painted shading and no gradient within a sheet, no white or near-white areas, single isolated object, lit by soft even frontal light with no shadow falling onto the background, shot straight down and perfectly square to the camera, centered on a portrait 9:16 canvas with generous even padding above and below the board, pure solid white background (#FFFFFF), sharp silhouette edge definition, 8k resolution --style raw
+
+**Negativ fuer beide:** das v4-Item-Negativ, ergaenzt um: back panel, wall, doors, glass, shelves inside, centre post, crossbar, brackets, screws, objects on the shelf, plants, books
+
 ### Hintergrund fuer Reve
 
 Reve nimmt keine Midjourney-Flags und hat kein eigenes Negativfeld -- Ausschluesse gehoeren als Satz in den Prompt, das Seitenverhaeltnis wird in der Oberflaeche gesetzt (9:16). Deshalb Prosa statt Stichwortkette:
