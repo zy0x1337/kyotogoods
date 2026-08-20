@@ -115,6 +115,27 @@ Faceted brushed brass sphere resting in a shallow charcoal ceramic ring stand, n
 **cast_iron_bell** *(v1 hing frei in der Luft — wie `brass_sphere`; die Goods stehen aber im Regal):*
 Small cast iron furin wind bell resting upright on a low charcoal ceramic ring stand, no cord and no suspension, squat rounded dome silhouette roughly as wide as it is tall, matte charcoal black sand-cast finish with visible grain and a thin brushed brass rim band, a short pale paper tanzaku strip tucked against the base rather than dangling, Japanese modern kissa aesthetic, art toy product render, orthographic front view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
 
+### Vollbild-Layout (v3) — noch nicht gerendert
+
+Der Rahmen wird heute *zwischen* Header und Booster-Reihe eingepasst und ist mit Seitenverhaeltnis 0.44 schmaler als ein Telefon (0.46 bis 0.51). Randlos ginge deshalb nur mit Verzerren oder mit Anschnitt oben und unten. Die drei Renders unten loesen das am Asset statt im Code: das Moebel bringt selbst Handy-Format mit.
+
+Pflichten aus der Pipeline, die nicht verhandelbar sind:
+- Der Magenta-Rand links und rechts muss bleiben. `detectKeyColor` liest den Hintergrund an den Bildecken; ohne Rand wuerde das Keying das Holz selbst treffen. Im Spiel liegt er ausserhalb des Bildschirms.
+- Die Rueckwand bleibt geschlossener weisser Putz. `knockOutPanel` flutet sie von der Bildmitte aus und misst daran `BG_CAVITY_RECTS` -- ohne Rueckwand gibt es keine Nischenvermessung.
+- Das Brett wird gleichmaessig auf Nischenbreite skaliert. Bei fast voller Bildschirmbreite waere es mit dem alten Seitenverhaeltnis rund 40 px hoch, daher 12:1.
+
+**bgl_niche_frame (v3):**
+Front-facing freestanding tall display cabinet made of warm blonde hinoki wood, the cabinet fills the entire height of the canvas with its flat top board touching the very top edge and its flat bottom board touching the very bottom edge, slim vertical side posts, an even magenta margin on the left and right side only, the open inner cavity as large as the structure allows and occupying at least 88% of the cabinet height and 84% of its width, generously rounded outer corners and softly rounded inner cavity corners, deep matte white plaster back panel filling the entire cavity as one closed surface, small brushed brass corner brackets, no doors and no shelves and no crossbars inside the cavity, single isolated object, Japanese modern kissa aesthetic, tall portrait orientation 9:16, orthographic front view, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, art toy product render, 8k resolution --style raw
+
+**shelf_wood (v3):**
+Single long horizontal shelf board of warm blonde hinoki wood seen from slightly above, extremely wide and slim proportions with an aspect ratio of 12:1, the flat top surface clearly visible as a lighter plane and the front edge showing a distinct narrow band of material thickness in a deeper toasted walnut tone, a slim brushed brass pin support at each far end flush with the board ends, completely plain and unornamented along the middle, straight clean silhouette with softly eased corners, Japanese modern kissa aesthetic, tactile matte finish with zero gloss, art toy product render, orthographic front view, centered on a portrait 9:16 canvas with generous even padding above and below the board, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
+
+**bg_kissa_garden (neu):**
+Vollbild-Hintergrund hinter dem randlosen Rahmen. Prefix `bg_`, wird also nicht freigestellt -- deshalb kein Hintergrundfarben-Hinweis im Prompt. Der Dunst im mittleren Band ist mitgerendert, damit das halbtransparente Shoji-Rechteck aus dem Code entfallen kann. Im Negativ fehlt bewusst `gradient background`: der Himmelsverlauf ist hier das Motiv.
+Japanese modern kissa garden backdrop filling the entire frame edge to edge, soft pale blue morning sky with a gentle vertical wash from dusty cornflower blue at the top to warm ivory at the horizon, three or four simplified rounded chalk white clouds in the upper third, a low silhouette range of gentle rolling hills in muted sage green and dusty blue-grey layered in two depths across the lower third, a strip of soft matcha-green meadow with a few simplified tufts along the bottom fifth, the entire middle band left calm and nearly empty and softly hazed as if seen through shoji paper so that objects placed in front of it stay readable, flat matte art-toy poster finish with zero gloss, no lanterns, no animals, no buildings, no people, no border and no margin, tall portrait orientation 9:16, orthographic front view, 8k resolution --style raw
+
+Offen im Code, sobald die Renders da sind: der Rahmen muss von Einpassen auf Cover-Scaling ueber `BG_FRAME_RECTS` umgestellt werden, und das Shoji-Rechteck in `GameScene.create` entfaellt.
+
 ### Niche Background Prompts (3 Tiers)
 Each tier maintains the same Japanese kissa aesthetic: warm hinoki wood frame, matte white plaster interior, soft ambient lighting from above. The inner cavity width increases per tier to visually distinguish level groups.
 Format: Portrait 9:16 mobile canvas. Anchor: `raw_renders/bg_kissa_niche.jpeg`.
