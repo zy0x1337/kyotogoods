@@ -221,6 +221,8 @@ A flat, hand-printed wall of a quiet Japanese tea house at night, shown perfectl
 
 Zielwerte am fertigen Bild: Lichtband 40 bis 60 Helligkeit, dunkle Zonen unter 30. Ueber 100 loesen sich die Goods darin auf (gemessen am ersten Versuch: Bloom 141 gegen Objekte 107).
 
+**Reve liefert Querformat.** `bg_`-Assets werden von der Pipeline auf 1440 px *Breite* skaliert -- bei einem querformatigen Render bleibt nach dem Zuschnitt aufs Telefonformat nur rund ein Drittel der Breite uebrig, und das wird im Spiel wieder hochgerechnet. Ein Querformat-Render gehoert deshalb **vor** dem Ablegen in `raw_renders/` mittig auf 9:16 beschnitten. Bei 3328 px Hoehe sind das 1872 px Breite. Aufloesung geht dabei keine verloren: die Reve-Ausgabe ist rund 4900 px breit.
+
 ### Vollbild-Layout (v3) — noch nicht gerendert
 
 Der Rahmen wird heute *zwischen* Header und Booster-Reihe eingepasst und ist mit Seitenverhaeltnis 0.44 schmaler als ein Telefon (0.46 bis 0.51). Randlos ginge deshalb nur mit Verzerren oder mit Anschnitt oben und unten. Die drei Renders unten loesen das am Asset statt im Code: das Moebel bringt selbst Handy-Format mit.

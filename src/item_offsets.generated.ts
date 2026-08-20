@@ -27,7 +27,7 @@ export const BG_CAVITY_RATIOS: Record<string, number> = {
   bg_kissa_niche: 0.6451,
   bg_kissa_niche_mid: 0.6451,
   bg_kissa_niche_wide: 0.8167,
-  bg_kissa_room: 0.4764,
+  bg_kissa_room: 0.3715,
   bg_plaster: 0.9306,
   bgl_niche_frame: 0.5592
 };
