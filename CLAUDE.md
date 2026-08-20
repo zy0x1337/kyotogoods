@@ -115,6 +115,43 @@ Faceted brushed brass sphere resting in a shallow charcoal ceramic ring stand, n
 **cast_iron_bell** *(v1 hing frei in der Luft — wie `brass_sphere`; die Goods stehen aber im Regal):*
 Small cast iron furin wind bell resting upright on a low charcoal ceramic ring stand, no cord and no suspension, squat rounded dome silhouette roughly as wide as it is tall, matte charcoal black sand-cast finish with visible grain and a thin brushed brass rim band, a short pale paper tanzaku strip tucked against the base rather than dangling, Japanese modern kissa aesthetic, art toy product render, orthographic front view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
 
+### Stilwechsel "Yoru no Kissa" — Messungen aus den Testrenders
+
+Der bisherige Katalog liest sich als Kinderoptik: Mittagslicht, Pastellpalette, zwei Maskottchentiere, kissenweiche Formen. Dazu ist die Gartenszene off-theme, ein Kissa ist ein Innenraum. Der neue Rahmen ist ein Laden nach Feierabend: dunkler Grund, gerichtetes Licht, gedeckte Palette.
+
+Getestet wurde an drei Renders statt am ganzen Katalog. Was dabei herauskam, gilt unabhaengig vom gewaehlten Stil:
+
+**Bei 56 px zaehlen genau drei Dinge:** Umriss, eine dominante Farbe, ein Akzent. Mikrotextur ist messbar weg -- Gusskorn und Rostflecken der Tetsubin sind bei Spielgroesse nicht mehr vorhanden. Wer sie rendert, rendert fuer den Papierkorb.
+
+**Helligkeit muss vorgegeben werden, nicht erhofft.** Der fotorealistische Chawan kam trotz "cremeweisses Biskuitporzellan" bei mittlerer Helligkeit 107 heraus -- ein Mittelgrau, exakt so hell wie das Gusseisen daneben. Derselbe Gegenstand als flache Grafik kam bei 213 heraus, weil die Form eine Farbe *zugewiesen* bekam. Wertabstand hell zu dunkel: 77 Punkte beim Foto, 153 bei der Grafik.
+
+**Der Hintergrund darf im Lichtband nicht so hell sein wie die Objekte.** Gemessen: Bloom bei 109 bis 141, Objekte bei 103 bis 107. Kontrastverhaeltnis rund 1.3:1, die Goods loesen sich darin auf. Zielwert fuer das Lichtband: 40 bis 60.
+
+**Fotorealistisch und flach gedruckt beissen sich nicht.** Bei Texturgroesse schon, bei 56 px nicht mehr -- die Mikrotextur, die den Bruch erzeugt, ist dann weg. Was kollidiert, ist der *Inhalt* eines Hintergrunds (Perspektive, Architektur, Raster), nicht seine Flachheit.
+
+**Groessen normalisieren sich nicht ueber die Bounding Box.** Die Pipeline zieht jedes Item auf 384 px Kantenlaenge, die Tetsubin deckt davon aber nur 47 % ab (der Buegelbogen ist Luft), der Chawan 75 %. Gleiche Box heisst dadurch ungleiche sichtbare Masse. Der Faktor gehoert aus der gemessenen Deckung abgeleitet: `sqrt(0.47 / 0.75) = 0.79` -- und genau bei 0.78 sieht das Paar per Auge richtig aus. Offen: als Export aus der Pipeline statt als Handarbeit in `ITEM_SIZE_FACTORS`.
+
+### Item-Stil v4 — echtes Kiri-e
+
+v3 sollte geschnittenes Papier werden und wurde flache Vektorgrafik mit Sticker-Kontur: keine Faser, keine Schnittkante, kein Lagenversatz. Der Grund war die Formulierung. "kiri-e cut paper depiction" liest das Modell als *Illustrationsstil* und greift zu Flat Design.
+
+**Der Hebel: nicht nach einem Stil fragen, sondern nach einer Fotografie eines physischen Objekts.** "Overhead photograph of a real hand-cut washi paper collage" laesst das Modell tatsaechlich Papier rendern -- Kozo-Fasern, harte Kantenschatten zwischen den Lagen, Tonschwankungen im Bogen. Dazu ein aggressives Negativ gegen alles Vektorhafte.
+
+Pruefkriterium am Render: **Kantenschatten zwischen den Lagen und sichtbare Faser.** Fehlt beides, ist es wieder Vektor. Auf die Schnittkante zoomen -- ist sie mathematisch glatt, hat das Modell gemogelt.
+
+**chawan_cup (v4):**
+Overhead photograph of a real hand-cut washi paper collage of a squat chawan tea bowl, a physical artwork made of five separate sheets of Japanese kozo paper cut with a blade and stacked, every cut edge showing the tiny nicks and slight wobble of a real hand-held knife and never a perfectly smooth machine curve, visible long kozo fibres and a faint tooth in every sheet, gentle mottling and uneven dye across each sheet so no colour is perfectly uniform, each layer casting a crisp hairline shadow onto the layer beneath it so the stack reads as physically thick, absolutely no painted shading and no gradient within a sheet, the body cut from very pale bone white paper as bright as fresh paper, a pronounced flared lip and a clearly separated tall foot so the outline is never a plain cylinder, one flat deep matcha green ellipse of paper for the tea surface, one small sometsuke indigo blue four-petal motif on the body, bold unmistakable silhouette that stays readable at thumbnail size, Japanese modern kissa subject, single isolated object, lit by soft even frontal light with no shadow falling onto the background, shot straight down and perfectly square to the camera, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), sharp silhouette edge definition, 8k resolution --style raw
+
+**tetsubin_kettle (v4):**
+Overhead photograph of a real hand-cut washi paper collage of a squat cast iron tetsubin kettle, a physical artwork made of six separate sheets of Japanese kozo paper cut with a blade and stacked, every cut edge showing the tiny nicks and slight wobble of a real hand-held knife and never a perfectly smooth machine curve, visible long kozo fibres and a faint tooth in every sheet, gentle mottling and uneven dye across each sheet so no colour is perfectly uniform, each layer casting a crisp hairline shadow onto the layer beneath it so the stack reads as physically thick, absolutely no painted shading and no gradient within a sheet, the body cut from deep charcoal black paper, a narrow band of pale warm grey paper laid along the very top edge of the body reading as a rim of light so the black shape separates from a dark ground, a short angled spout cut as its own sheet, one small raised lid knob, a tall wide arch handle cut from warm brass gold paper with genuinely open space inside the arch, the handle deliberately large so it dominates the silhouette, bold unmistakable silhouette that stays readable at thumbnail size, Japanese modern kissa subject, single isolated object, lit by soft even frontal light with no shadow falling onto the background, shot straight down and perfectly square to the camera, centered on a portrait 9:16 canvas with generous even padding, pure solid white background (#FFFFFF), sharp silhouette edge definition, 8k resolution --style raw
+
+**Negativ fuer alle v4-Items** (ersetzt das Master-Negativ, der Anti-Vektor-Teil ist hier der wichtige):
+vector, flat design, sticker, die cut outline, uniform stroke, keyline, clip art, icon, app icon, logo, perfectly smooth bezier curve, digital illustration, cel shading, airbrush, gradient, glossy, specular, 3d render, photorealistic ceramic, drop shadow on the background, chibi, kawaii, pastel colours, cartoon, childrens toy, text, watermark, multiple objects, second object, duplicate, collage of several items, grid layout, product lineup
+
+**Farb- und Formmatrix.** Bevor die restlichen 18 Items neu gerendert werden: keine zwei Goods duerfen dieselbe Kombination aus dominanter Farbe und Grundform haben. Heute sind `chawan_cup`, `kuro_mame_dome` und `dango_plate` alle "runde Schale", und `copper_caddy`, `matcha_roll`, `coldbrew_flask` und `chashaku_scoop` alle "Zylinder". Pruefung je Item, drei Schritte: auf 8 px weichzeichnen, auf zwei Farben reduzieren, als reine schwarze Silhouette -- jedes Mal muss es unterscheidbar bleiben.
+
+Sometsuke-Blau (Blau auf weissem Porzellan) ist ausdruecklich Teil der Palette. Es war in der alten Palette nicht vorgesehen, ist aber eine der kanonischsten japanischen Keramiktraditionen und liefert den Akzent, den ein zweites weisses Item braucht.
+
 ### Vollbild-Layout (v3) — noch nicht gerendert
 
 Der Rahmen wird heute *zwischen* Header und Booster-Reihe eingepasst und ist mit Seitenverhaeltnis 0.44 schmaler als ein Telefon (0.46 bis 0.51). Randlos ginge deshalb nur mit Verzerren oder mit Anschnitt oben und unten. Die drei Renders unten loesen das am Asset statt im Code: das Moebel bringt selbst Handy-Format mit.
