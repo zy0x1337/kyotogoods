@@ -1,7 +1,7 @@
 import '@fontsource/m-plus-rounded-1c/latin-500.css';
 import '@fontsource/m-plus-rounded-1c/latin-800.css';
 import Phaser from 'phaser';
-import { ITEM_BOTTOM_OFFSETS, BG_CAVITY_RATIOS, BG_CAVITY_RECTS, BG_FRAME_RECTS, SHELF_PLATFORM_RATIOS, AVAILABLE_ASSETS, ASSET_EXT } from './item_offsets.generated';
+import { ITEM_BOTTOM_OFFSETS, ITEM_COVERAGE_RATIOS, BG_CAVITY_RATIOS, BG_CAVITY_RECTS, BG_FRAME_RECTS, SHELF_PLATFORM_RATIOS, AVAILABLE_ASSETS, ASSET_EXT } from './item_offsets.generated';
 
 // ==========================================
 // 1. CMF DESIGN SYSTEM & ITEM REGISTRY
@@ -142,15 +142,36 @@ function getLayoutScale(width: number): number {
   return Math.min(width / (DESIGN_WIDTH * DPR), 1.15) * DPR;
 }
 
-// Feinjustierung einzelner Goods gegenueber der Einheitsgroesse. Der Render
-// bestimmt, wie viel Leinwand ein Objekt einnimmt -- der Chawan fiel dadurch
-// deutlich groesser aus als die uebrigen Items.
-const ITEM_SIZE_FACTORS: Record<string, number> = {
-  chawan_cup: 0.8
-};
+// Groessennormalisierung: gleiche sichtbare Masse statt gleicher Bounding Box.
+//
+// Die Pipeline zieht jedes Item auf dieselbe Kantenlaenge. Wie viel davon
+// tatsaechlich Motiv ist, schwankt aber stark -- die Tetsubin deckt 40 % ab
+// (der Buegelbogen ist Luft), der Chawan 62 %. Auf gleiche Box gezogen wirkt
+// der Chawan dadurch deutlich groesser als die Kanne.
+//
+// Der Faktor gleicht die Flaeche an, nicht die Kante: bei doppelter Deckung
+// braucht es die Wurzel aus zwei weniger Kantenlaenge. Bezugswert ist der
+// Median des Katalogs, das Ergebnis ist also unabhaengig davon, wie gross die
+// Renders insgesamt ausfallen.
+const ITEM_SIZE_MIN = 0.8;
+const ITEM_SIZE_MAX = 1.25;
+
+// Manuelle Ausnahmen fuer Gegenstaende, die in echt aus der Reihe fallen.
+const ITEM_SIZE_OVERRIDES: Record<string, number> = {};
+
+const COVERAGE_MEDIAN = (() => {
+  const values = Object.values(ITEM_COVERAGE_RATIOS).filter(v => v > 0).sort((a, b) => a - b);
+  return values.length ? values[values.length >> 1] : 0;
+})();
 
 function getItemSizeFactor(itemId: string): number {
-  return ITEM_SIZE_FACTORS[itemId] ?? 1;
+  const override = ITEM_SIZE_OVERRIDES[itemId];
+  if (override !== undefined) return override;
+
+  const coverage = ITEM_COVERAGE_RATIOS[itemId];
+  if (!coverage || !COVERAGE_MEDIAN) return 1;
+
+  return Phaser.Math.Clamp(Math.sqrt(COVERAGE_MEDIAN / coverage), ITEM_SIZE_MIN, ITEM_SIZE_MAX);
 }
 
 // Ruhelage eines Goods auf dem Brett. platformY ist die Auflageflaeche in

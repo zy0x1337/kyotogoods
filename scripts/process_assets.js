@@ -682,6 +682,7 @@ async function processImages() {
   });
 
   const offsets = {};
+  const coverages = {};
   const cavities = {};
   const cavityRects = {};
   const frameRects = {};
@@ -842,8 +843,18 @@ async function processImages() {
       ? parseFloat(((bounds.bottom + 1 - processedInfo.height / 2) * (ITEM_DISPLAY_SIZE / processedInfo.height)).toFixed(2))
       : DEFAULT_OFFSET;
 
+    // Deckung: Anteil deckender Pixel an der Texturflaeche. Die Bounding Box
+    // ist als Groessenmass unbrauchbar -- eine Tetsubin deckt davon nur 40 % ab
+    // (der Buegelbogen ist Luft), ein Chawan 62 %. Gleiche Box heisst dadurch
+    // ungleiche sichtbare Masse. Das Spiel leitet den Groessenfaktor hieraus ab.
+    let opaque = 0;
+    for (let i = 0; i < processedInfo.width * processedInfo.height; i++) {
+      if (processedData[i * 4 + 3] > 200) opaque++;
+    }
+    coverages[baseName] = parseFloat((opaque / (processedInfo.width * processedInfo.height)).toFixed(4));
+
     offsets[baseName] = offsetDesign;
-    console.log(`  ${baseName}: finalBottom=${bounds.bottom}px → ${offsetDesign}px design`);
+    console.log(`  ${baseName}: finalBottom=${bounds.bottom}px → ${offsetDesign}px design, Deckung ${(coverages[baseName] * 100).toFixed(0)}%`);
   }
 
   // Fehlende Items auf Default setzen
@@ -892,6 +903,10 @@ async function processImages() {
     .map(id => `  '${id}'`)
     .join(',\n');
 
+  const coverageLines = Object.keys(coverages).sort()
+    .map(id => `  ${id}: ${coverages[id]}`)
+    .join(',\n');
+
   const cavityLines = Object.keys(cavities).sort()
     .map(id => `  ${id}: ${cavities[id]}`)
     .join(',\n');
@@ -919,6 +934,12 @@ ${frameLines}
 // Auflageflaeche eines Regalbretts als Anteil seiner Bildhoehe.
 export const SHELF_PLATFORM_RATIOS: Record<string, number> = {
 ${platformLines}
+};
+
+// Anteil deckender Pixel an der Texturflaeche je Item. Bezugsgroesse fuer die
+// Groessennormalisierung im Spiel -- die Bounding Box taugt dafuer nicht.
+export const ITEM_COVERAGE_RATIOS: Record<string, number> = {
+${coverageLines}
 };
 
 // Dateiendung der erzeugten Texturen. Der Loader haengt sie an den Asset-Key an.

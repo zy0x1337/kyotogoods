@@ -47,6 +47,31 @@ export const SHELF_PLATFORM_RATIOS: Record<string, number> = {
   shelf_wood: 0.6769
 };
 
+// Anteil deckender Pixel an der Texturflaeche je Item. Bezugsgroesse fuer die
+// Groessennormalisierung im Spiel -- die Bounding Box taugt dafuer nicht.
+export const ITEM_COVERAGE_RATIOS: Record<string, number> = {
+  brass_sphere: 0.7425,
+  cast_iron_bell: 0.5867,
+  chasen_whisk: 0.4626,
+  chashaku_scoop: 0.3289,
+  chawan_cup: 0.6239,
+  coldbrew_flask: 0.3267,
+  copper_caddy: 0.807,
+  dango_plate: 0.391,
+  dango_stick: 0.1869,
+  gotoku_trivet: 0.3981,
+  incense_burner: 0.4143,
+  kissa_toast: 0.6763,
+  kuro_mame_dome: 0.3439,
+  matcha_montblanc: 0.5169,
+  matcha_roll: 0.6951,
+  mizuhiki_knot: 0.7587,
+  origami_dripper: 0.5294,
+  shou_sugi_block: 0.8194,
+  tetsubin_kettle: 0.4027,
+  yokan_prism: 0.5808
+};
+
 // Dateiendung der erzeugten Texturen. Der Loader haengt sie an den Asset-Key an.
 export const ASSET_EXT = 'webp';
 
