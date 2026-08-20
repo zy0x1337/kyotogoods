@@ -109,6 +109,14 @@ const ITEM_SIZE_MAX = 1.25;
 // Manuelle Ausnahmen fuer Gegenstaende, die in echt aus der Reihe fallen.
 const ITEM_SIZE_OVERRIDES: Record<string, number> = {};
 
+// Anteil des Slot-Abstands, den selbst das groesste Item (ITEM_SIZE_MAX)
+// hoechstens einnehmen darf. Ohne diese Bremse kennt getLayoutScale nur die
+// Bildschirmbreite, nicht die tatsaechliche Brettbreite -- bei zwei Spalten
+// ist der Slot-Abstand aber deutlich enger als in der alten Einspalten-
+// Rechnung, und ein grossformatiges Item wie dango_stick (Faktor 1.25) ragt
+// dann in den Nachbarslot hinein.
+const SLOT_FILL = 0.86;
+
 const COVERAGE_MEDIAN = (() => {
   const values = Object.values(ITEM_COVERAGE_RATIOS).filter(v => v > 0).sort((a, b) => a - b);
   return values.length ? values[values.length >> 1] : 0;
@@ -1183,21 +1191,31 @@ export class GameScene extends Phaser.Scene {
     const level = LEVELS[lvl - 1] ?? LEVELS[0];
     State.reset(level.moves, level.targetMatches);
 
-    const itemScale = getLayoutScale(this.scale.width);
     const verticalScale = this.scale.height / DESIGN_HEIGHT;
     const shelfCount = level.layout.length;
 
     // Zwei Bretter pro Zeile statt eines ueber die volle Breite -- das
     // verdoppelt die Slotzahl gegenueber der alten Einspalten-Anordnung, ohne
     // die Goods zu verkleinern. Ein Randabstand zwischen den Brettern haelt sie
-    // optisch getrennt.
-    const columnGap = 14 * itemScale;
+    // optisch getrennt. Fixer Anteil der Nischenbreite statt itemScale-basiert,
+    // sonst gaebe es einen Zirkelbezug zur Slot-Groessenrechnung unten.
+    const columnGap = this.cavityWidth * 0.035;
     const shelfWidth = Math.round((this.cavityWidth - columnGap) / 2);
     const columnCenters = [
       this.cavityCenterX - (shelfWidth + columnGap) / 2,
       this.cavityCenterX + (shelfWidth + columnGap) / 2
     ];
     const rows = Math.ceil(shelfCount / 2);
+
+    // Der Bildschirm-Massstab (getLayoutScale) kennt nur die Canvasbreite,
+    // nicht die tatsaechliche Brettbreite. Bei zwei Spalten ist der
+    // Slot-Abstand (Brettbreite / 3) oft enger, als dieser Massstab annimmt --
+    // ohne Deckel ragt ein grossformatiges Item (ITEM_SIZE_MAX) dann in den
+    // Nachbarslot. Der Deckel ist fuer das ganze Spiel gleich, weil cavityWidth
+    // levelunabhaengig ist -- Goods bleiben also game-weit gleich gross.
+    const slotSpacing = shelfWidth / 3;
+    const maxItemScale = (slotSpacing * SLOT_FILL) / (ITEM_SIZE * ITEM_SIZE_MAX);
+    const itemScale = Math.min(getLayoutScale(this.scale.width), maxItemScale);
 
     // Ist die lichte Hoehe der Nische bekannt, werden die Zeilen gleichmaessig
     // darin verteilt statt nach festen Design-Werten gesetzt. Der halbe
