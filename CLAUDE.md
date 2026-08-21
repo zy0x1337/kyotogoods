@@ -36,97 +36,96 @@ Schrift: **M PLUS Rounded 1c** (`@fontsource/m-plus-rounded-1c`, nur Latin 500 +
 
 ---
 
-## 3. Nano Banana Asset Generation Catalog — Kiri-e Stil
+## 3. Reve Asset Generation Catalog — Kiri-e Stil
 
 ### Stilwechsel: Art Toy → Kiri-e (切り絵)
 
 Ab dieser Version werden alle Assets im **japanischen Kiri-e-Papierschnitt-Stil** gerendert. Statt 3D-mattierter Art-Toy-Renders entstehen flache, geschichtete Washi-Papier-Kompositionen mit sichtbarer Fasertextur, weichen Schlagschatten zwischen den Papierlagen und handgeschnittenen Kanten. Der Stil ist grafischer, wärmer und unverwechselbar japanisch.
 
-Referenz-Renders: `raw_renders/1787213128763.png` (chawan_cup, Kiri-e) und `raw_renders/1787211537905.png` (tetsubin_kettle, Kiri-e).
+**Rendering-Tool:** Reve (nicht Nano Banana). Reve liefert deutlich flachere, authentischere Kiri-e-Ergebnisse ohne 3D-Drift, Sparkle-Artefakte oder perspektivische Verzerrung. Die Prompts sind für Reve optimiert — kürzer, weil Stil- und Kompositions-Regeln über die Reve-**Guidelines**-Funktion projektweit gesetzt werden.
+
+**References:** Tetsubin + Daruma als Style-References im Reve-Projekt hinterlegt (Modus: **Style**). Gibt dem Modell den visuellen Anker für konsistente Ergebnisse.
 
 ### Hintergrundfarbe: Magenta für alle Kiri-e-Items
 
 Alle Kiri-e-Items werden gegen **Magenta (#FF00FF)** gerendert. Der Papierton (Washi, Kraft) ist immer hell genug, dass Weiss nicht funktioniert — die Hintergrundfarben-Regel aus dem alten Katalog vereinfacht sich: **immer Magenta**. Die Pipeline erkennt den Chroma-Hintergrund automatisch an den Bildecken.
 
-### Master Negative Prompt — Kiri-e (Append to all runs)
-hyper-realistic, high gloss reflections, shiny liquid specular, 3d render, photorealism, gradient background, text, watermark, logo, perspective tilt, multiple objects, duplicate, collage, grid layout, product lineup, smooth plastic, glossy surface, digital painting, cel shading
+### Reve Project Guidelines (im Reve-Projekt unter "Guidelines" eingetragen)
 
-### Master Base Prompt Formula — Kiri-e
-[Subject description] in Japanese kiri-e washi paper cutout style, layered handmade washi paper with visible fiber texture, soft drop shadows between paper layers creating gentle depth, simplified bold graphic shapes with slightly irregular hand-cut edges, compact proportions roughly as wide as tall, front-facing view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
+```
+Japanese kiri-e washi paper cutout style. Every object is built from layered handmade washi and kraft paper with visible fiber texture. Each paper layer casts a soft natural drop shadow onto the layer below. Slightly irregular hand-cut edges on all shapes. Strict front-facing flat view, no 3D perspective, no isometric angle. Compact proportions roughly as wide as tall. Single isolated object centered with generous even padding. Pure solid magenta background (#FF00FF). Zero floor shadow. Sharp clean silhouette edges against the magenta. No text, no watermark, no sparkle artifacts.
+```
+
+### Negative Prompt — Kiri-e (Append to all Reve runs)
+3D perspective, isometric view, visible side face, depth, thickness, tilted angle, cast shadow on ground, photorealistic, hyper-realistic, high gloss reflections, shiny liquid specular, 3d render, gradient background, text, watermark, logo, multiple objects, duplicate, collage, smooth plastic, glossy surface, digital painting, cel shading
 
 ### Silhouetten-Regel
 
 Für dieses Spiel zählt vor allem die **Silhouette**: drei gleiche Objekte zu erkennen ist die ganze Mechanik. Jedes der 20 Items muss sich **allein am Umriss** von allen anderen unterscheiden. Kompakt, ungefähr quadratisch, klare Umrisslinie. Nichts hängt, alles steht auf einer Standfläche. Ein Item wird bei `ITEM_SIZE` 58 px Design angezeigt — bei dieser Größe muss die Silhouette noch lesbar sein.
 
-### Item-Prompts — Kiri-e (20 Items)
+### Item-Prompts — Kiri-e / Reve (20 Items)
 
-Die Items decken breite japanische Kultur ab, nicht nur Kissa/Teehaus. Jedes hat eine einzigartige Silhouette und eine eigene Primärfarbe. Alle auf Magenta-Hintergrund.
-
-**Bestehend (bereits gerendert im Kiri-e-Stil):**
+Die Items decken breite japanische Kultur ab, nicht nur Kissa/Teehaus. Jedes hat eine einzigartige Silhouette und eine eigene Primärfarbe. Die Prompts sind für Reve verkürzt — Stil, Komposition, Hintergrund und Textur kommen aus den Guidelines.
 
 1. **chawan_cup** *(breite Schale — ivory/cream + matcha-grün):*
-   Squat cylindrical Japanese chawan tea bowl in ivory cream washi paper with a small indigo four-petal flower motif on the front, filled with flat matcha-green paper, compact proportions, in Japanese kiri-e washi paper cutout style, layered handmade washi with visible fiber texture, soft drop shadows between paper layers, front-facing view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
+   Squat cylindrical Japanese chawan tea bowl, the bowl body cut from ivory cream washi paper, a flat ellipse of matcha-green washi filling the interior as a separate top layer, a small indigo four-petal flower motif cut from dark blue washi layered onto the front, a narrow foot ring in slightly darker cream washi beneath the body
 
 2. **tetsubin_kettle** *(Kanne mit Bogenhenkel — charcoal + gold):*
-   Squat Japanese cast iron tetsubin kettle with a curved handle in gold kraft paper and a small spout, the body in dark charcoal washi paper with subtle creased texture, in Japanese kiri-e washi paper cutout style, layered handmade paper with visible fiber texture, soft drop shadows between paper layers, compact proportions, front-facing view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
+   Squat Japanese tetsubin kettle, the round body cut from dark charcoal washi paper with subtle creased texture, a curved arch handle rising above cut from gold kraft paper as a separate top layer, a small spout on the left, a flat lid disc in slightly lighter charcoal washi, rows of small gold kraft paper circles dotted across the body as decorative arare texture
 
-**Aus dem alten Katalog übernommen (müssen als Kiri-e neu gerendert werden):**
-
-3. **kissa_toast** *(Quadrat mit Butter-Tab oben — golden/honey + gelb):*
-   Sculptural shokupan bread toast cube with golden-brown baked edges in warm honey kraft paper and a single small yellow square of butter centered on top in pale yellow washi, compact cube proportions, in Japanese kiri-e washi paper cutout style, layered handmade paper with visible fiber texture, soft drop shadows between paper layers, front-facing view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
+3. **kissa_toast** *(Quadrat mit Butter-Tab — golden/honey + gelb):*
+   Single slice of thick Japanese shokupan milk bread toast seen from directly in front as a flat shape, the outer crust edge in warm golden-brown kraft paper forming a soft rounded square, the inner bread face in pale cream washi, a small square pat of butter in yellow washi centered on the bread face, completely flat with zero visible thickness and no side faces
 
 4. **dango_stick** *(vertikaler 3-Kugel-Stapel — pink/weiss/grün):*
-   Three round dango balls stacked vertically on a pale wooden skewer, the top ball in soft pink washi, the middle in chalk white washi, the bottom in matcha-green washi, each ball a separate paper layer with visible edges, in Japanese kiri-e washi paper cutout style, layered handmade paper with visible fiber texture, soft drop shadows between paper layers, front-facing view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
+   Three round dango balls stacked vertically on a pale wooden kraft paper skewer, the top ball in soft pink washi, the middle in chalk white washi, the bottom in matcha-green washi, each ball a separate paper layer with visible cut edges
 
-5. **yokan_prism** *(spitzes Dreieck — azuki-maroon):*
-   Triangular slice of yokan red bean jelly in deep azuki maroon washi paper with razor-sharp beveled edges and a tiny gold foil diamond accent, geometric wedge shape, in Japanese kiri-e washi paper cutout style, layered handmade paper with visible fiber texture, soft drop shadows between paper layers, front-facing view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
+5. **yokan_prism** *(flaches Dreieck — azuki-maroon):*
+   Triangular slice of yokan red bean jelly seen as a perfectly flat two-dimensional silhouette, a sharp geometric wedge shape in deep azuki maroon washi paper with a tiny gold foil diamond accent near the pointed tip, completely flat with zero visible thickness and no side faces, the triangle pointing to the upper right with one straight horizontal bottom edge
 
-6. **matcha_roll** *(Zylinder mit Spirale — forest green + cream):*
-   Cross-section of a matcha roll cake showing a bold cream and deep green spiral pattern on the circular face, the cylindrical body in dark matcha-green washi paper, compact round proportions, in Japanese kiri-e washi paper cutout style, layered handmade paper with visible fiber texture, soft drop shadows between paper layers, front-facing view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
+6. **matcha_roll** *(flacher Kreis mit Spirale — forest green + cream):*
+   Cross-section of a matcha roll cake as a perfectly flat circle, a bold cream and deep forest-green spiral pattern of concentric rings on the circular face, the outermost ring in dark matcha-green washi paper forming the cake exterior, completely flat disc shape with zero visible thickness and no side angle
 
 7. **incense_burner** *(runder Topf mit Kuppeldeckel — charcoal + gold):*
-   Small round incense burner koro with a squat charcoal body in dark washi paper and a domed lid in gold foil paper pierced by a few round holes, sitting on three tiny feet, a single thin paper wisp of smoke, in Japanese kiri-e washi paper cutout style, layered handmade paper with visible fiber texture, soft drop shadows between paper layers, front-facing view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
-
-**Neue Items (breit japanisch, nicht nur Kissa):**
+   Small round incense burner koro, a squat charcoal washi body sitting on three tiny feet, a domed lid in gold foil paper pierced by round holes as a separate top layer, a single thin paper wisp of smoke rising from the lid
 
 8. **daruma** *(gedrungener Tropfen mit Gesicht — vermillion-rot):*
-   Japanese daruma good-luck doll, squat rounded egg shape with a flat bottom, bold vermilion red washi paper body, a stern stylized face with thick black eyebrows and a gold circle on the forehead, in Japanese kiri-e washi paper cutout style, layered handmade paper with visible fiber texture, soft drop shadows between paper layers, compact proportions, front-facing view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
+   Japanese daruma good-luck doll, squat rounded egg shape with a flat bottom, the body cut from bold vermilion red washi, a stern stylized face with thick black washi eyebrows and a gold foil circle on the forehead, white washi face area with simple paper-cut facial features
 
 9. **maneki_neko** *(Winkekatze mit erhobener Pfote — weiss + gold):*
-   Japanese beckoning cat maneki neko figurine sitting upright with one paw raised, white washi paper body with calico patches in warm orange and charcoal, a gold foil coin held in the raised paw, simplified rounded geometry, in Japanese kiri-e washi paper cutout style, layered handmade paper with visible fiber texture, soft drop shadows between paper layers, compact proportions, front-facing view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
+   Japanese beckoning cat maneki neko sitting upright, white washi paper body with calico patches in warm orange and charcoal, one paw raised holding a gold foil coin with a square hole, a red washi collar with a small gold bell, simplified rounded geometry
 
 10. **kokeshi** *(Kegel mit rundem Kopf — naturholz + bunt):*
-    Japanese kokeshi wooden doll with a large round head and a simple cylindrical body, the head in pale cream washi with a sweet painted face and two red cheek dots, the body in warm kraft paper with horizontal stripes in red and indigo washi, in Japanese kiri-e washi paper cutout style, layered handmade paper with visible fiber texture, soft drop shadows between paper layers, compact proportions, front-facing view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
+    Japanese kokeshi wooden doll, a large round head in pale cream washi with a sweet face and two red cheek dots, a simple cylindrical body in warm kraft paper with horizontal stripes in red and indigo washi
 
-11. **sensu_fan** *(aufgespreizter Halbkreis-Fächer — gold + indigo):*
-    Japanese folding fan sensu spread open in a half-circle shape, gold foil paper ribs with an indigo washi surface decorated with a simple wave pattern, a small tassel at the pivot point, in Japanese kiri-e washi paper cutout style, layered handmade paper with visible fiber texture, soft drop shadows between paper layers, compact proportions, front-facing view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
+11. **sensu_fan** *(aufgespreizter Halbkreis-Fächer — indigo + gold):*
+    Japanese folding fan sensu spread open in a half-circle shape, indigo washi surface with a pale blue wave pattern, gold kraft paper ribs radiating from the pivot point, a small red washi tassel at the bottom
 
 12. **onigiri** *(abgerundetes Dreieck mit Nori-Band — weiss + schwarz):*
-    Japanese rice ball onigiri in a rounded triangle shape, white washi paper body with a wide band of dark nori seaweed in charcoal black washi wrapped around the bottom half, a single small red umeboshi dot visible at the center, in Japanese kiri-e washi paper cutout style, layered handmade paper with visible fiber texture, soft drop shadows between paper layers, compact proportions, front-facing view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
+    Japanese rice ball onigiri in a rounded triangle shape, white washi paper body, a wide band of dark nori seaweed in charcoal black washi wrapped around the bottom half, a single small red umeboshi dot visible at the center above the nori
 
-13. **origami_crane** *(eckiger Kranich mit Flügeln — rot/gold):*
-    Japanese origami paper crane tsuru with spread wings, folded from rich vermilion red washi paper, angular geometric creases clearly visible, the classic origami crane silhouette with pointed tail and beak, in Japanese kiri-e washi paper cutout style, layered handmade paper with visible fiber texture, soft drop shadows between paper layers, compact proportions, front-facing view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
+13. **koinobori** *(horizontale Karpfenfahne — indigo + gold/cream):*
+    Japanese koinobori carp streamer as a flat horizontal fish shape, the body cut from bold indigo blue washi paper with layered cream and gold washi scale crescents, a wide open circular mouth on the left in red washi, flowing tail fins on the right, a single thin string attached at the mouth, completely flat with zero depth
 
 14. **torii_gate** *(Miniatur-Torii-Tor — vermillion + charcoal):*
-    Miniature Japanese torii shrine gate, two vertical pillars and two horizontal crossbeams in bold vermilion red washi paper on a charcoal washi base, simplified chunky proportions, in Japanese kiri-e washi paper cutout style, layered handmade paper with visible fiber texture, soft drop shadows between paper layers, compact proportions roughly as wide as tall, front-facing view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
+    Miniature Japanese torii shrine gate as a flat two-dimensional graphic silhouette, two vertical pillars and two horizontal crossbeams in bold vermilion red washi paper, a flat charcoal washi rectangular base beneath, completely flat paper cutout with zero depth and no visible side faces on any element, simplified chunky proportions roughly as wide as tall
 
 15. **furoshiki** *(eingewickeltes Bündel mit Knoten — indigo + cream):*
-    Japanese furoshiki wrapped bundle with two rabbit-ear knot ends poking up from a rounded cloth body, indigo blue washi paper with a simple cream wave pattern, sitting on a small flat base, in Japanese kiri-e washi paper cutout style, layered handmade paper with visible fiber texture, soft drop shadows between paper layers, compact proportions, front-facing view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
+    Japanese furoshiki wrapped bundle with two rabbit-ear knot ends poking up, a rounded cloth body in indigo blue washi paper with a cream seigaiha wave pattern, sitting on a small flat base
 
 16. **sake_tokkuri** *(Sake-Flasche mit engem Hals — celadon-grün):*
-    Japanese sake flask tokkuri with a narrow neck and a wide round body, celadon green washi paper with a subtle crackle texture, a small sake cup ochoko in cream washi resting beside it, in Japanese kiri-e washi paper cutout style, layered handmade paper with visible fiber texture, soft drop shadows between paper layers, compact proportions, front-facing view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
+    Japanese sake flask tokkuri with a narrow neck and wide round body in celadon green washi paper with crackle texture lines in darker green, a small sake cup ochoko in cream washi resting beside it
 
 17. **chochin** *(ovale Papierlaterne — ivory/red + bamboo):*
-    Japanese paper lantern chochin in an oval shape, the body alternating between warm ivory and soft red washi paper panels separated by thin bamboo ribs in kraft paper, a small tassel hanging from the bottom, in Japanese kiri-e washi paper cutout style, layered handmade paper with visible fiber texture, soft drop shadows between paper layers, compact proportions, front-facing view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
+    Japanese paper lantern chochin in an oval shape, alternating warm ivory and soft red washi paper panels separated by thin bamboo ribs in kraft paper, a dark brown washi cap at top and bottom, a small red washi tassel hanging from the bottom
 
 18. **temari** *(Fadenball mit geometrischem Muster — bunt):*
-    Japanese decorative temari thread ball, a perfect sphere wrapped in geometric interlocking diamond and star patterns in matcha green, indigo blue, and gold washi paper on a cream base, in Japanese kiri-e washi paper cutout style, layered handmade paper with visible fiber texture, soft drop shadows between paper layers, compact proportions, front-facing view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
+    Japanese decorative temari thread ball, a perfect sphere with geometric interlocking diamond and star patterns in matcha green, indigo blue, and gold washi paper on a cream base
 
 19. **wagashi** *(Nerikiri-Süssigkeit in Blütenform — pastell):*
-    Japanese nerikiri wagashi sweet sculpted into a five-petal flower shape, soft pastel lavender washi paper petals with a small matcha-green center, sitting on a tiny dark wooden plate in charcoal washi, in Japanese kiri-e washi paper cutout style, layered handmade paper with visible fiber texture, soft drop shadows between paper layers, compact proportions, front-facing view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
+    Japanese nerikiri wagashi sweet sculpted into a five-petal flower shape, soft pastel lavender washi paper petals with a small matcha-green center, sitting on a small round charcoal washi plate
 
 20. **omamori** *(Glücksamulett — Brokat gold/rot):*
-    Japanese omamori good-luck charm, a small rectangular brocade pouch in deep red washi with a gold foil decorative border and a short tassel hanging from the bottom, a thin cord loop at the top, in Japanese kiri-e washi paper cutout style, layered handmade paper with visible fiber texture, soft drop shadows between paper layers, compact proportions, front-facing view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero floor shadow, sharp silhouette edge definition, 8k resolution --style raw
+    Japanese omamori good-luck charm, a small rectangular pouch in deep red washi with a gold foil decorative border, a thin gold cord loop at the top, a short tassel in gold and red washi hanging from the bottom
 
 ### Combined Cabinet Prompts — Kiri-e (bgl_cabinet)
 
@@ -234,7 +233,7 @@ Der komplette Weg von einem Prompt aus Abschnitt 3 bis zum fertigen Asset im Spi
 ### Schritt 1 — Rendern
 **Dateiformat:** PNG bevorzugen. JPEG funktioniert (der ganze bestehende Katalog ist JPEG) — freigestellt wird ohnehin gegen Magenta, nicht über einen Alphakanal. JPEG-Ringing an harten Kanten hinterlässt aber graue Sprenkel, und bei `bgl_`-Layern fällt das stärker auf als bei Items, weil die Layer auf volle Bildschirmbreite skaliert werden statt auf 384 px. `bgl_sky` ist egal, das Layer ist deckend.
 
-Prompt aus Abschnitt 3 nehmen, **Master Negative Prompt (Kiri-e)** anhängen, in Nano Banana rendern.
+Prompt aus Abschnitt 3 nehmen, **Negative Prompt (Kiri-e)** anhängen, in **Reve** rendern (Projekt mit Guidelines und Style-References konfiguriert, siehe Abschnitt 3).
 Immer **Portrait 9:16** wählen — auch für quadratische Objekte. Das Modell liefert sonst Landscape und der Alpha-Crop schneidet Kanten ab.
 
 ### Schritt 2 — Ablegen
@@ -320,7 +319,8 @@ Das Kabinett (`bgl_cabinet_*`) kommt als freistehendes Washi-Möbel mit Bretter 
 `BG_FRAME_RECTS` wird weiterhin am Alphakanal gemessen (äußere Kontur des Möbels). `BG_CAVITY_RECTS` kommt aus der lichten Innenfläche. Zusätzlich exportiert die Pipeline `CABINET_SHELF_RATIOS` — ein Array von Y-Verhältnissen (0–1, relativ zur Bildhöhe) der sichtbaren Brettoberflächen. Im Code ersetzt das die alte `buildLevel`-Logik, die Bretter per `cavityHeight/(rows+0.5)` gleichmäßig verteilte.
 
 ### Offene Punkte
-- **Kiri-e-Nebeneffekt:** Der flache Papierstil erzeugt weniger Chroma-Spill als die alten 3D-Renders, aber helle Kraft-/Washi-Töne nahe am Magenta-Saum brauchen trotzdem Despill.
+- **Kiri-e-Nebeneffekt:** Der flache Papierstil erzeugt weniger Chroma-Spill als die alten 3D-Renders, aber helle Kraft-/Washi-Töne nahe am Magenta-Saum brauchen trotzdem Despill. Reve's Magenta-Hintergrund ist leicht rötlicher als reines #FF00FF — die Pipeline erkennt Chroma per Hue/Saturation an den Ecken, nicht per exaktem RGB-Match, sollte also funktionieren.
+- **Alle 20 Items** im Kiri-e-Stil gerendert (Reve). `origami_crane` durch `koinobori` ersetzt (Kranich-Silhouette bei 58 px nicht lesbar). 5 Items (yokan, toast, torii, crane→koinobori, matcha_roll) mit verstärktem Flat-Prompt neu gerendert wegen 3D-Perspektive im ersten Durchgang.
 - **`bgl_cat` Kiri-e-Version** steht noch aus — die alte Art-Toy-Version hat einen leichten Rosé-Ton in den Flecken.
 - **`bgl_dog` Kiri-e-Version** steht noch aus.
 - **Cabinet-Varianten 4row und 5row** noch nicht gerendert — nur 6row liegt als genehmigter Render vor.

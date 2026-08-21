@@ -14,7 +14,7 @@ const ITEM_IDS = [
   'chawan_cup', 'chochin', 'dango_stick', 'daruma',
   'furoshiki', 'incense_burner', 'kissa_toast', 'kokeshi',
   'maneki_neko', 'matcha_roll', 'omamori', 'onigiri',
-  'origami_crane', 'sake_tokkuri', 'sensu_fan', 'temari',
+  'koinobori', 'sake_tokkuri', 'sensu_fan', 'temari',
   'tetsubin_kettle', 'torii_gate', 'wagashi', 'yokan_prism'
 ];
 
