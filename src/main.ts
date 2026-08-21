@@ -165,31 +165,26 @@ export interface ItemDef {
 }
 
 export const ITEMS: Record<string, ItemDef> = {
-  // Batch 1 & 2: Core Heroes
   'chawan_cup':        { id: 'chawan_cup',        name: 'Chawan Cup',       baseColor: 0xEAE5D9, accentColor: KYOTO.matcha,    detailColor: 0xBAA788, shape: 'bowl' },
-  'tetsubin_kettle':   { id: 'tetsubin_kettle',   name: 'Tetsubin Kettle',  baseColor: KYOTO.kuroSteel, accentColor: KYOTO.brass,detailColor: 0x3A3D40, shape: 'kettle' },
-  'chasen_whisk':      { id: 'chasen_whisk',      name: 'Bamboo Whisk',     baseColor: KYOTO.hinoki, accentColor: 0x8C7A5E,    detailColor: KYOTO.matcha, shape: 'whisk' },
-  'kissa_toast':       { id: 'kissa_toast',       name: 'Cube Toast',       baseColor: KYOTO.toastGold, accentColor: 0xF4D06F, detailColor: 0x8F572C, shape: 'cube' },
+  'tetsubin_kettle':   { id: 'tetsubin_kettle',   name: 'Tetsubin Kettle',  baseColor: KYOTO.kuroSteel, accentColor: KYOTO.brass, detailColor: 0x3A3D40, shape: 'kettle' },
+  'kissa_toast':       { id: 'kissa_toast',       name: 'Kissa Toast',      baseColor: KYOTO.toastGold, accentColor: 0xF4D06F, detailColor: 0x8F572C, shape: 'cube' },
   'dango_stick':       { id: 'dango_stick',       name: 'Dango Skewer',     baseColor: KYOTO.dangoPink, accentColor: KYOTO.cream, detailColor: KYOTO.matcha, shape: 'sphere' },
   'yokan_prism':       { id: 'yokan_prism',       name: 'Yokan Prism',      baseColor: KYOTO.azuki,  accentColor: 0x481E21,    detailColor: KYOTO.brass,  shape: 'prism' },
-  'copper_caddy':      { id: 'copper_caddy',      name: 'Copper Caddy',     baseColor: 0xB86D43,     accentColor: KYOTO.brass, detailColor: 0x7E3F1F, shape: 'cylinder' },
-  'origami_dripper':   { id: 'origami_dripper',   name: 'Origami Dripper',  baseColor: KYOTO.matcha, accentColor: KYOTO.hinoki, detailColor: 0x364E34, shape: 'cone' },
-
-  // Batch 3 & 4: Expansion
   'matcha_roll':       { id: 'matcha_roll',       name: 'Matcha Roll',      baseColor: KYOTO.matcha, accentColor: KYOTO.cream,  detailColor: 0x2D452B, shape: 'cylinder' },
-  'shou_sugi_block':   { id: 'shou_sugi_block',   name: 'Yakisugi Block',   baseColor: KYOTO.kuroSteel, accentColor: KYOTO.brass,detailColor: 0x111214, shape: 'cube' },
-  'coldbrew_flask':    { id: 'coldbrew_flask',    name: 'Cold Brew Flask',  baseColor: 0xDEE4E0,     accentColor: KYOTO.matcha, detailColor: 0xFFFFFF, shape: 'cylinder' },
-  'brass_sphere':      { id: 'brass_sphere',      name: 'Brass Infuser',    baseColor: KYOTO.brass,  accentColor: 0x8C6B32,    detailColor: 0xEAD29C, shape: 'sphere' },
-
-  // Batch 5: Mastery Items
-  'matcha_montblanc':  { id: 'matcha_montblanc',  name: 'Mont Blanc',       baseColor: KYOTO.matcha, accentColor: KYOTO.toastGold, detailColor: KYOTO.brass, shape: 'cone' },
-  'chashaku_scoop':    { id: 'chashaku_scoop',    name: 'Tea Scoop',        baseColor: KYOTO.hinoki, accentColor: 0xEAE5D9,    detailColor: KYOTO.matcha, shape: 'cylinder' },
-  'incense_burner':    { id: 'incense_burner',    name: 'Incense Cone',     baseColor: KYOTO.brass,  accentColor: KYOTO.kuroSteel, detailColor: 0x111214, shape: 'cone' },
-  'mizuhiki_knot':     { id: 'mizuhiki_knot',     name: 'Mizuhiki Knot',    baseColor: KYOTO.azuki,  accentColor: KYOTO.cream,  detailColor: KYOTO.brass,  shape: 'sphere' },
-  'gotoku_trivet':     { id: 'gotoku_trivet',     name: 'Gotoku Trivet',    baseColor: KYOTO.kuroSteel, accentColor: 0x3A3D40, detailColor: KYOTO.kuroSteel, shape: 'kettle' },
-  'kuro_mame_dome':    { id: 'kuro_mame_dome',    name: 'Kuromame Dome',    baseColor: 0x2A1820,     accentColor: KYOTO.hinoki, detailColor: 0x111214, shape: 'bowl' },
-  'dango_plate':       { id: 'dango_plate',       name: 'Stoneware Plate',  baseColor: KYOTO.sageGreen, accentColor: KYOTO.toastGold, detailColor: 0x6E8579, shape: 'plate' },
-  'cast_iron_bell':    { id: 'cast_iron_bell',    name: 'Furin Bell',       baseColor: KYOTO.kuroSteel, accentColor: KYOTO.dangoPink, detailColor: 0x3A3D40, shape: 'bell' }
+  'incense_burner':    { id: 'incense_burner',    name: 'Incense Burner',   baseColor: KYOTO.kuroSteel, accentColor: KYOTO.brass, detailColor: 0x111214, shape: 'cone' },
+  'daruma':            { id: 'daruma',            name: 'Daruma',           baseColor: 0xE74C3C, accentColor: KYOTO.brass,     detailColor: KYOTO.kuroSteel, shape: 'sphere' },
+  'kokeshi':           { id: 'kokeshi',           name: 'Kokeshi',          baseColor: KYOTO.hinoki, accentColor: KYOTO.azuki,  detailColor: KYOTO.cream, shape: 'cone' },
+  'sensu_fan':         { id: 'sensu_fan',         name: 'Sensu Fan',        baseColor: 0x2C3E87, accentColor: KYOTO.brass,     detailColor: KYOTO.azuki, shape: 'plate' },
+  'furoshiki':         { id: 'furoshiki',         name: 'Furoshiki',        baseColor: 0x2C3E87, accentColor: KYOTO.cream,     detailColor: 0x1A237E, shape: 'cube' },
+  'chochin':           { id: 'chochin',           name: 'Chochin',          baseColor: 0xFFF5E6, accentColor: KYOTO.azuki,     detailColor: KYOTO.hinoki, shape: 'cylinder' },
+  'temari':            { id: 'temari',            name: 'Temari',           baseColor: KYOTO.matcha, accentColor: 0x2C3E87,    detailColor: KYOTO.brass, shape: 'sphere' },
+  'wagashi':           { id: 'wagashi',           name: 'Wagashi',          baseColor: 0xD7BDE2, accentColor: KYOTO.matcha,    detailColor: KYOTO.kuroSteel, shape: 'bowl' },
+  'omamori':           { id: 'omamori',           name: 'Omamori',          baseColor: KYOTO.azuki, accentColor: KYOTO.brass,  detailColor: 0x8E44AD, shape: 'cube' },
+  'maneki_neko':       { id: 'maneki_neko',       name: 'Maneki Neko',      baseColor: KYOTO.cream, accentColor: KYOTO.toastGold, detailColor: KYOTO.kuroSteel, shape: 'sphere' },
+  'sake_tokkuri':      { id: 'sake_tokkuri',      name: 'Sake Tokkuri',     baseColor: KYOTO.sageGreen, accentColor: KYOTO.cream, detailColor: 0x4A6B47, shape: 'kettle' },
+  'onigiri':           { id: 'onigiri',           name: 'Onigiri',          baseColor: KYOTO.cream, accentColor: KYOTO.kuroSteel, detailColor: KYOTO.azuki, shape: 'cone' },
+  'torii_gate':        { id: 'torii_gate',        name: 'Torii Gate',       baseColor: 0xE74C3C, accentColor: KYOTO.kuroSteel, detailColor: KYOTO.brass, shape: 'cube' },
+  'koinobori':         { id: 'koinobori',         name: 'Koinobori',        baseColor: 0x2C3E87, accentColor: KYOTO.brass,     detailColor: KYOTO.cream, shape: 'cylinder' },
 };
 
 type SlotData = { front: string | null; queue: string[] };
@@ -200,18 +195,8 @@ interface LevelDefinition {
   layout: SlotData[][];
 }
 
-// Jede Stufe enthält exakt drei Exemplare pro Itemtyp. Die freien Slots
-// öffnen zuerst den Kern-Loop und die Queues erhöhen danach die Planungstiefe.
-//
-// Progressionskurve (targetMatches = Anzahl unterschiedlicher Itemtypen je Level):
-// L1: 4  L2: 5  L3: 6  L4: 7  L5: 8  L6: 10 — monoton steigend, keine Spitzen mehr.
-// moves/targetMatches sinkt von 2.25 (Tutorial) auf 1.8 (Finale) -- der Move-Puffer
-// wird bewusst enger, je geuebter die Spielmechanik beim Spieler sitzt.
-// Itemkatalog wird in drei Wellen eingefuehrt: Batch 1&2 (Kernhelden) in L1-L2,
-// Batch 3&4 (Expansion) in L3, Batch 5 (Mastery) in L4-L6. Alle 20 Items aus
-// ITEMS kommen so mindestens einmal vor -- 'dango_stick' fehlte zuvor komplett.
 const LEVELS: LevelDefinition[] = [
-  // Level 1 – 4 Regale, 4 Matches, Tutorial (unveraendert, bereits gut getunt)
+  // Level 1 – 4 Regale, 4 Matches, Tutorial
   {
     moves: 8,
     targetMatches: 4,
@@ -219,7 +204,7 @@ const LEVELS: LevelDefinition[] = [
       [
         { front: 'chawan_cup', queue: [] },
         { front: 'chawan_cup', queue: [] },
-        { front: null, queue: ['chasen_whisk'] }
+        { front: null, queue: ['daruma'] }
       ],
       [
         { front: 'chawan_cup', queue: ['tetsubin_kettle'] },
@@ -228,18 +213,17 @@ const LEVELS: LevelDefinition[] = [
       ],
       [
         { front: 'tetsubin_kettle', queue: [] },
-        { front: 'chasen_whisk', queue: [] },
+        { front: 'daruma', queue: [] },
         { front: null, queue: ['kissa_toast'] }
       ],
       [
-        { front: 'chasen_whisk', queue: [] },
+        { front: 'daruma', queue: [] },
         { front: 'kissa_toast', queue: [] },
         { front: 'kissa_toast', queue: [] }
       ]
     ]
   },
-  // Level 2 – 5 Regale, 5 Matches. Rest von Batch 1&2: dango_stick, yokan_prism,
-  // copper_caddy, origami_dripper, matcha_roll als erster Ausblick auf Batch 3&4.
+  // Level 2 – 5 Regale, 5 Matches
   {
     moves: 11,
     targetMatches: 5,
@@ -250,31 +234,28 @@ const LEVELS: LevelDefinition[] = [
         { front: null, queue: ['yokan_prism'] }
       ],
       [
-        { front: 'dango_stick', queue: ['copper_caddy'] },
+        { front: 'dango_stick', queue: ['kokeshi'] },
         { front: 'yokan_prism', queue: [] },
         { front: null, queue: [] }
       ],
       [
         { front: 'yokan_prism', queue: [] },
-        { front: 'copper_caddy', queue: [] },
-        { front: null, queue: ['origami_dripper'] }
+        { front: 'kokeshi', queue: [] },
+        { front: null, queue: ['sensu_fan'] }
       ],
       [
-        { front: 'copper_caddy', queue: ['matcha_roll'] },
-        { front: 'origami_dripper', queue: [] },
+        { front: 'kokeshi', queue: ['matcha_roll'] },
+        { front: 'sensu_fan', queue: [] },
         { front: null, queue: [] }
       ],
       [
-        { front: 'origami_dripper', queue: [] },
+        { front: 'sensu_fan', queue: [] },
         { front: 'matcha_roll', queue: [] },
         { front: 'matcha_roll', queue: [] }
       ]
     ]
   },
-  // Level 3 – 5 Regale, 6 Matches. Rest von Batch 3&4 (shou_sugi_block,
-  // coldbrew_flask, brass_sphere) + Rueckkehr der drei Tutorial-Items mit
-  // erster echter Regal-Zweitnutzung (ein Regal wird nach dem ersten Match
-  // ueber die Queue fuer ein zweites Item weiterverwendet).
+  // Level 3 – 5 Regale, 6 Matches
   {
     moves: 13,
     targetMatches: 6,
@@ -282,143 +263,133 @@ const LEVELS: LevelDefinition[] = [
       [
         { front: 'chawan_cup', queue: [] },
         { front: 'chawan_cup', queue: [] },
-        { front: null, queue: ['chasen_whisk'] }
+        { front: null, queue: ['daruma'] }
       ],
       [
         { front: 'chawan_cup', queue: ['tetsubin_kettle'] },
         { front: 'tetsubin_kettle', queue: [] },
-        { front: 'brass_sphere', queue: [] }
+        { front: 'temari', queue: [] }
       ],
       [
         { front: 'tetsubin_kettle', queue: [] },
-        { front: 'chasen_whisk', queue: [] },
-        { front: null, queue: ['shou_sugi_block', 'brass_sphere'] }
+        { front: 'daruma', queue: [] },
+        { front: null, queue: ['furoshiki', 'temari'] }
       ],
       [
-        { front: 'chasen_whisk', queue: [] },
-        { front: 'shou_sugi_block', queue: [] },
-        { front: null, queue: ['coldbrew_flask'] }
+        { front: 'daruma', queue: [] },
+        { front: 'furoshiki', queue: [] },
+        { front: null, queue: ['chochin'] }
       ],
       [
-        { front: 'shou_sugi_block', queue: ['brass_sphere'] },
-        { front: 'coldbrew_flask', queue: [] },
-        { front: 'coldbrew_flask', queue: [] }
+        { front: 'furoshiki', queue: ['temari'] },
+        { front: 'chochin', queue: [] },
+        { front: 'chochin', queue: [] }
       ]
     ]
   },
-  // Level 4 – 5 Regale, 7 Matches. Erste Mastery-Welle (matcha_montblanc,
-  // chashaku_scoop, incense_burner, mizuhiki_knot) gemischt mit drei
-  // wiederkehrenden Favoriten (kissa_toast, yokan_prism, origami_dripper).
+  // Level 4 – 5 Regale, 7 Matches
   {
     moves: 15,
     targetMatches: 7,
     layout: [
       [
-        { front: 'matcha_montblanc', queue: [] },
-        { front: 'matcha_montblanc', queue: [] },
-        { front: null, queue: ['chashaku_scoop', 'origami_dripper'] }
+        { front: 'wagashi', queue: [] },
+        { front: 'wagashi', queue: [] },
+        { front: null, queue: ['omamori', 'sensu_fan'] }
       ],
       [
-        { front: 'matcha_montblanc', queue: ['incense_burner'] },
-        { front: 'chashaku_scoop', queue: [] },
-        { front: 'kissa_toast', queue: ['origami_dripper'] }
+        { front: 'wagashi', queue: ['incense_burner'] },
+        { front: 'omamori', queue: [] },
+        { front: 'kissa_toast', queue: ['sensu_fan'] }
       ],
       [
-        { front: 'chashaku_scoop', queue: [] },
+        { front: 'omamori', queue: [] },
         { front: 'incense_burner', queue: [] },
-        { front: null, queue: ['mizuhiki_knot', 'kissa_toast', 'yokan_prism'] }
+        { front: null, queue: ['maneki_neko', 'kissa_toast', 'yokan_prism'] }
       ],
       [
         { front: 'incense_burner', queue: [] },
-        { front: 'mizuhiki_knot', queue: [] },
+        { front: 'maneki_neko', queue: [] },
         { front: null, queue: ['yokan_prism'] }
       ],
       [
-        { front: 'mizuhiki_knot', queue: ['yokan_prism'] },
+        { front: 'maneki_neko', queue: ['yokan_prism'] },
         { front: 'kissa_toast', queue: [] },
-        { front: 'origami_dripper', queue: [] }
+        { front: 'sensu_fan', queue: [] }
       ]
     ]
   },
-  // Level 5 – 6 Regale, 8 Matches. Zweite Mastery-Welle (gotoku_trivet,
-  // kuro_mame_dome, dango_plate, cast_iron_bell) + vier Favoriten aus
-  // Batch 1-4 (dango_stick, copper_caddy, matcha_roll, shou_sugi_block).
+  // Level 5 – 6 Regale, 8 Matches
   {
     moves: 16,
     targetMatches: 8,
     layout: [
       [
-        { front: 'gotoku_trivet', queue: [] },
-        { front: 'gotoku_trivet', queue: [] },
-        { front: null, queue: ['kuro_mame_dome'] }
+        { front: 'sake_tokkuri', queue: [] },
+        { front: 'sake_tokkuri', queue: [] },
+        { front: null, queue: ['onigiri'] }
       ],
       [
-        { front: 'gotoku_trivet', queue: ['dango_plate'] },
-        { front: 'kuro_mame_dome', queue: [] },
+        { front: 'sake_tokkuri', queue: ['torii_gate'] },
+        { front: 'onigiri', queue: [] },
         { front: 'dango_stick', queue: [] }
       ],
       [
-        { front: 'kuro_mame_dome', queue: [] },
-        { front: 'dango_plate', queue: [] },
-        { front: null, queue: ['cast_iron_bell', 'dango_stick'] }
+        { front: 'onigiri', queue: [] },
+        { front: 'torii_gate', queue: [] },
+        { front: null, queue: ['daruma', 'dango_stick'] }
       ],
       [
-        { front: 'dango_plate', queue: [] },
-        { front: 'cast_iron_bell', queue: [] },
-        { front: null, queue: ['copper_caddy', 'copper_caddy'] }
+        { front: 'torii_gate', queue: [] },
+        { front: 'daruma', queue: [] },
+        { front: null, queue: ['kokeshi', 'kokeshi'] }
       ],
       [
-        { front: 'cast_iron_bell', queue: ['copper_caddy', 'matcha_roll'] },
+        { front: 'daruma', queue: ['kokeshi', 'matcha_roll'] },
         { front: 'matcha_roll', queue: [] },
         { front: 'matcha_roll', queue: [] }
       ],
       [
-        { front: 'dango_stick', queue: ['shou_sugi_block'] },
-        { front: 'shou_sugi_block', queue: [] },
-        { front: 'shou_sugi_block', queue: [] }
+        { front: 'dango_stick', queue: ['furoshiki'] },
+        { front: 'furoshiki', queue: [] },
+        { front: 'furoshiki', queue: [] }
       ]
     ]
   },
-  // Level 6 – 6 Regale, 10 Matches. Finale: die komplette Mastery-Reihe
-  // (matcha_montblanc, chashaku_scoop, incense_burner, mizuhiki_knot,
-  // gotoku_trivet, kuro_mame_dome, dango_plate, cast_iron_bell) plus die
-  // beiden letzten offenen Items coldbrew_flask und brass_sphere -- damit
-  // waren im Verlauf des Spiels alle 20 Items mindestens einmal im Einsatz.
-  // Regal 6 startet mit dem einzigen leeren Slot des Levels: der erste Zug
-  // (mizuhiki_knot aus Regal 5 dorthin) loest sofort eine Kettenreaktion aus.
+  // Level 6 – 6 Regale, 10 Matches
   {
     moves: 18,
     targetMatches: 10,
     layout: [
       [
-        { front: 'coldbrew_flask', queue: [] },
-        { front: 'coldbrew_flask', queue: [] },
-        { front: 'brass_sphere', queue: ['gotoku_trivet', 'kuro_mame_dome'] }
+        { front: 'chochin', queue: [] },
+        { front: 'chochin', queue: [] },
+        { front: 'temari', queue: ['sake_tokkuri', 'onigiri'] }
       ],
       [
-        { front: 'brass_sphere', queue: [] },
-        { front: 'brass_sphere', queue: [] },
-        { front: 'matcha_montblanc', queue: ['gotoku_trivet', 'dango_plate'] }
+        { front: 'temari', queue: [] },
+        { front: 'temari', queue: [] },
+        { front: 'wagashi', queue: ['sake_tokkuri', 'torii_gate'] }
       ],
       [
-        { front: 'matcha_montblanc', queue: [] },
-        { front: 'matcha_montblanc', queue: [] },
-        { front: 'chashaku_scoop', queue: ['kuro_mame_dome', 'cast_iron_bell'] }
+        { front: 'wagashi', queue: [] },
+        { front: 'wagashi', queue: [] },
+        { front: 'omamori', queue: ['onigiri', 'daruma'] }
       ],
       [
-        { front: 'chashaku_scoop', queue: [] },
-        { front: 'chashaku_scoop', queue: [] },
-        { front: 'incense_burner', queue: ['dango_plate', 'cast_iron_bell'] }
+        { front: 'omamori', queue: [] },
+        { front: 'omamori', queue: [] },
+        { front: 'incense_burner', queue: ['torii_gate', 'daruma'] }
       ],
       [
         { front: 'incense_burner', queue: [] },
         { front: 'incense_burner', queue: [] },
-        { front: 'mizuhiki_knot', queue: ['gotoku_trivet', 'dango_plate'] }
+        { front: 'maneki_neko', queue: ['sake_tokkuri', 'torii_gate'] }
       ],
       [
-        { front: 'mizuhiki_knot', queue: [] },
-        { front: 'mizuhiki_knot', queue: [] },
-        { front: null, queue: ['coldbrew_flask', 'kuro_mame_dome', 'cast_iron_bell'] }
+        { front: 'maneki_neko', queue: [] },
+        { front: 'maneki_neko', queue: [] },
+        { front: null, queue: ['chochin', 'onigiri', 'daruma'] }
       ]
     ]
   }
