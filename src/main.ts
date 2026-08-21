@@ -1,7 +1,7 @@
 import '@fontsource/m-plus-rounded-1c/latin-500.css';
 import '@fontsource/m-plus-rounded-1c/latin-800.css';
 import Phaser from 'phaser';
-import { ITEM_BOTTOM_OFFSETS, BG_CAVITY_RATIOS, BG_CAVITY_RECTS, BG_FRAME_RECTS, SHELF_PLATFORM_RATIOS, AVAILABLE_ASSETS, ASSET_EXT } from './item_offsets.generated';
+import { ITEM_BOTTOM_OFFSETS, BG_CAVITY_RECTS, BG_FRAME_RECTS, SHELF_PLATFORM_RATIOS, CABINET_SHELF_RATIOS, AVAILABLE_ASSETS, ASSET_EXT } from './item_offsets.generated';
 
 // ==========================================
 // 1. CMF DESIGN SYSTEM & ITEM REGISTRY
@@ -72,13 +72,13 @@ const BG_CAVITY_RATIO = 0.6458;
 // Rahmen, statt darunter zu verschwinden. Dafuer sind die Stifte ja da.
 const SHELF_CAVITY_FILL = 1.015;
 
-// Hintergrund-Tiers: pro Level-Gruppe eine breiter werdende Nische. Das
-// cavityRatio wird von scripts/process_assets.js am fertigen PNG gemessen.
-const BG_TIERS: { key: string; levelRange: [number, number] }[] = [
-  { key: 'bg_kissa_niche',      levelRange: [1, 3] },
-  { key: 'bg_kissa_niche_mid',  levelRange: [4, 5] },
-  { key: 'bg_kissa_niche_wide', levelRange: [6, 6] },
-];
+// Cabinet-Varianten nach Zeilenanzahl. Bretter und Rueckwand sind Teil des
+// Renders -- kein separates shelf_wood oder Shoji-Panel mehr noetig.
+const CABINET_TIERS: Record<number, string> = {
+  4: 'bgl_cabinet_4row',
+  5: 'bgl_cabinet_5row',
+  6: 'bgl_cabinet_6row',
+};
 
 // Parallax-Layer des Hintergrunds. Jeder Layer ist ein eigenes freigestelltes
 // PNG (Prefix bgl_) und wird nur gezeichnet, wenn er im Asset-Manifest steht.
@@ -107,10 +107,10 @@ interface BgLayer {
   flipX?: boolean;
 }
 
-// Freistehendes Regalgehaeuse, das ueber der Gartenszene liegt. Solange es
-// fehlt, bleibt der undurchsichtige Wand-Hintergrund bg_kissa_niche aktiv --
-// der wuerde die Parallax-Layer sonst komplett verdecken.
-const NICHE_FRAME_KEY = 'bgl_niche_frame';
+function getCabinetKey(rows: number): string | undefined {
+  const key = CABINET_TIERS[rows];
+  return key && AVAILABLE_ASSETS.has(key) ? key : undefined;
+}
 
 const BG_LAYERS: BgLayer[] = [
   { key: 'bgl_sky',      mode: 'cover',  depth: -60, motion: 'none' },
@@ -128,13 +128,6 @@ const BG_LAYERS: BgLayer[] = [
   { key: 'bgl_lanterns', mode: 'cover',  depth: -50, motion: 'sway', amount: 1.2, period: 5200 },
 ];
 
-function getCavityRatio(key: string): number {
-  return BG_CAVITY_RATIOS[key] ?? BG_CAVITY_RATIO;
-}
-
-function getBgTier(level: number) {
-  return BG_TIERS.find(t => level >= t.levelRange[0] && level <= t.levelRange[1]) ?? BG_TIERS[0];
-}
 
 // width kommt in Geraetepixeln herein, der Deckel gilt aber in CSS-Pixeln --
 // sonst waere er auf einem 3x-Display schon bei einem Drittel der Breite erreicht.
@@ -719,30 +712,29 @@ export class Shelf extends Phaser.GameObjects.Container {
   public readonly hitTop: number;
   public readonly hitBottom: number;
 
-  constructor(scene: Phaser.Scene, x: number, y: number, shelfIdx: number, data: { front: string | null; queue: string[] }[], itemScale = 1, shelfWidth = 304) {
+  constructor(scene: Phaser.Scene, x: number, y: number, shelfIdx: number, data: { front: string | null; queue: string[] }[], itemScale = 1, shelfWidth = 304, boardless = false) {
     super(scene, x, y);
     this.shelfIdx = shelfIdx;
     this.itemScale = itemScale;
-    // Drei Slots gleichmaessig ueber das Brett verteilt: Raender links und
-    // rechts sind damit immer gleich gross.
     this.spacing = Phaser.Math.Clamp(shelfWidth / 3, 78 * itemScale, 104 * itemScale);
     this.shelfWidth = shelfWidth;
 
-    // Hoehe folgt dem Seitenverhaeltnis der Textur. Vorher war sie fest, das
-    // Brett wurde dadurch gestaucht und die Maserung verzerrt.
-    const tex = scene.textures.exists('shelf_wood') ? scene.textures.get('shelf_wood').getSourceImage() : null;
-    this.shelfHeight = tex ? shelfWidth * (tex.height / tex.width) : 92 * itemScale;
-
-    // Auflagelinie: am Asset vermessen, sonst der alte Design-Wert
-    const platformRatio = SHELF_PLATFORM_RATIOS['shelf_wood'];
-    this.platformY = platformRatio !== undefined
-      ? -this.shelfHeight / 2 + platformRatio * this.shelfHeight
-      : SHELF_PLATFORM_TOP_Y * itemScale;
+    if (boardless) {
+      this.shelfHeight = 0;
+      this.platformY = 0;
+    } else {
+      const tex = scene.textures.exists('shelf_wood') ? scene.textures.get('shelf_wood').getSourceImage() : null;
+      this.shelfHeight = tex ? shelfWidth * (tex.height / tex.width) : 92 * itemScale;
+      const platformRatio = SHELF_PLATFORM_RATIOS['shelf_wood'];
+      this.platformY = platformRatio !== undefined
+        ? -this.shelfHeight / 2 + platformRatio * this.shelfHeight
+        : SHELF_PLATFORM_TOP_Y * itemScale;
+    }
 
     this.hitTop = this.platformY - 82 * itemScale;
-    this.hitBottom = this.shelfHeight / 2 + 6 * itemScale;
+    this.hitBottom = boardless ? 20 * itemScale : this.shelfHeight / 2 + 6 * itemScale;
 
-    this.drawStructure();
+    if (!boardless) this.drawStructure();
     this.initSlots(data);
     scene.add.existing(this);
   }
@@ -1077,11 +1069,10 @@ export class PreloadScene extends Phaser.Scene {
       if (AVAILABLE_ASSETS.has(id)) this.load.image(`item_${id}`, `assets/items/${id}.${ASSET_EXT}`);
     });
 
-    // 2. Environment & UI – Hintergrund-Tiers (höhere Tiers können fehlen, Fallback auf bg_kissa_niche)
-    BG_TIERS.forEach(t => loadOptional(t.key));
+    // 2. Cabinet-Varianten & Parallax-Layer
+    Object.values(CABINET_TIERS).forEach(key => loadOptional(key));
     BG_LAYERS.forEach(l => loadOptional(l.key));
-    loadOptional(NICHE_FRAME_KEY);
-    this.load.image('shelf_wood', `assets/items/shelf_wood.${ASSET_EXT}`);
+    loadOptional('shelf_wood');
     this.load.image('fx_match_burst', `assets/items/fx_match_burst.${ASSET_EXT}`);
     this.load.image('ui_card_kuro', `assets/items/ui_card_kuro.${ASSET_EXT}`);
     this.load.image('ui_card_hinoki', `assets/items/ui_card_hinoki.${ASSET_EXT}`);
@@ -1105,6 +1096,7 @@ export class GameScene extends Phaser.Scene {
   private cavityCenterX = 0;
   private cavityTop = 0;
   private cavityHeight = 0;
+  private cabinetShelfYs: number[] = [];
 
   constructor() {
     super('GameScene');
@@ -1115,28 +1107,22 @@ export class GameScene extends Phaser.Scene {
     const uiScale = getLayoutScale(width);
     this.shelves = [];
     this.selected = null;
+    this.cabinetShelfYs = [];
 
-    // Hintergrund. Zwei Varianten:
-    //  a) Gartenszene aus bgl_ Layern plus freistehendem Regalgehaeuse
-    //  b) undurchsichtige Wand-Nische bg_kissa_niche (Fallback)
-    // Variante a braucht NICHE_FRAME_KEY -- ohne das Gehaeuse gaebe es kein
-    // Regal, und die Wand-Nische wuerde die Layer ohnehin verdecken.
-    const tier = getBgTier(State.currentLevel);
-    const useGarden = this.textures.exists(NICHE_FRAME_KEY);
-    const bgKey = useGarden
-      ? NICHE_FRAME_KEY
-      : (this.textures.exists(tier.key) ? tier.key : 'bg_kissa_niche');
-    const cavityRatio = getCavityRatio(bgKey);
+    const level = LEVELS[State.currentLevel - 1] ?? LEVELS[0];
+    const rows = level.layout.length;
+    const cabinetKey = getCabinetKey(rows);
+    const useCabinet = cabinetKey !== undefined && this.textures.exists(cabinetKey);
+    const bgKey = useCabinet ? cabinetKey! : undefined;
 
-    // Default, falls gar keine Textur da ist
-    this.cavityWidth = width * cavityRatio;
+    this.cavityWidth = width * BG_CAVITY_RATIO;
     this.cavityCenterX = width / 2;
 
-    if (useGarden) {
+    if (useCabinet) {
       this.createBgLayers(width, height);
     }
 
-    if (this.textures.exists(bgKey)) {
+    if (bgKey && this.textures.exists(bgKey)) {
       const source = this.textures.get(bgKey).getSourceImage();
       const rect = BG_CAVITY_RECTS[bgKey];
       const frame = BG_FRAME_RECTS[bgKey];
@@ -1146,10 +1132,6 @@ export class GameScene extends Phaser.Scene {
       let k: number;
 
       if (frame) {
-        // Freistehendes Moebel: so skalieren und setzen, dass es vollstaendig
-        // zwischen Header und Booster-Reihe steht und unten auf der Wiese
-        // aufsitzt. Cover-Scaling wuerde es oben und unten anschneiden -- das
-        // liess es wie einen Wandausschnitt wirken statt wie ein Moebel im Garten.
         const bandTop = 78 * uiScale;
         const bandBottom = height - 74 * uiScale;
 
@@ -1164,34 +1146,17 @@ export class GameScene extends Phaser.Scene {
       }
 
       if (rect) {
-        // Exaktes Rechteck, beim Ausstanzen der Rueckwand aus dem Alphakanal gemessen
         this.cavityCenterX = imgX + (rect.x - 0.5) * source.width * k;
         this.cavityWidth = rect.w * source.width * k;
         this.cavityTop = imgY + (rect.y - 0.5) * source.height * k;
         this.cavityHeight = rect.h * source.height * k;
       } else {
         this.cavityCenterX = width / 2;
-        this.cavityWidth = source.width * k * cavityRatio;
+        this.cavityWidth = source.width * k * BG_CAVITY_RATIO;
         this.cavityTop = 0;
         this.cavityHeight = 0;
       }
 
-      // Shoji-Panel: hinter dem Rahmen, vor der Gartenszene. Ohne das milchige
-      // Papier stehen die Goods direkt auf Himmel und Huegeln und verlieren
-      // ihren Kontrast. Bewusst durchscheinend -- der Garten soll dahinter
-      // erkennbar bleiben.
-      if (useGarden && this.cavityHeight > 0) {
-        this.add.graphics().setDepth(-12)
-          .fillStyle(0xFFFDF6, 0.55)
-          .fillRect(
-            this.cavityCenterX - this.cavityWidth / 2,
-            this.cavityTop,
-            this.cavityWidth,
-            this.cavityHeight
-          );
-      }
-
-      // Bodenschatten: erdet das Moebel auf der Wiese, sonst schwebt es
       if (frame) {
         const footY = imgY + (frame.y + frame.h - 0.5) * source.height * k;
         const footW = frame.w * source.width * k;
@@ -1203,7 +1168,13 @@ export class GameScene extends Phaser.Scene {
 
       this.add.image(imgX, imgY, bgKey).setScale(k).setDepth(-10);
 
-      // Warmes Nischen-Licht: radialer Schein von oben
+      const shelfRatios = CABINET_SHELF_RATIOS[bgKey];
+      if (shelfRatios) {
+        for (let i = 0; i < rows && i + 1 < shelfRatios.length; i++) {
+          this.cabinetShelfYs.push(imgY + (shelfRatios[i + 1] - 0.5) * source.height * k);
+        }
+      }
+
       const glow = this.add.graphics().setDepth(-9);
       const glowR = this.cavityWidth * 0.55;
       const cy = this.cavityHeight > 0 ? this.cavityTop + this.cavityHeight * 0.12 : height * 0.22;
@@ -1311,23 +1282,23 @@ export class GameScene extends Phaser.Scene {
     const rows = level.layout.length;
     const shelfWidth = Math.round(this.cavityWidth * SHELF_CAVITY_FILL);
 
-    // Ist die lichte Hoehe der Nische bekannt, werden die Bretter gleichmaessig
-    // darin verteilt statt nach festen Design-Werten gesetzt. Der halbe
-    // Zeilenabstand oben und unten haelt Abstand zum Rahmen.
-    let startY: number;
-    let shelfSpacing: number;
-
-    if (this.cavityHeight > 0) {
-      shelfSpacing = this.cavityHeight / (rows + 0.5);
-      startY = this.cavityTop + shelfSpacing * 0.75;
+    if (this.cabinetShelfYs.length >= rows) {
+      level.layout.forEach((data, i) => {
+        this.shelves.push(new Shelf(this, this.cavityCenterX, this.cabinetShelfYs[i], i, data, itemScale, shelfWidth, true));
+      });
+    } else if (this.cavityHeight > 0) {
+      const shelfSpacing = this.cavityHeight / (rows + 0.5);
+      const startY = this.cavityTop + shelfSpacing * 0.75;
+      level.layout.forEach((data, i) => {
+        this.shelves.push(new Shelf(this, this.cavityCenterX, startY + i * shelfSpacing, i, data, itemScale, shelfWidth));
+      });
     } else {
-      startY = (rows >= 6 ? 160 : rows === 5 ? 180 : 195) * verticalScale;
-      shelfSpacing = (rows >= 6 ? 94 : rows === 5 ? 108 : 125) * verticalScale;
+      const startY = (rows >= 6 ? 160 : rows === 5 ? 180 : 195) * verticalScale;
+      const shelfSpacing = (rows >= 6 ? 94 : rows === 5 ? 108 : 125) * verticalScale;
+      level.layout.forEach((data, i) => {
+        this.shelves.push(new Shelf(this, this.cavityCenterX, startY + i * shelfSpacing, i, data, itemScale, shelfWidth));
+      });
     }
-
-    level.layout.forEach((data, i) => {
-      this.shelves.push(new Shelf(this, this.cavityCenterX, startY + i * shelfSpacing, i, data, itemScale, shelfWidth));
-    });
   }
 
   private onPointerDown(p: Phaser.Input.Pointer) {
