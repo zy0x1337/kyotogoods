@@ -61,13 +61,13 @@ Vorgänger-Stile: Art Toy (mattierte 3D-Miniaturen) → Kiri-e (geschichtetes Wa
 ### Reve Project Guidelines (im Reve-Projekt unter "Guidelines" eingetragen)
 
 ```
-Cute Japanese kawaii flat illustration style. Clean simple rounded shapes with consistent soft dark-brown outlines of uniform weight throughout. Flat cheerful pastel colors filled solidly with no visible brushstrokes or complex textures. At most one subtle lighter highlight spot on the main rounded surface for gentle volume, no complex gradients or cel shading. Slightly exaggerated cute proportions, everything rounded and friendly. Strict front-facing flat view, no 3D perspective, no isometric angle. Compact proportions roughly as wide as tall. Single isolated food item centered with generous even padding on all sides. Pure solid magenta background (#FF00FF). Zero floor shadow, zero drop shadow beneath the object. Sharp clean silhouette edges against the magenta. No text, no watermark, no sparkle artifacts, no face on food, no eyes on food, no anthropomorphic features.
+Cute Japanese kawaii flat illustration style. Clean simple rounded shapes with consistent soft dark-brown outlines of uniform weight throughout. Flat cheerful pastel colors filled solidly with no visible brushstrokes or complex textures. At most one subtle lighter highlight spot on the main rounded surface for gentle volume, no complex gradients or cel shading. Slightly exaggerated cute proportions, everything rounded and friendly. Strict front-facing flat view, no 3D perspective, no isometric angle. Compact proportions roughly as wide as tall. Single isolated food item centered with generous even padding on all sides. Pure solid magenta background (#FF00FF). Zero floor shadow, zero drop shadow beneath the object. Sharp clean silhouette edges against the magenta. No text, no watermark, no sparkle artifacts. Optional small kawaii face: two simple dot eyes, a tiny curved smile, and optional soft pink cheek circles. Keep faces minimal and consistent.
 ```
 
 ### Negative Prompt — Kawaii Flat (an alle Reve-Runs anhängen)
 
 ```
-3D render, 3D perspective, isometric view, realistic, photorealistic, hyper-detailed, complex shading, multiple light sources, harsh shadows, visible brushstrokes, watercolor bleed, rough edges, sketchy lines, uneven outlines, gradient background, text, watermark, logo, multiple objects, duplicate, collage, dark moody colors, neon colors, oversaturated, glossy specular highlights, anime screentone, pixel art, anthropomorphic face, eyes on food, mouth on food, cute face, emoji face, chibi face
+3D render, 3D perspective, isometric view, realistic, photorealistic, hyper-detailed, complex shading, multiple light sources, harsh shadows, visible brushstrokes, watercolor bleed, rough edges, sketchy lines, uneven outlines, gradient background, text, watermark, logo, multiple objects, duplicate, collage, dark moody colors, neon colors, oversaturated, glossy specular highlights, anime screentone, pixel art
 ```
 
 ### Silhouetten-Regel
@@ -104,10 +104,10 @@ Die 20 Silhouetten decken folgende Grundformen ab — keine zwei Items teilen di
 Alle 20 Items sind japanisches Essen. Jedes hat eine einzigartige Silhouette und eigene Primärfarben. Die Prompts beschreiben nur das Objekt — Stil, Komposition, Hintergrund und Outline kommen aus den Guidelines.
 
 1. **onigiri** *(abgerundetes Dreieck — weiss + schwarz/rot):*
-   A single Japanese onigiri rice ball in a soft rounded triangle shape with a flat bottom edge, the body in clean white with a wide band of dark charcoal nori seaweed wrapped around the lower half, a small red umeboshi plum circle centered on the white face above the nori
+   A single Japanese onigiri rice ball in a soft rounded triangle shape with a flat bottom edge, the body in clean white with a wide band of dark charcoal nori seaweed wrapped around the lower half, a small red umeboshi plum circle centered on the white face above the nori, a cute kawaii face with two simple dot eyes and a tiny curved smile on the white rice area with soft pink cheek circles
 
 2. **nigiri** *(flaches Oval — lachs-orange + weiss):*
-   A single piece of salmon nigiri sushi seen from the front, a horizontal oval pad of white rice on the bottom with a smooth curved slice of salmon in warm coral-orange draped neatly over the top, compact low profile wider than tall
+   A single piece of salmon nigiri sushi seen from the front, a horizontal oval pad of white rice on the bottom with a smooth curved slice of salmon in warm coral-orange draped neatly over the top, compact low profile wider than tall, the salmon slice showing a cute kawaii face with two simple dot eyes and a tiny curved smile
 
 3. **maki** *(Kreis-Querschnitt — dunkelgrün + weiss/orange):*
    A single maki sushi roll seen as a perfect circle cross-section, a dark nori green outer ring, a white rice ring inside, a colorful center divided into salmon orange and avocado green segments
@@ -116,52 +116,52 @@ Alle 20 Items sind japanisches Essen. Jedes hat eine einzigartige Silhouette und
    A single temaki hand roll cone shape angled to the upper right, dark nori green wrapper forming the cone with the pointed tip at the lower left, colorful sushi filling of salmon orange rice white and avocado green spilling generously out of the wide open top
 
 5. **gyoza** *(Halbmond — goldgelb):*
-   A single Japanese gyoza dumpling in a crescent half-moon shape, warm golden-yellow wrapper with a neat row of small crimped pleats along the entire curved top edge, smooth flat bottom edge, slightly wider than tall
+   A single Japanese gyoza dumpling in a crescent half-moon shape, warm golden-yellow wrapper with a neat row of small crimped pleats along the entire curved top edge, smooth flat bottom edge, slightly wider than tall, a cute kawaii face with two simple dot eyes and a tiny curved smile on the smooth front of the wrapper
 
 6. **taiyaki** *(Fischform — goldbraun):*
-   A single taiyaki fish-shaped pastry in warm golden-brown, clearly recognizable fish silhouette with a rounded head on the left, a small circular eye, a pointed dorsal fin on top, a small pectoral fin below, and a wide fan-shaped tail fin on the right
+   A single taiyaki fish-shaped pastry in warm golden-brown, clearly recognizable fish silhouette with a rounded head on the left showing a cute kawaii face with two simple dot eyes and a tiny curved smile, a pointed dorsal fin on top, a small pectoral fin below, and a wide fan-shaped tail fin on the right
 
 7. **dango** *(vertikaler Dreier-Stapel — pink/weiss/grün):*
-   Three perfectly round dango balls stacked vertically on a thin pale bamboo skewer, top ball in soft sakura pink, middle ball in chalk white, bottom ball in soft matcha green, evenly spaced with the skewer visible between them
+   Three perfectly round dango balls stacked vertically on a thin pale bamboo skewer, top ball in soft sakura pink, middle ball in chalk white, bottom ball in soft matcha green, evenly spaced with the skewer visible between them, the middle white ball showing a cute kawaii face with two simple dot eyes and a tiny curved smile
 
 8. **yakitori** *(horizontaler Spiess — karamellbraun):*
    Three chunky rectangular pieces of grilled chicken threaded on a horizontal bamboo skewer pointing to the right, warm caramel brown with subtle darker grill marks, the skewer in pale natural bamboo color extending past both ends
 
 9. **ramen** *(breite Schale mit Stäbchen — cremegelb/terrakotta):*
-   A wide round ramen bowl seen from the front with a pair of light wooden chopsticks angled upward from the right side, the bowl in warm terracotta red with a simple cream swirl decoration, golden broth with pale wavy noodles visible inside, a pink-and-white narutomaki spiral slice and a small dark nori rectangle as toppings
+   A wide round ramen bowl seen from the front with a pair of light wooden chopsticks angled upward from the right side, the bowl in warm terracotta red showing a cute kawaii face with two simple dot eyes and a tiny curved smile on the front of the bowl, golden broth with pale wavy noodles visible inside, a pink-and-white narutomaki spiral slice and a small dark nori rectangle as toppings
 
 10. **mochi** *(flache Halbkugel — soft pink):*
-    A single round mochi rice cake as a smooth soft pink squat dome shape sitting flat on its base, a subtle dusting of white starch powder on top, simple and minimal with no filling visible, no leaf, no topping, just a plain smooth dome
+    A single round mochi rice cake as a smooth soft pink squat dome shape sitting flat on its base, a subtle dusting of white starch powder on top, a cute kawaii face with two simple dot eyes and a tiny curved smile on the front of the dome with soft pink cheek circles, simple and minimal with no filling visible
 
 11. **dorayaki** *(Doppelscheibe — honigbraun):*
-    A single dorayaki seen from the front as two round golden honey-brown pancake discs stacked together with dark azuki red-brown bean paste filling visible as a generous stripe between them, slightly wider than tall, the two pancakes roughly equal size
+    A single dorayaki seen from the front as two round golden honey-brown pancake discs stacked together with dark azuki red-brown bean paste filling visible as a generous stripe between them, slightly wider than tall, the top pancake showing a cute kawaii face with two simple dot eyes and a tiny curved smile
 
 12. **takoyaki** *(Schiffchen mit Kugeln — goldbraun/kraft):*
-    A small elongated paper boat tray in warm kraft-brown holding four round golden-brown takoyaki balls in a neat row, each ball topped with a thin squiggle of dark brown sauce and a tiny sprinkle of green aonori flakes, the boat shape longer than wide
+    A small elongated paper boat tray in warm kraft-brown holding four round golden-brown takoyaki balls in a neat row, each ball topped with a thin squiggle of dark brown sauce and a tiny sprinkle of green aonori flakes, the front takoyaki ball showing a cute kawaii face with two simple dot eyes and a tiny curved smile, the boat shape longer than wide
 
 13. **edamame** *(längliche Schote — hellgrün):*
     A single edamame soybean pod in bright fresh green, elongated and gently curved with two clearly visible round bean bumps pushing outward from inside the pod, a short brown stem at one end, the overall shape distinctly longer than wide
 
 14. **matcha_latte** *(hoher Becher — matchagrün/weiss):*
-    A tall straight-sided takeaway cup in clean white with a soft matcha-green plastic lid on top, a small white heart-shaped latte art visible on the green matcha surface just below the lid, a short brown kraft cardboard sleeve wrapped around the cup middle
+    A tall straight-sided takeaway cup in clean white with a soft matcha-green plastic lid on top, a small white heart-shaped latte art visible on the green matcha surface just below the lid, a short brown kraft cardboard sleeve wrapped around the cup middle, a cute kawaii face with two simple dot eyes and a tiny curved smile on the white cup surface above the sleeve
 
 15. **tamagoyaki** *(aufrechtes Rechteck — leuchtend gelb):*
     A single piece of tamagoyaki Japanese rolled omelette as a compact upright rectangle standing on its short end, bright warm yellow with three subtle horizontal layer lines showing the rolled egg structure, clean geometric shape
 
 16. **wagashi** *(Fünf-Blatt-Blüte auf Teller — pastell-lila):*
-    A single nerikiri wagashi sweet molded into a five-petal flower shape, soft pastel lavender petals with gently rounded edges, a small round matcha-green ball in the center, sitting on a tiny dark charcoal round plate beneath it
+    A single nerikiri wagashi sweet molded into a five-petal flower shape, soft pastel lavender petals with gently rounded edges, a small round matcha-green ball in the center, the flower showing a cute kawaii face with two simple dot eyes and a tiny curved smile, sitting on a tiny dark charcoal round plate beneath it
 
 17. **kakigori** *(Eisberg auf Schale — hellblau):*
-    A tall mound of fluffy shaved ice rising in a soft peak from a small round white bowl, the ice tinted in pale sky blue with a drizzle of deeper blue syrup streaming down one side, a small bright red cherry sitting on the very top, distinctly taller than wide
+    A tall mound of fluffy shaved ice rising in a soft peak from a small round white bowl, the ice tinted in pale sky blue with a drizzle of deeper blue syrup streaming down one side, a small bright red cherry sitting on the very top, a cute kawaii face with two simple dot eyes and a tiny curved smile on the front of the ice mound, distinctly taller than wide
 
 18. **ichigo_daifuku** *(Kugel mit Erdbeerspitze — weiss/rot):*
-    A single round ichigo daifuku, a smooth white mochi ball with the pointed red tip of a strawberry peeking through the slightly translucent top, a tiny bright green leaf and short stem visible at the very peak, the overall shape a round ball with a small accent on top
+    A single round ichigo daifuku, a smooth white mochi ball with the pointed red tip of a strawberry peeking through the slightly translucent top, a tiny bright green leaf and short stem visible at the very peak, a cute kawaii face with two simple dot eyes and a tiny curved smile on the white mochi surface, the overall shape a round ball with a small accent on top
 
 19. **sakura_mochi** *(rosa Kugel in grossem Blatt — rosa/dunkelgrün):*
-    A single sakura mochi with a soft pink mochi ball in the center wrapped in a large flat dark green pickled sakura leaf, the leaf extends horizontally well beyond the mochi on both sides creating a distinctly wider-than-tall silhouette with visible pointed leaf tips at the left and right edges
+    A single sakura mochi with a soft pink mochi ball in the center wrapped in a large flat dark green pickled sakura leaf, the pink mochi showing a cute kawaii face with two simple dot eyes and a tiny curved smile, the leaf extends horizontally well beyond the mochi on both sides creating a distinctly wider-than-tall silhouette with visible pointed leaf tips at the left and right edges
 
 20. **inarizushi** *(Tofu-Täschchen — goldbraun/weiss):*
-    A single piece of inarizushi, a plump golden-brown fried tofu pouch standing slightly upright with its top open revealing white sushi rice filling inside, oval football-like silhouette slightly taller than wide, the tofu skin in warm amber-gold
+    A single piece of inarizushi, a plump golden-brown fried tofu pouch standing slightly upright with its top open revealing white sushi rice filling inside, a cute kawaii face with two simple dot eyes and a tiny curved smile on the front of the tofu pouch, oval football-like silhouette slightly taller than wide, the tofu skin in warm amber-gold
 
 ### Layout-Konzept: Freies Grid
 
@@ -191,8 +191,8 @@ Cute kawaii flat illustration of a cozy Japanese home kitchen interior seen from
 **bgl_yatai** *(Levels 3–4 — japanischer Strassenstand bei Abend, festlich):*
 Cute kawaii flat illustration of a Japanese yatai street food stall at evening seen from the front, a row of warm glowing paper chochin lanterns in soft red and cream hanging across the top third on thin strings, a dark navy noren curtain with a simple white circular mon crest draped at the very top edge, warm amber evening light illuminating everything, the large center area deliberately plain and empty showing only a soft warm beige wall surface with no objects, a simple dark wood counter ledge across the bottom edge, tiny warm string lights twinkling at the upper corners, all decorative details at the top and bottom edges only with the center left clean, no food items anywhere in the scene, kawaii flat illustration style with clean dark-brown outlines and solid flat fills, warm amber evening color palette, tall portrait 9:16, no text, no watermark, 8k resolution
 
-**bgl_hanami** *(Levels 5–6 — Kirschblüten-Picknick draussen, frühlingshaft):*
-Cute kawaii flat illustration of a Japanese cherry blossom outdoor scene seen from the front, a soft pastel sky blue filling the entire upper 80 percent of the frame as a smooth clean gradient from light blue at top to slightly lighter blue at the middle, two very small delicate sakura branches with pink five-petal blossoms peeking in only from the very top left corner and top right corner extending no more than 15 percent into the frame, two small simple white rounded clouds floating in the upper portion, only three or four tiny pink petals scattered loosely in the open sky, a simple soft green grass hill as a gentle arc across the bottom 15 percent with a clean smooth surface and no detailed flowers or grass textures, the large center area at least 65 percent of the frame is completely empty open sky, no faces on any object, no characters, no food items, kawaii flat illustration style with clean dark-brown outlines and solid flat pastel fills, fresh spring color palette, tall portrait 9:16, no text, no watermark, 8k resolution
+**bgl_konbini** *(Levels 5–6 — heller japanischer Konbini-Innenraum, modern/gemütlich):*
+Cute kawaii flat illustration of a bright Japanese convenience store konbini interior seen from the front, a clean white ceiling with a simple rectangular fluorescent light panel across the very top edge and a small colorful striped awning banner in red blue and green at the very top center, neat rows of colorful product shelving with tiny kawaii-faced bottles and snack boxes lining the left and right edges only, a warm light wood floor across the bottom 10 percent with a small cute potted plant with a kawaii face at the bottom left corner, a tiny maneki neko figurine at the bottom right corner, the large center area at least 70 percent of the frame showing a clean empty aisle with a smooth soft cream-white back wall and absolutely no objects, warm soft lighting with a cozy inviting glow, all product shelves and decorative details pushed strictly to the left and right side edges and the top and bottom, no food items in the center area, kawaii flat illustration style with clean soft dark-brown outlines and solid warm pastel fills matching a cozy Japanese interior aesthetic, bright but warm modern color palette, tall portrait 9:16, no text, no watermark, 8k resolution
 
 ### UI Card Prompts — Kawaii Flat
 
