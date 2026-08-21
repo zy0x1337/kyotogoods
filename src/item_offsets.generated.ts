@@ -24,27 +24,27 @@ export const ITEM_BOTTOM_OFFSETS: Record<string, number> = {
 
 // Lichte Weite der Nische je Hintergrund, gemessen an der fertigen Textur (Anteil der Bildbreite).
 export const BG_CAVITY_RATIOS: Record<string, number> = {
-  bg_kissa_niche: 0.6451,
-  bg_kissa_niche_mid: 0.6451,
-  bg_kissa_niche_wide: 0.8167,
-  bg_kissa_room: 0.4764,
-  bg_plaster: 0.9306,
-  bgl_niche_frame: 0.5592
+
 };
 
 // Lichte Nische als Rechteck in Bildanteilen: x ist die Mitte, y die Oberkante.
 export const BG_CAVITY_RECTS: Record<string, { x: number; y: number; w: number; h: number }> = {
-  bgl_niche_frame: { x: 0.5029, y: 0.1166, w: 0.5592, h: 0.7678 }
+  bgl_cabinet_6row: { x: 0.4983, y: 0.0115, w: 0.9042, h: 0.9599 }
 };
 
 // Aeussere Kontur eines freistehenden Rahmens in Bildanteilen.
 export const BG_FRAME_RECTS: Record<string, { x: number; y: number; w: number; h: number }> = {
-  bgl_niche_frame: { x: 0.5, y: 0.0682, w: 0.6819, h: 0.8674 }
+  bgl_cabinet_6row: { x: 0.501, y: 0.0107, w: 0.9215, h: 0.9813 }
 };
 
 // Auflageflaeche eines Regalbretts als Anteil seiner Bildhoehe.
 export const SHELF_PLATFORM_RATIOS: Record<string, number> = {
-  shelf_wood: 0.6769
+
+};
+
+// Y-Verhaeltnisse der Brettoberflaechen je Cabinet-Variante (0..1 relativ zur Bildhoehe).
+export const CABINET_SHELF_RATIOS: Record<string, number[]> = {
+  bgl_cabinet_6row: [0.0333, 0.1333, 0.2754, 0.4147, 0.5532, 0.6917, 0.8298, 0.9357]
 };
 
 // Dateiendung der erzeugten Texturen. Der Loader haengt sie an den Asset-Key an.
@@ -52,51 +52,30 @@ export const ASSET_EXT = 'webp';
 
 // Alle Texturen, die tatsaechlich in public/assets/items/ liegen.
 export const AVAILABLE_ASSETS: ReadonlySet<string> = new Set([
-  'bg_kissa_niche',
-  'bg_kissa_niche_mid',
-  'bg_kissa_niche_wide',
-  'bg_kissa_room',
-  'bg_plaster',
-  'bgl_cat',
+  'bgl_cabinet_6row',
   'bgl_clouds',
-  'bgl_dog',
   'bgl_hills',
   'bgl_lanterns',
   'bgl_meadow',
-  'bgl_niche_frame',
   'bgl_sky',
-  'brass_sphere',
   'btn_hammer',
   'btn_shuffle',
   'btn_undo',
-  'cast_iron_bell',
-  'chasen_whisk',
-  'chashaku_scoop',
   'chawan_cup',
   'chochin',
-  'coldbrew_flask',
-  'copper_caddy',
-  'dango_plate',
   'dango_stick',
   'daruma',
   'furoshiki',
   'fx_match_burst',
-  'gotoku_trivet',
   'incense_burner',
   'kissa_toast',
   'kokeshi',
-  'kuro_mame_dome',
   'maneki_neko',
-  'matcha_montblanc',
   'matcha_roll',
-  'mizuhiki_knot',
   'omamori',
   'onigiri',
-  'origami_dripper',
   'sake_tokkuri',
   'sensu_fan',
-  'shelf_wood',
-  'shou_sugi_block',
   'temari',
   'tetsubin_kettle',
   'torii_gate',

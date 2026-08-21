@@ -31,7 +31,7 @@ const BGL_BANDS = ['bgl_meadow'];
 // Layer, bei denen die Innenflaeche ausgestanzt wird, damit der Hintergrund
 // durchscheint. Der Render liefert das Gehaeuse mit geschlossener Putzrueckwand
 // -- ohne Ausstanzen waere die Gartenszene dahinter unsichtbar.
-const BGL_KNOCKOUT = ['bgl_niche_frame'];
+const BGL_KNOCKOUT = [];
 
 // Ausgabeformat. WebP statt PNG: die Vollbild-Ebenen laufen mit der doppelten
 // Kantenlaenge (siehe FRAME_WIDTH) und waeren als PNG zusammen ueber 10 MB
@@ -674,6 +674,108 @@ function measurePlatformRatio(data, width, height) {
   return parseFloat((bestY / height).toFixed(4));
 }
 
+function measureCabinetCavity(data, width, height, outerBox) {
+  const cy = outerBox.top + Math.floor(outerBox.height / 2);
+
+  const colLum = (x) => {
+    let sum = 0, n = 0;
+    for (let dy = -5; dy <= 5; dy++) {
+      const y = cy + dy;
+      if (y < 0 || y >= height) continue;
+      const i = (y * width + x) * 4;
+      if (data[i + 3] > 200) { sum += (data[i] + data[i + 1] + data[i + 2]) / 3; n++; }
+    }
+    return n > 0 ? sum / n : 0;
+  };
+
+  const oLeft = outerBox.left;
+  const oRight = outerBox.left + outerBox.width - 1;
+  const oTop = outerBox.top;
+  const oBottom = outerBox.top + outerBox.height - 1;
+
+  const centerLum = colLum(Math.floor((oLeft + oRight) / 2));
+  const threshold = centerLum * 0.9;
+
+  let innerLeft = oLeft;
+  for (let x = oLeft; x < Math.floor((oLeft + oRight) / 2); x++) {
+    if (colLum(x) >= threshold) { innerLeft = x; break; }
+  }
+  let innerRight = oRight;
+  for (let x = oRight; x > Math.floor((oLeft + oRight) / 2); x--) {
+    if (colLum(x) >= threshold) { innerRight = x; break; }
+  }
+
+  const cx = Math.floor((innerLeft + innerRight) / 2);
+  const rowLum = (y) => {
+    let sum = 0, n = 0;
+    for (let dx = -5; dx <= 5; dx++) {
+      const x = cx + dx;
+      if (x < innerLeft || x > innerRight) continue;
+      const i = (y * width + x) * 4;
+      if (data[i + 3] > 200) { sum += (data[i] + data[i + 1] + data[i + 2]) / 3; n++; }
+    }
+    return n > 0 ? sum / n : 0;
+  };
+  const centerRowLum = rowLum(cy);
+  const rowThreshold = centerRowLum * 0.85;
+
+  let innerTop = oTop;
+  for (let y = oTop; y < cy; y++) { if (rowLum(y) >= rowThreshold) { innerTop = y; break; } }
+  let innerBottom = oBottom;
+  for (let y = oBottom; y > cy; y--) { if (rowLum(y) >= rowThreshold) { innerBottom = y; break; } }
+
+  return { innerLeft, innerTop, innerRight, innerBottom };
+}
+
+function measureCabinetShelves(data, width, height, cavity) {
+  const { innerLeft, innerTop, innerRight, innerBottom } = cavity;
+  const scanX0 = innerLeft + Math.floor((innerRight - innerLeft) * 0.15);
+  const scanX1 = innerRight - Math.floor((innerRight - innerLeft) * 0.15);
+
+  const rowLum = new Float64Array(height);
+  for (let y = innerTop; y <= innerBottom; y++) {
+    let sum = 0, n = 0;
+    for (let x = scanX0; x <= scanX1; x++) {
+      const i = (y * width + x) * 4;
+      if (data[i + 3] > 200) { sum += (data[i] + data[i + 1] + data[i + 2]) / 3; n++; }
+    }
+    rowLum[y] = n > 0 ? sum / n : 0;
+  }
+
+  const smooth = new Float64Array(height);
+  for (let y = innerTop; y <= innerBottom; y++) {
+    let s = 0, c = 0;
+    for (let dy = -3; dy <= 3; dy++) {
+      const yy = y + dy;
+      if (yy >= innerTop && yy <= innerBottom && rowLum[yy] > 0) { s += rowLum[yy]; c++; }
+    }
+    smooth[y] = c > 0 ? s / c : 0;
+  }
+
+  const grad = new Float64Array(height);
+  for (let y = innerTop + 1; y <= innerBottom; y++) {
+    grad[y] = smooth[y - 1] - smooth[y];
+  }
+
+  const cavityH = innerBottom - innerTop;
+  const minSpacing = Math.floor(cavityH * 0.06);
+  const minGrad = 3;
+  const peaks = [];
+
+  for (let y = innerTop + 3; y <= innerBottom - 3; y++) {
+    if (grad[y] < minGrad) continue;
+    let isMax = true;
+    for (let dy = -minSpacing; dy <= minSpacing; dy++) {
+      if (dy === 0) continue;
+      const yy = y + dy;
+      if (yy >= innerTop && yy <= innerBottom && grad[yy] > grad[y]) { isMax = false; break; }
+    }
+    if (isMax) peaks.push(parseFloat((y / height).toFixed(4)));
+  }
+
+  return peaks;
+}
+
 async function processImages() {
   if (!fs.existsSync(RAW_DIR)) return;
   const files = fs.readdirSync(RAW_DIR).filter(f => {
@@ -686,6 +788,7 @@ async function processImages() {
   const cavityRects = {};
   const frameRects = {};
   const shelfPlatforms = {};
+  const cabinetShelfRatios = {};
   const produced = new Set();
 
   for (const file of files) {
@@ -732,6 +835,48 @@ async function processImages() {
         const targetH = Math.max(16, Math.round(box.height * (targetW / box.width)));
         await writeClean(pipeline.resize(targetW, targetH, { fit: 'fill' }), targetPath, key, EDGE_LAYER);
         console.log(`  ${baseName}: band ${box.width}x${box.height} -> ${targetW}x${targetH}`);
+        continue;
+      }
+
+      // Combined Cabinet: Rahmen + Bretter als Einheit, kein knockOutPanel.
+      if (baseName.startsWith('bgl_cabinet_')) {
+        const { data, info } = await sharp(filePath).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+        const key = detectKeyColor(data, info.width, info.height);
+        if (key.chroma) console.log(`    Chroma rgb(${key.r},${key.g},${key.b}), Schwelle ${findKeyThreshold(data, key).cut.toFixed(0)}`);
+        defringe(data, false, key);
+
+        const { filled } = fillInteriorHoles(data, info.width, info.height);
+        if (filled > 0) console.log(`    ${filled} Innenpixel wiederhergestellt`);
+
+        await sharp(data, { raw: { width: info.width, height: info.height, channels: 4 } })
+          .resize(FRAME_WIDTH, null, { fit: 'inside' })
+          .webp(ENCODE)
+          .toFile(targetPath);
+
+        const { data: od, info: oi } = await sharp(targetPath).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+        const outer = findAlphaBox(od, oi.width, oi.height, 40);
+        if (outer) {
+          frameRects[baseName] = {
+            x: parseFloat(((outer.left + outer.width / 2) / oi.width).toFixed(4)),
+            y: parseFloat((outer.top / oi.height).toFixed(4)),
+            w: parseFloat((outer.width / oi.width).toFixed(4)),
+            h: parseFloat((outer.height / oi.height).toFixed(4))
+          };
+          console.log(`  ${baseName}: Kontur ${outer.width}x${outer.height}`);
+
+          const cavity = measureCabinetCavity(od, oi.width, oi.height, outer);
+          cavityRects[baseName] = {
+            x: parseFloat(((cavity.innerLeft + cavity.innerRight) / 2 / oi.width).toFixed(4)),
+            y: parseFloat((cavity.innerTop / oi.height).toFixed(4)),
+            w: parseFloat(((cavity.innerRight - cavity.innerLeft + 1) / oi.width).toFixed(4)),
+            h: parseFloat(((cavity.innerBottom - cavity.innerTop + 1) / oi.height).toFixed(4))
+          };
+          console.log(`  ${baseName}: Kavitaet ${cavity.innerRight - cavity.innerLeft + 1}x${cavity.innerBottom - cavity.innerTop + 1}`);
+
+          const shelves = measureCabinetShelves(od, oi.width, oi.height, cavity);
+          cabinetShelfRatios[baseName] = shelves;
+          console.log(`  ${baseName}: ${shelves.length} Bretter bei ${shelves.map(s => s.toFixed(4)).join(', ')}`);
+        }
         continue;
       }
 
@@ -888,6 +1033,10 @@ async function processImages() {
     .map(id => `  ${id}: ${shelfPlatforms[id]}`)
     .join(',\n');
 
+  const cabinetLines = Object.keys(cabinetShelfRatios).sort()
+    .map(id => `  ${id}: [${cabinetShelfRatios[id].join(', ')}]`)
+    .join(',\n');
+
   const assetLines = [...produced].sort()
     .map(id => `  '${id}'`)
     .join(',\n');
@@ -919,6 +1068,11 @@ ${frameLines}
 // Auflageflaeche eines Regalbretts als Anteil seiner Bildhoehe.
 export const SHELF_PLATFORM_RATIOS: Record<string, number> = {
 ${platformLines}
+};
+
+// Y-Verhaeltnisse der Brettoberflaechen je Cabinet-Variante (0..1 relativ zur Bildhoehe).
+export const CABINET_SHELF_RATIOS: Record<string, number[]> = {
+${cabinetLines}
 };
 
 // Dateiendung der erzeugten Texturen. Der Loader haengt sie an den Asset-Key an.
