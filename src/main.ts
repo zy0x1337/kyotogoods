@@ -1198,9 +1198,30 @@ export class GameScene extends Phaser.Scene {
       emptyLayout, this.grid.getItemScale(), this.grid.getRowWidth(), true
     );
 
+    // Slot-Markierungen: das Grid ist absichtlich rahmenlos, und ein leeres
+    // Extra-Shelf hat weder Items noch Ghosts -- ohne Markierung waere der
+    // neue Streifen voellig unsichtbar. Die Messing-Outlines blinken einmal
+    // kurz auf und verschwinden dann wieder.
+    const ms = this.grid.getItemScale();
+    const marks = this.add.graphics();
+    marks.lineStyle(2 * ms, KYOTO.brass, 0.55);
+    [-1, 0, 1].forEach(i => {
+      marks.strokeRoundedRect(i * shelf.spacing - 34 * ms, -36 * ms, 68 * ms, 54 * ms, 10 * ms);
+    });
+    marks.setAlpha(0);
+    shelf.add(marks);
+
     // Kurzer Auftritt, damit der neue Spielfeld-Streifen nicht unbemerkt bleibt.
     shelf.setAlpha(0).setScale(0.6);
     this.tweens.add({ targets: shelf, alpha: 1, scale: 1, duration: 320, ease: 'Back.easeOut' });
+    this.tweens.chain({
+      targets: marks,
+      tweens: [
+        { alpha: 1, duration: 240 },
+        { alpha: 0, duration: 400, delay: 900 }
+      ],
+      onComplete: () => marks.destroy()
+    });
 
     this.shelves.push(shelf);
     this.game.events.emit(GameEvents.EXTRA_SHELF_STATE);

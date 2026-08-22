@@ -27,13 +27,16 @@ export const ASSET_EXT = 'webp';
 
 // Alle Texturen, die tatsaechlich in public/assets/items/ liegen.
 export const AVAILABLE_ASSETS: ReadonlySet<string> = new Set([
+  'bento_box',
   'bgl_kitchen',
   'bgl_konbini',
   'bgl_yatai',
+  'btn_extra_shelf',
   'btn_hammer',
   'btn_shuffle',
   'btn_undo',
   'dango',
+  'deco_tamagoyaki_roll',
   'dorayaki',
   'edamame',
   'fx_match_burst',
