@@ -1088,7 +1088,9 @@ export class GridManager {
     this.level = level;
 
     const { width, height } = scene.scale;
-    this.itemScale = getLayoutScale(width);
+    // Lesbarkeitsgrenze: unter 0.85 versanden die Items (Silhouetten-Regel,
+    // CLAUDE.md Abschnitt 3) -- bei 6 Reihen auf kleinen Screens relevant.
+    this.itemScale = Math.max(getLayoutScale(width), 0.85);
     this.shelfWidth = Math.round(width * 0.78);
 
     const rows = level.layout.length;
@@ -1742,6 +1744,14 @@ function boot() {
     width: size.width,
     height: size.height,
     backgroundColor: '#F3EFEA',
+    render: {
+      // Trilineares Mipmapping fuer alle POT-Texturen. Die Items kommen als
+      // 512er-Zweierpotenz aus der Pipeline; Phaser 3.90 generiert deren
+      // Mipmaps beim Upload automatisch und schaltet hier den Min-Filter um.
+      // Non-POT-Texturen (bgl_-Szenen, UI-Karten) fallen automatisch auf
+      // bilinear ohne Mipmaps zurueck.
+      mipmapFilter: 'LINEAR_MIPMAP_LINEAR'
+    },
     scale: {
       // NONE statt RESIZE: nur hier ist die Canvas-Aufloesung von der
       // Anzeigegroesse entkoppelt. RESIZE setzt canvas.width hart auf die

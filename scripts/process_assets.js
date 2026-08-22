@@ -22,10 +22,15 @@ const ENCODE = { quality: 95, alphaQuality: 100, effort: 6 };
 
 const FRAME_WIDTH = 1440;
 const CARD_HEIGHT = 256;
-const TARGET_SIZE = 384;
+// Zweierpotenz: WebGL kann nur von POT-Texturen Mipmaps generieren. Bei 384
+// flimmerten duenne Outlines beim Downsampling auf ~58px * DPR (kein trilinear
+// moeglich). 512 + mipmapFilter in der Game-Config behebt das.
+const TARGET_SIZE = 512;
 
-const EDGE_SPRITE = 8;
-const EDGE_LAYER = 6;
+// Despill-Radius ist eine Pixelbreite am FERTIGEN Bild -- muss mit
+// TARGET_SIZE mitwachsen (512/384), siehe CLAUDE.md Abschnitt 4.
+const EDGE_SPRITE = 11;
+const EDGE_LAYER = 8;
 
 const ITEM_DISPLAY_SIZE = 72;
 const DEFAULT_OFFSET = 36;
