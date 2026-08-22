@@ -2,6 +2,8 @@ import '@fontsource/m-plus-rounded-1c/latin-500.css';
 import '@fontsource/m-plus-rounded-1c/latin-800.css';
 import Phaser from 'phaser';
 import { ITEM_BOTTOM_OFFSETS, AVAILABLE_ASSETS, ASSET_EXT } from './item_offsets.generated';
+import { generateLevel, isBossLevel, LEVEL_COUNT, LEVEL_PARAMS } from './levels';
+import type { LevelDefinition, SlotDef } from './levels';
 
 // ==========================================
 // 1. CMF DESIGN SYSTEM & ITEM REGISTRY
@@ -61,11 +63,15 @@ const ITEM_SIZE = 58;
 const ITEM_OFFSET_SCALE = ITEM_SIZE / ITEM_OFFSET_BASE;
 const DEFAULT_ITEM_BOTTOM_OFFSET = 36;
 
-// Hintergrund-Szenen je Level-Gruppe. Levels 1-2 = kitchen, 3-4 = yatai, 5-6 = konbini.
-const LEVEL_BG_KEYS = ['bgl_kitchen', 'bgl_kitchen', 'bgl_yatai', 'bgl_yatai', 'bgl_konbini', 'bgl_konbini'];
+// Hintergrund-Szenen. Bei 30 Levels und drei Szenen wechselt der Schauplatz
+// alle fuenf Levels und rotiert danach weiter -- der Wechsel faellt so mit den
+// Sprungpunkten der Schwierigkeitskurve zusammen.
+const LEVEL_BG_KEYS = ['bgl_kitchen', 'bgl_yatai', 'bgl_konbini'];
+const LEVELS_PER_BG = 5;
 
 function getLevelBgKey(level: number): string | undefined {
-  const key = LEVEL_BG_KEYS[level - 1] ?? LEVEL_BG_KEYS[0];
+  const group = Math.floor(Math.max(level - 1, 0) / LEVELS_PER_BG) % LEVEL_BG_KEYS.length;
+  const key = LEVEL_BG_KEYS[group];
   return key && AVAILABLE_ASSETS.has(key) ? key : undefined;
 }
 
@@ -114,213 +120,6 @@ export const ITEMS: Record<string, ItemDef> = {
   'inarizushi':      { id: 'inarizushi',      name: 'Inarizushi',      baseColor: 0xDAA520,       accentColor: KYOTO.cream, detailColor: 0xB8860B, shape: 'pouch' },
 };
 
-type SlotData = { front: string | null; queue: string[] };
-
-interface LevelDefinition {
-  moves: number;
-  targetMatches: number;
-  layout: SlotData[][];
-}
-
-const LEVELS: LevelDefinition[] = [
-  // Level 1 � 4 Reihen, 4 Matches, Tutorial
-  {
-    moves: 8,
-    targetMatches: 4,
-    layout: [
-      [
-        { front: 'onigiri', queue: [] },
-        { front: 'onigiri', queue: [] },
-        { front: null, queue: ['gyoza'] }
-      ],
-      [
-        { front: 'onigiri', queue: ['ramen'] },
-        { front: 'ramen', queue: [] },
-        { front: null, queue: [] }
-      ],
-      [
-        { front: 'ramen', queue: [] },
-        { front: 'gyoza', queue: [] },
-        { front: null, queue: ['mochi'] }
-      ],
-      [
-        { front: 'gyoza', queue: [] },
-        { front: 'mochi', queue: [] },
-        { front: 'mochi', queue: [] }
-      ]
-    ]
-  },
-  // Level 2 � 5 Reihen, 5 Matches
-  {
-    moves: 11,
-    targetMatches: 5,
-    layout: [
-      [
-        { front: 'dango', queue: [] },
-        { front: 'dango', queue: [] },
-        { front: null, queue: ['nigiri'] }
-      ],
-      [
-        { front: 'dango', queue: ['maki'] },
-        { front: 'nigiri', queue: [] },
-        { front: null, queue: [] }
-      ],
-      [
-        { front: 'nigiri', queue: [] },
-        { front: 'maki', queue: [] },
-        { front: null, queue: ['temaki'] }
-      ],
-      [
-        { front: 'maki', queue: ['matcha_latte'] },
-        { front: 'temaki', queue: [] },
-        { front: null, queue: [] }
-      ],
-      [
-        { front: 'temaki', queue: [] },
-        { front: 'matcha_latte', queue: [] },
-        { front: 'matcha_latte', queue: [] }
-      ]
-    ]
-  },
-  // Level 3 � 5 Reihen, 6 Matches
-  {
-    moves: 13,
-    targetMatches: 6,
-    layout: [
-      [
-        { front: 'onigiri', queue: [] },
-        { front: 'onigiri', queue: [] },
-        { front: null, queue: ['gyoza'] }
-      ],
-      [
-        { front: 'onigiri', queue: ['ramen'] },
-        { front: 'ramen', queue: [] },
-        { front: 'purin', queue: [] }
-      ],
-      [
-        { front: 'ramen', queue: [] },
-        { front: 'gyoza', queue: [] },
-        { front: null, queue: ['edamame', 'purin'] }
-      ],
-      [
-        { front: 'gyoza', queue: [] },
-        { front: 'edamame', queue: [] },
-        { front: null, queue: ['tamagoyaki'] }
-      ],
-      [
-        { front: 'edamame', queue: ['purin'] },
-        { front: 'tamagoyaki', queue: [] },
-        { front: 'tamagoyaki', queue: [] }
-      ]
-    ]
-  },
-  // Level 4 � 5 Reihen, 7 Matches
-  {
-    moves: 15,
-    targetMatches: 7,
-    layout: [
-      [
-        { front: 'wagashi', queue: [] },
-        { front: 'wagashi', queue: [] },
-        { front: null, queue: ['dorayaki', 'temaki'] }
-      ],
-      [
-        { front: 'wagashi', queue: ['yakitori'] },
-        { front: 'dorayaki', queue: [] },
-        { front: 'mochi', queue: ['temaki'] }
-      ],
-      [
-        { front: 'dorayaki', queue: [] },
-        { front: 'yakitori', queue: [] },
-        { front: null, queue: ['kakigori', 'mochi', 'nigiri'] }
-      ],
-      [
-        { front: 'yakitori', queue: [] },
-        { front: 'kakigori', queue: [] },
-        { front: null, queue: ['nigiri'] }
-      ],
-      [
-        { front: 'kakigori', queue: ['nigiri'] },
-        { front: 'mochi', queue: [] },
-        { front: 'temaki', queue: [] }
-      ]
-    ]
-  },
-  // Level 5 � 6 Reihen, 8 Matches
-  {
-    moves: 16,
-    targetMatches: 8,
-    layout: [
-      [
-        { front: 'ichigo_daifuku', queue: [] },
-        { front: 'ichigo_daifuku', queue: [] },
-        { front: null, queue: ['inarizushi'] }
-      ],
-      [
-        { front: 'ichigo_daifuku', queue: ['sakura_mochi'] },
-        { front: 'inarizushi', queue: [] },
-        { front: 'dango', queue: [] }
-      ],
-      [
-        { front: 'inarizushi', queue: [] },
-        { front: 'sakura_mochi', queue: [] },
-        { front: null, queue: ['gyoza', 'dango'] }
-      ],
-      [
-        { front: 'sakura_mochi', queue: [] },
-        { front: 'gyoza', queue: [] },
-        { front: null, queue: ['maki', 'maki'] }
-      ],
-      [
-        { front: 'gyoza', queue: ['maki', 'matcha_latte'] },
-        { front: 'matcha_latte', queue: [] },
-        { front: 'matcha_latte', queue: [] }
-      ],
-      [
-        { front: 'dango', queue: ['edamame'] },
-        { front: 'edamame', queue: [] },
-        { front: 'edamame', queue: [] }
-      ]
-    ]
-  },
-  // Level 6 � 6 Reihen, 10 Matches
-  {
-    moves: 18,
-    targetMatches: 10,
-    layout: [
-      [
-        { front: 'tamagoyaki', queue: [] },
-        { front: 'tamagoyaki', queue: [] },
-        { front: 'purin', queue: ['ichigo_daifuku', 'inarizushi'] }
-      ],
-      [
-        { front: 'purin', queue: [] },
-        { front: 'purin', queue: [] },
-        { front: 'wagashi', queue: ['ichigo_daifuku', 'sakura_mochi'] }
-      ],
-      [
-        { front: 'wagashi', queue: [] },
-        { front: 'wagashi', queue: [] },
-        { front: 'dorayaki', queue: ['inarizushi', 'gyoza'] }
-      ],
-      [
-        { front: 'dorayaki', queue: [] },
-        { front: 'dorayaki', queue: [] },
-        { front: 'yakitori', queue: ['sakura_mochi', 'gyoza'] }
-      ],
-      [
-        { front: 'yakitori', queue: [] },
-        { front: 'yakitori', queue: [] },
-        { front: 'kakigori', queue: ['ichigo_daifuku', 'sakura_mochi'] }
-      ],
-      [
-        { front: 'kakigori', queue: [] },
-        { front: 'kakigori', queue: [] },
-        { front: null, queue: ['tamagoyaki', 'inarizushi', 'gyoza'] }
-      ]
-    ]
-  }
-];
 
 // ==========================================
 // 2. PROCEDURAL AUDIO & MOBILE HAPTICS
@@ -449,6 +248,35 @@ class ZenAudioEngine {
       osc.stop(this.ctx.currentTime + 1.85);
     });
   }
+
+  /** Relief-Fanfare: kurzes aufsteigendes Arpeggio beim Board-Wachstum.
+   *  Kuerzer und trockener als playWin -- es feiert den Levelstart, nicht das Ende. */
+  public playFanfare() {
+    this.initOnGesture();
+    this.vibrate([25, 40, 25, 40, 60]);
+    if (!this.ctx || this.ctx.state === 'suspended') return;
+
+    // Pentatonisch aufsteigend, passend zur Tonleiter der Match-Sounds.
+    [523.25, 587.33, 698.46, 783.99, 1046.5].forEach((freq, i) => {
+      if (!this.ctx) return;
+      const t0 = this.ctx.currentTime + i * 0.09;
+      const osc = this.ctx.createOscillator();
+      const g = this.ctx.createGain();
+
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, t0);
+
+      g.gain.setValueAtTime(0, t0);
+      g.gain.linearRampToValueAtTime(0.2, t0 + 0.015);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.55);
+
+      osc.connect(g);
+      g.connect(this.ctx.destination);
+
+      osc.start(t0);
+      osc.stop(t0 + 0.6);
+    });
+  }
 }
 export const ZenAudio = new ZenAudioEngine();
 
@@ -473,8 +301,31 @@ export interface MoveRecord {
   itemId: string;
 }
 
+// Fortschritt ueberlebt Reloads. Ein Web-Build wird staendig neu geladen --
+// ohne das faengt der Spieler jedes Mal bei Level 1 an.
+const LEVEL_STORAGE_KEY = 'kyoto_level';
+
+function loadSavedLevel(): number {
+  try {
+    const raw = window.localStorage.getItem(LEVEL_STORAGE_KEY);
+    const lvl = raw === null ? NaN : parseInt(raw, 10);
+    return Number.isFinite(lvl) ? Phaser.Math.Clamp(lvl, 1, LEVEL_COUNT) : 1;
+  } catch {
+    // Privater Modus / blockierter Storage: Fortschritt ist dann fluechtig.
+    return 1;
+  }
+}
+
+function saveLevel(level: number) {
+  try {
+    window.localStorage.setItem(LEVEL_STORAGE_KEY, String(level));
+  } catch {
+    /* siehe loadSavedLevel */
+  }
+}
+
 export const State = {
-  currentLevel: 1,
+  currentLevel: loadSavedLevel(),
   score: 0,
   moves: 22,
   initialMoves: 22,
@@ -656,7 +507,10 @@ export class Shelf extends Phaser.GameObjects.Container {
   public shelfIdx: number;
   public slots: (GoodsItem | null)[] = [null, null, null];
   public queues: string[][] = [[], [], []];
+  /** Gesperrte Slots nehmen kein Item auf, bis in dieser Reihe ein Match faellt. */
+  public locked: boolean[] = [false, false, false];
   private ghosts: (Phaser.GameObjects.Image | Phaser.GameObjects.Graphics | null)[] = [null, null, null];
+  private lockMarks: (Phaser.GameObjects.Graphics | null)[] = [null, null, null];
   public readonly spacing: number;
   public readonly shelfWidth: number;
   public readonly shelfHeight: number;
@@ -669,7 +523,7 @@ export class Shelf extends Phaser.GameObjects.Container {
   public readonly hitTop: number;
   public readonly hitBottom: number;
 
-  constructor(scene: Phaser.Scene, x: number, y: number, shelfIdx: number, data: { front: string | null; queue: string[] }[], itemScale = 1, shelfWidth = 304, boardless = false) {
+  constructor(scene: Phaser.Scene, x: number, y: number, shelfIdx: number, data: SlotDef[], itemScale = 1, shelfWidth = 304, boardless = false) {
     super(scene, x, y);
     this.shelfIdx = shelfIdx;
     this.itemScale = itemScale;
@@ -718,9 +572,11 @@ export class Shelf extends Phaser.GameObjects.Container {
     this.add(g);
   }
 
-  private initSlots(data: { front: string | null; queue: string[] }[]) {
+  private initSlots(data: SlotDef[]) {
     data.forEach((slot, i) => {
       this.queues[i] = [...slot.queue];
+      this.locked[i] = slot.locked === true;
+      if (this.locked[i]) this.drawLockMark(i);
       if (slot.front) {
         const restY = getItemRestY(slot.front, this.itemScale, this.platformY);
         const item = new GoodsItem(this.scene, (i - 1) * this.spacing, restY, slot.front, this.itemScale, restY);
@@ -767,12 +623,55 @@ export class Shelf extends Phaser.GameObjects.Container {
     this.ghosts[i] = ghost;
   }
 
+  /** Siegel ueber dem gesperrten Slot: dunkle Platte mit Messing-Kette.
+   *  Procedural gezeichnet -- die Kawaii-Flat-Pipeline kennt kein Blocker-Asset. */
+  private drawLockMark(i: number) {
+    const s = this.itemScale;
+    const x = (i - 1) * this.spacing;
+    const y = this.platformY - 30 * s;
+
+    const g = this.scene.add.graphics();
+    g.fillStyle(KYOTO.kuroSteel, 0.82).fillRoundedRect(-26 * s, -26 * s, 52 * s, 52 * s, 12 * s);
+    g.lineStyle(2.5 * s, KYOTO.brass, 0.9).strokeRoundedRect(-26 * s, -26 * s, 52 * s, 52 * s, 12 * s);
+    // Buegel und Korpus eines Schlosses
+    g.lineStyle(3 * s, KYOTO.brass, 1).beginPath();
+    g.arc(0, -4 * s, 8 * s, Math.PI, 0);
+    g.strokePath();
+    g.fillStyle(KYOTO.brass, 1).fillRoundedRect(-10 * s, -4 * s, 20 * s, 16 * s, 3 * s);
+    g.fillStyle(KYOTO.kuroSteel, 1).fillCircle(0, 3 * s, 2.5 * s);
+    g.setPosition(x, y);
+
+    this.add(g);
+    this.lockMarks[i] = g;
+  }
+
+  /** Ein Match in dieser Reihe loest alle ihre Sperren. */
+  public unlockRow() {
+    this.locked.forEach((isLocked, i) => {
+      if (!isLocked) return;
+      this.locked[i] = false;
+
+      const mark = this.lockMarks[i];
+      this.lockMarks[i] = null;
+      if (!mark) return;
+
+      this.scene.tweens.add({
+        targets: mark,
+        scale: 1.7,
+        alpha: 0,
+        duration: 320,
+        ease: 'Back.easeIn',
+        onComplete: () => mark.destroy()
+      });
+    });
+  }
+
   public getFirstEmptySlot(): number {
-    return this.slots.findIndex(s => s === null);
+    return this.slots.findIndex((s, i) => s === null && !this.locked[i]);
   }
 
   public insertItem(i: number, item: GoodsItem, fromWorld?: { x: number; y: number }): boolean {
-    if (this.slots[i] !== null) return false;
+    if (this.slots[i] !== null || this.locked[i]) return false;
     this.slots[i] = item;
     this.add(item);
 
@@ -1190,11 +1089,34 @@ export class GameScene extends Phaser.Scene {
   }
 
   private buildLevel(lvl: number) {
-    const level = LEVELS[lvl - 1] ?? LEVELS[0];
+    const level = generateLevel(lvl - 1, Object.keys(ITEMS));
     State.reset(level.moves, level.targetMatches);
 
     this.grid = new GridManager(this, level);
     this.shelves = this.grid.buildAll();
+
+    // Board-Wachstum feiern (Befund 8): nach einer Wall bekommt der Spieler
+    // mehr Platz -- das darf man sehen und hoeren, sonst verpufft die Entlastung.
+    const prevRows = LEVEL_PARAMS[lvl - 2]?.rows ?? 0;
+    if (level.relief && level.layout.length > prevRows) this.playReliefIntro();
+  }
+
+  private playReliefIntro() {
+    ZenAudio.playFanfare();
+
+    const drop = 40 * this.grid.getItemScale();
+    this.shelves.forEach((shelf, i) => {
+      const restY = shelf.y;
+      shelf.setY(restY - drop).setAlpha(0);
+      this.tweens.add({
+        targets: shelf,
+        y: restY,
+        alpha: 1,
+        duration: 300,
+        delay: i * 90,
+        ease: 'Back.easeOut'
+      });
+    });
   }
 
   private onPointerDown(p: Phaser.Input.Pointer) {
@@ -1260,8 +1182,9 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  private onMatched({ worldX, worldY }: { worldX: number; worldY: number }) {
+  private onMatched({ shelfIdx, worldX, worldY }: { shelfIdx: number; worldX: number; worldY: number }) {
     State.matchesMade++;
+    this.unlockNear(shelfIdx);
     const pointsGained = 100 * State.combo;
     State.score += pointsGained;
     State.combo = Math.min(State.combo + 1, 5);
@@ -1312,6 +1235,14 @@ export class GameScene extends Phaser.Scene {
     // ausloesen. Jedes Match schiebt den Lose-Check daher erneut nach hinten:
     // eine Match-Kette braucht pro Glied max. ~530 ms, das Fenster ist 650 ms.
     if (State.moves <= 0) this.scheduleLoseCheck();
+  }
+
+  /** Ein Match loest die Sperren der eigenen und der direkt benachbarten Reihe.
+   *  Die Reihe des Blockers allein kann sich nicht befreien: ein Match braucht
+   *  drei besetzte Front-Slots, ein gesperrter Slot ist aber immer leer. Die
+   *  Nachbarreihen sind daher der einzige Weg, der immer offen steht. */
+  private unlockNear(shelfIdx: number) {
+    [shelfIdx - 1, shelfIdx, shelfIdx + 1].forEach(i => this.shelves[i]?.unlockRow());
   }
 
   /** Verzoerter Fail-State-Check: laufende Match-Tweens (Wurfparabel,
@@ -1375,7 +1306,7 @@ export class GameScene extends Phaser.Scene {
 
     this.shelves.forEach(s => {
       for (let i = 0; i < 3; i++) {
-        if (active.length > 0 && s.slots[i] === null) {
+        if (active.length > 0 && s.slots[i] === null && !s.locked[i]) {
           const id = active.pop()!;
           const restY = getItemRestY(id, s.itemScale, s.platformY);
           const it = new GoodsItem(this, (i - 1) * s.spacing, restY, id, s.itemScale, restY);
@@ -1577,7 +1508,10 @@ export class WinModalScene extends Phaser.Scene {
     const bg = this.add.graphics().fillStyle(KYOTO.cream, 1).fillRoundedRect(-cardW / 2, -cardH / 2, cardW, cardH, 16 * s);
     bg.lineStyle(2 * s, KYOTO.hinoki, 0.7).strokeRoundedRect(-cardW / 2, -cardH / 2, cardW, cardH, 16 * s);
 
-    const title = this.add.text(0, -85 * s, `TEA BAR ${State.currentLevel} CLEARED`, valueStyle(18 * s, '#1E2022')).setOrigin(0.5);
+    // Der Boss-Level schliesst den Bogen ab -- die Meta-Belohnung folgt in Session 8.
+    const boss = isBossLevel(State.currentLevel);
+    const titleText = boss ? 'BENTO UNLOCKED!' : `TEA BAR ${State.currentLevel} CLEARED`;
+    const title = this.add.text(0, -85 * s, titleText, valueStyle(18 * s, boss ? '#4A6B47' : '#1E2022')).setOrigin(0.5);
 
     // 3-Sterne Bewertung
     const movesRatio = State.moves / State.initialMoves;
@@ -1601,11 +1535,12 @@ export class WinModalScene extends Phaser.Scene {
 
     const btn = this.add.container(0, 65 * s);
     const btnBg = this.add.graphics().fillStyle(KYOTO.matcha, 1).fillRoundedRect(-65 * s, -20 * s, 130 * s, 40 * s, 10 * s);
-    const btnTxt = this.add.text(0, 0, 'NEXT BAR', valueStyle(14 * s, '#FFFFFF')).setOrigin(0.5);
+    const btnTxt = this.add.text(0, 0, boss ? 'PLAY AGAIN' : 'NEXT BAR', valueStyle(14 * s, '#FFFFFF')).setOrigin(0.5);
 
     btn.add([btnBg, btnTxt]).setSize(130 * s, 40 * s).setInteractive({ useHandCursor: true });
     btn.on('pointerdown', () => {
-      State.currentLevel = State.currentLevel >= LEVELS.length ? 1 : State.currentLevel + 1;
+      State.currentLevel = State.currentLevel >= LEVEL_COUNT ? 1 : State.currentLevel + 1;
+      saveLevel(State.currentLevel);
       this.scene.stop('WinModalScene');
       this.scene.get('GameScene').scene.restart();
     });
@@ -1704,6 +1639,7 @@ export class LoseModalScene extends Phaser.Scene {
     });
 
     const retryBtn = this.makeButton(0, 68 * s, 'RETRY', KYOTO.matcha, () => {
+      saveLevel(State.currentLevel);
       this.scene.stop();
       this.scene.get('GameScene').scene.restart();
     });
