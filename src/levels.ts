@@ -200,7 +200,12 @@ const MAX_ATTEMPTS = 64;
 export function generateLevel(index0: number, itemPool: string[]): LevelDefinition {
   const idx = Math.min(Math.max(index0, 0), LEVEL_COUNT - 1);
   const rp = resolveParams(LEVEL_PARAMS[idx]);
-  const pool = itemPool.slice(0, Math.min(rp.poolSize, itemPool.length));
+  // Pool rotieren: Ein nacktes slice(0, n) wuerde immer dieselben ersten n
+  // IDs nehmen -- der Rest des Katalogs saehe nie das Licht. Der Level-Seed
+  // mischt daher den kompletten Pool, und erst daraus ziehen wir n Items.
+  // Weiterhin deterministisch je Level, aber Level uebergreifend anders.
+  const mixed = shuffle(mulberry32(idx * 2654435761 + 101), [...itemPool]);
+  const pool = mixed.slice(0, Math.min(rp.poolSize, itemPool.length));
 
   let result = buildLayout(mulberry32(idx + 1), rp, pool);
   for (let attempt = 1; attempt < MAX_ATTEMPTS && hasReadyMatch(result.layout); attempt++) {

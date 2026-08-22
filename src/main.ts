@@ -721,6 +721,14 @@ export class Shelf extends Phaser.GameObjects.Container {
     const travel = { t: 0 };
     const point = new Phaser.Math.Vector2();
 
+    // Laufende Selektions-Tweens stoppen, bevor der Impuls-Tween unten
+    // startet: Er capurt seinen Startwert sonst mitten im Deselect-Tween
+    // (Scale ~1.1) und yoyot dorthin zurueck -- das Item bliebe dauerhaft
+    // vergroessert gegenueber unberuehrten Items. Die Position uebernimmt
+    // ab hier der Parabel-Flight, das gekillte Y-Tween ist folgenlos.
+    this.scene.tweens.killTweensOf(item);
+    item.setScale(1);
+
     this.scene.tweens.add({
       targets: travel,
       t: 1,
@@ -975,6 +983,7 @@ export class PreloadScene extends Phaser.Scene {
     loadOptional('btn_extra_shelf');
     // Bento-Meta (Session 8): Box und Dekos optional -- bis die Reve-Renders
     // vorliegen, zeichnen WinModal und BentoScene Procedural-Platzhalter.
+    loadOptional('bgl_tatami');
     loadOptional('bento_box');
     DECO_IDS.forEach(id => loadOptional(id));
     this.load.image('ui_star', `assets/items/ui_star.${ASSET_EXT}`);
@@ -1058,7 +1067,10 @@ export class GridManager {
     this.shelfWidth = Math.round(width * 0.78);
 
     const rows = level.layout.length;
-    this.gridTop = 100 * this.itemScale;
+    // 126 statt 100: Header-Band (Score/Level/Moves bis ~70 design px plus
+    // Selection-Lift von 14 px) bleibt frei -- die erste Reihe kollidiert
+    // nicht mehr mit der Schrift.
+    this.gridTop = 126 * this.itemScale;
     // 136 statt 100: unter dem Grid bleibt ein Streifen fuer den Extra-Shelf-
     // Booster reserviert, ohne dass die letzte Reihe sichtbar zusammenrueckt.
     const gridBottom = height - 136 * this.itemScale;
@@ -1485,6 +1497,27 @@ export function addCardNineSlice(
   return ns;
 }
 
+/** Modal-Panel-Flaeche: bgl_tatami als Fuellung, per Geometry-Mask auf das
+ *  abgerundete Rechteck zugeschnitten -- statt flacher Creme-Flaeche. Ohne
+ *  Textur faellt der Aufrufer auf seine eigene Fuellung zurueck (Rueckgabe
+ *  false). Der Messing-Rahmen bleibt Sache des Aufrufers. */
+function addPanelFill(
+  scene: Phaser.Scene,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  radius: number
+): boolean {
+  if (!scene.textures.exists('bgl_tatami')) return false;
+
+  const img = scene.add.image(x, y, 'bgl_tatami').setDisplaySize(w, h);
+  const maskG = scene.make.graphics();
+  maskG.fillStyle(0xFFFFFF, 1).fillRoundedRect(x - w / 2, y - h / 2, w, h, radius);
+  img.setMask(maskG.createGeometryMask());
+  return true;
+}
+
 /** Deko-Anzeige fuer Bento-Journal und BentoScene: Textur falls geladen,
  *  sonst Procedural-Platzhalter -- RoundedRect in Grundfarbe mit Kawaii-
  *  Mini-Face (zwei Punktaugen, Laechelbogen). Der Container liegt bei (0,0),
@@ -1530,16 +1563,27 @@ export class UIScene extends Phaser.Scene {
     const { width, height } = this.scale;
     const uiScale = getLayoutScale(width);
 
-    // Header. Die UI-Karten (ui_card_kuro / ui_card_hinoki) sind bewusst nicht
-    // gezeichnet -- der Text steht frei ueber der Gartenszene. Die Assets und
-    // addCardNineSlice bleiben erhalten, falls die Platten zurueckkommen.
+    // Lesbarkeits-Schleier: dunkler Verlauf hinter dem Header, der nach
+    // unten ausfaedelt. Hält SCORE/LEVEL/MOVES von Hintergrund-Elementen
+    // getrennt, ohne eine harte Kante zu ziehen.
+    const scrim = this.add.graphics();
+    scrim.fillGradientStyle(
+      KYOTO.kuroSteel, KYOTO.kuroSteel,
+      KYOTO.kuroSteel, KYOTO.kuroSteel,
+      0.38, 0.38, 0, 0
+    );
+    scrim.fillRect(0, 0, width, 92 * uiScale);
+
+    // Header ohne Plakette: der Text steht frei ueber der Szene.
     const pad = 26 * uiScale;
     const labelY = 30 * uiScale;
     const valueY = 56 * uiScale;
+    // Aussenspalten so breit wie noetig, damit die Bloecke nicht am Rand kleben
+    const colW = 78 * uiScale;
 
     // Dunkle Schrift plus heller Schein, damit sie sowohl auf Himmel als auch
     // auf Huegeln lesbar bleibt.
-    const LABEL = '#5C4B33';
+    const LABEL = '#42392B';
     const VALUE = '#1E2022';
     const halo = {
       shadow: { offsetX: 0, offsetY: 0, color: '#FDFBF7', blur: 8 * uiScale, stroke: true, fill: true }
@@ -1552,13 +1596,11 @@ export class UIScene extends Phaser.Scene {
       return this.add.text(cx, valueY, initial, { ...valueStyle(24 * uiScale, VALUE), ...halo }).setOrigin(0.5);
     };
 
-    // Aussenspalten so breit wie noetig, damit die Bloecke nicht am Rand kleben
-    const colW = 78 * uiScale;
     this.scoreTxt = stack(pad + colW / 2, 'SCORE', '0');
-    const teaValue = stack(width / 2, 'TEA BAR', `${State.currentLevel}`);
+    const levelValue = stack(width / 2, 'LEVEL', `${State.currentLevel}`);
     this.movesTxt = stack(width - pad - colW / 2, 'MOVES', `${State.moves}`);
 
-    // Bento-Einstieg (Session 8): der TEA-BAR-Stack ist tappable. Eine
+    // Bento-Einstieg (Session 8): der Level-Stack ist tappable. Eine
     // unsichtbare Zone ueber dem Stack statt Interactive-Texts -- Texte mit
     // Schatten-Halo haben unvorhersehbare Hitbox-Groessen.
     const bentoZone = this.add.zone(
@@ -1568,7 +1610,7 @@ export class UIScene extends Phaser.Scene {
       (valueY - labelY) + 34 * uiScale
     ).setInteractive({ useHandCursor: true });
     bentoZone.on('pointerdown', () => {
-      this.tweens.add({ targets: [teaValue], scale: 1.15, yoyo: true, duration: 90 });
+      this.tweens.add({ targets: [levelValue], scale: 1.15, yoyo: true, duration: 90 });
       this.scene.pause('GameScene');
       this.scene.launch('BentoScene');
     });
@@ -1589,7 +1631,7 @@ export class UIScene extends Phaser.Scene {
       ease: 'Sine.easeInOut'
     });
 
-    // Booster-Reihe, ebenfalls ohne Tray-Karte
+    // Booster-Reihe, ohne Tray-Karte
     const boosterSize = 52 * uiScale;
     const boosterSpacing = 112 * uiScale;
     const trayX = width / 2;
@@ -1720,7 +1762,7 @@ export class WinModalScene extends Phaser.Scene {
     bg.lineStyle(2 * s, KYOTO.hinoki, 0.7).strokeRoundedRect(-cardW / 2, -cardH / 2, cardW, cardH, 16 * s);
 
     const boss = isBossLevel(State.currentLevel);
-    const titleText = boss ? 'BENTO UNLOCKED!' : `TEA BAR ${State.currentLevel} CLEARED`;
+    const titleText = boss ? 'BENTO UNLOCKED!' : `OISHI! LEVEL ${State.currentLevel} CLEARED`;
     const yTitle = (award ? -120 : -85) * s;
     const title = this.add.text(0, yTitle, titleText, valueStyle(18 * s, boss ? '#4A6B47' : '#1E2022')).setOrigin(0.5);
 
@@ -1751,13 +1793,14 @@ export class WinModalScene extends Phaser.Scene {
     let decoTxt: Phaser.GameObjects.Text | null = null;
     if (award) {
       decoView = makeDecoView(this, award.decoId, 46 * s).setPosition(0, 34 * s);
-      decoTxt = this.add.text(0, 68 * s, 'NEUE DEKO!', valueStyle(13 * s, '#4A6B47')).setOrigin(0.5);
+      const decoName = DECOS[award.decoId]?.name ?? '???';
+      decoTxt = this.add.text(0, 68 * s, `${decoName} · NEUE DEKO!`, valueStyle(13 * s, '#4A6B47')).setOrigin(0.5);
     }
 
     const yBtn = (award ? 118 : 65) * s;
     const btn = this.add.container(0, yBtn);
     const btnBg = this.add.graphics().fillStyle(KYOTO.matcha, 1).fillRoundedRect(-65 * s, -20 * s, 130 * s, 40 * s, 10 * s);
-    const btnTxt = this.add.text(0, 0, boss ? 'PLAY AGAIN' : 'NEXT BAR', valueStyle(14 * s, '#FFFFFF')).setOrigin(0.5);
+    const btnTxt = this.add.text(0, 0, boss ? 'PLAY AGAIN' : 'NEXT LEVEL', valueStyle(14 * s, '#FFFFFF')).setOrigin(0.5);
 
     btn.add([btnBg, btnTxt]).setSize(130 * s, 40 * s).setInteractive({ useHandCursor: true });
     btn.on('pointerdown', () => {
@@ -1927,17 +1970,19 @@ export class BentoScene extends Phaser.Scene {
       .setInteractive()
       .on('pointerdown', () => this.close());
 
-    // Panel
+    // Panel: Tatami-Fuellung falls gerendert, sonst Creme; Rahmen in beiden
+    // Faellen der Messing/Hinoki-Stroke.
     const panelW = Math.min(width - 28 * s, 380 * s);
     const panelH = height * 0.68;
     const panelX = width / 2;
     const panelY = height / 2;
-    const bg = this.add.graphics();
-    bg.fillStyle(KYOTO.cream, 1).fillRoundedRect(panelX - panelW / 2, panelY - panelH / 2, panelW, panelH, 18 * s);
-    bg.lineStyle(2 * s, KYOTO.hinoki, 0.8).strokeRoundedRect(panelX - panelW / 2, panelY - panelH / 2, panelW, panelH, 18 * s);
+    if (!addPanelFill(this, panelX, panelY, panelW, panelH, 18 * s)) {
+      this.add.graphics().fillStyle(KYOTO.cream, 1).fillRoundedRect(panelX - panelW / 2, panelY - panelH / 2, panelW, panelH, 18 * s);
+    }
+    this.add.graphics().lineStyle(2 * s, KYOTO.hinoki, 0.8).strokeRoundedRect(panelX - panelW / 2, panelY - panelH / 2, panelW, panelH, 18 * s);
 
-    this.add.text(panelX, panelY - panelH / 2 + 24 * s, 'TEA ROOM', labelStyle(11 * s, '#8C7A5E')).setOrigin(0.5);
-    this.add.text(panelX, panelY - panelH / 2 + 50 * s, 'BENTO', valueStyle(22 * s, '#1E2022')).setOrigin(0.5);
+    this.add.text(panelX, panelY - panelH / 2 + 24 * s, 'OBENTO', labelStyle(11 * s, '#8C7A5E')).setOrigin(0.5);
+    this.add.text(panelX, panelY - panelH / 2 + 50 * s, 'COLLECTION', valueStyle(22 * s, '#1E2022')).setOrigin(0.5);
 
     // Karussell hinter einer Geometrie-Maske: Seiten verschwinden sauber am
     // Panelrand, statt ins Titelband hineinzuragen.
@@ -1978,13 +2023,22 @@ export class BentoScene extends Phaser.Scene {
     const u = boxSize / 240;
 
     if (unlocked && this.textures.exists('bento_box')) {
+      // Offene Lackbox mit vier gerenderten Faechern -- die Insets kommen
+      // aus der Textur, nichts drueberzeichnen.
       c.add(this.add.image(0, 0, 'bento_box').setDisplaySize(w, h));
     } else if (unlocked) {
-      // Procedural-Lackbox: dunkler Korpus, Messing-Rahmen, Innenboden.
+      // Procedural-Lackbox: dunkler Korpus, Messing-Rahmen, Innenboden plus
+      // vier Fach-Insets als Slot-Visual.
       const g = this.add.graphics();
       g.fillStyle(KYOTO.kuroSteel, 1).fillRoundedRect(-w / 2, -h / 2, w, h, 14 * u);
       g.lineStyle(3 * u, KYOTO.brass, 0.9).strokeRoundedRect(-w / 2, -h / 2, w, h, 14 * u);
       g.fillStyle(0x2A2D30, 1).fillRoundedRect(-w / 2 + 8 * u, -h / 2 + 8 * u, w - 16 * u, h - 16 * u, 10 * u);
+      const slotW = w * 0.36;
+      const slotH = h * 0.34;
+      [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sy]) => {
+        g.fillStyle(0x000000, 0.30)
+          .fillRoundedRect(sx * w * 0.21 - slotW / 2, sy * h * 0.17 - slotH / 2, slotW, slotH, 8 * u);
+      });
       c.add(g);
     } else {
       // Gesperrte Box: Silhouette ohne Details plus Messing-Schloss.
@@ -2000,23 +2054,20 @@ export class BentoScene extends Phaser.Scene {
       return;
     }
 
-    // Vier Faecher als dunkle Insets; Slot 0 oben links traegt die Award-Deko.
-    const inset = this.add.graphics();
-    const slotW = w * 0.36;
+    // Slot 0 (oben links) traegt die Award-Deko, direkt ins Fach gelegt.
     const slotH = h * 0.34;
-    const slots: [number, number][] = [[-1, -1], [1, -1], [-1, 1], [1, 1]];
-    slots.forEach(([sx, sy]) => {
-      inset.fillStyle(0x000000, 0.30)
-        .fillRoundedRect(sx * w * 0.21 - slotW / 2, sy * h * 0.17 - slotH / 2, slotW, slotH, 8 * u);
-    });
-    c.add(inset);
-
     const decoId = state.placed[boxIdx];
     if (decoId) {
-      const deco = makeDecoView(this, decoId, w * 0.26).setPosition(-w * 0.21, -h * 0.17);
+      const px = -w * 0.21;
+      const py = -h * 0.17;
+      const deco = makeDecoView(this, decoId, w * 0.26).setPosition(px, py);
       deco.setScale(0);
       c.add(deco);
       this.tweens.add({ targets: deco, scale: 1, duration: 320, delay: 150, ease: 'Back.easeOut' });
+
+      // Name ueber dem Item: Messing-Label direkt am oberen Slotrand,
+      // lesbar auf dem dunklen Lackkorpus der Box.
+      c.add(this.add.text(px, py - slotH / 2 - 9 * s, DECOS[decoId].name, labelStyle(10 * s, '#C49A5A')).setOrigin(0.5));
     }
 
     c.add(this.add.text(0, h / 2 + 26 * s, `BOX ${boxIdx + 1} · UNLOCKED`, valueStyle(12 * s, '#4A6B47')).setOrigin(0.5));
