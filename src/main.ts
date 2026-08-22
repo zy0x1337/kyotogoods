@@ -1,6 +1,8 @@
 import '@fontsource/m-plus-rounded-1c/latin-500.css';
 import '@fontsource/m-plus-rounded-1c/latin-800.css';
 import Phaser from 'phaser';
+import { Capacitor } from '@capacitor/core';
+import { App } from '@capacitor/app';
 import { ITEM_BOTTOM_OFFSETS, AVAILABLE_ASSETS, ASSET_EXT } from './item_offsets.generated';
 import { generateLevel, isBossLevel, LEVEL_COUNT, LEVEL_PARAMS } from './levels';
 import type { LevelDefinition, SlotDef } from './levels';
@@ -304,6 +306,9 @@ export interface MoveRecord {
   toShelf: number;
   toSlot: number;
   itemId: string;
+  /** Item, das beim Zug in fromSlot nachgerueckt ist -- Undo legt es
+   *  zurueck in die Queue, sonst bleibt es als Phantom im Board. */
+  advancedId: string | null;
 }
 
 // Fortschritt ueberlebt Reloads. Ein Web-Build wird staendig neu geladen --
@@ -760,12 +765,15 @@ export class Shelf extends Phaser.GameObjects.Container {
     return true;
   }
 
-  public removeItem(i: number): GoodsItem | null {
+  /** Item aus Slot i nehmen. advance=false (nur Undo) laesst die Queue
+   *  unangetastet -- ein Undo darf keine Nachruecker erzeugen, die es im
+   *  Originalzug nie gab. */
+  public removeItem(i: number, advance = true): GoodsItem | null {
     const item = this.slots[i];
     if (item) {
       this.slots[i] = null;
       this.remove(item);
-      this.advanceQueue(i);
+      if (advance) this.advanceQueue(i);
       this.updateGhost(i);
     }
     return item;
@@ -1286,6 +1294,9 @@ export class GameScene extends Phaser.Scene {
           if (targetSlot !== -1) {
             const srcShelf = this.shelves[src.shelfIdx];
             const fromWorld = { x: srcShelf.x + src.item.x, y: srcShelf.y + src.item.y };
+            // Queue-Kopf vor dem Zug merken: rueckt er nach, muss das Undo
+            // ihn spaeter zurueck in die Queue legen.
+            const advancedId = srcShelf.queues[src.slotIdx][0] ?? null;
             const moved = srcShelf.removeItem(src.slotIdx);
             if (moved) {
               shelf.insertItem(targetSlot, moved, fromWorld);
@@ -1295,7 +1306,8 @@ export class GameScene extends Phaser.Scene {
                 fromSlot: src.slotIdx,
                 toShelf: i,
                 toSlot: targetSlot,
-                itemId: moved.itemId
+                itemId: moved.itemId,
+                advancedId
               });
               this.game.events.emit(GameEvents.MOVE_EXECUTED, State.moves);
               this.scheduleLoseCheck();
@@ -1414,20 +1426,40 @@ export class GameScene extends Phaser.Scene {
     const last = State.history.pop();
     if (!last) return;
 
+    const srcShelf = this.shelves[last.fromShelf];
+    const dstShelf = this.shelves[last.toShelf];
+
+    // 1. Ggf. nachgeruecktes Item aus fromSlot zurueck in die Queue legen --
+    //    es war vor dem Zug nicht sichtbar und gehoert dorthin wieder hin.
+    if (last.advancedId) {
+      const adv = srcShelf.slots[last.fromSlot];
+      if (adv?.itemId === last.advancedId) {
+        srcShelf.slots[last.fromSlot] = null;
+        srcShelf.remove(adv);
+        adv.destroy();
+        srcShelf.queues[last.fromSlot].unshift(last.advancedId);
+        srcShelf.updateGhost(last.fromSlot);
+      }
+    }
+
+    // 2. Bewegtes Item aus dem exakten Zielslot nehmen (ID gegenpruefen,
+    //    advance=false -- das Ziel-Board hat seine Queues nie angetastet).
+    const cur = dstShelf.slots[last.toSlot];
+    if (!cur || cur.itemId !== last.itemId) {
+      // Zustand weicht ab (z. B. Match hat den Slot geraeumt): Eintrag
+      // verwerfen, ohne ein Undo zu verbrauchen.
+      this.game.events.emit(GameEvents.UNDO_UPDATED);
+      return;
+    }
+    dstShelf.slots[last.toSlot] = null;
+    dstShelf.remove(cur);
+
     State.undoLeft--;
     this.game.events.emit(GameEvents.UNDO_UPDATED);
 
-    const fromShelf = this.shelves[last.toShelf];
-    const toShelf = this.shelves[last.fromShelf];
-    const sIdx = fromShelf.slots.findIndex(s => s?.itemId === last.itemId);
-    const targetSlot = toShelf.getFirstEmptySlot();
-
-    if (sIdx !== -1 && targetSlot !== -1) {
-      const src = fromShelf.slots[sIdx]!;
-      const fromWorld = { x: fromShelf.x + src.x, y: fromShelf.y + src.y };
-      const it = fromShelf.removeItem(sIdx);
-      if (it) toShelf.insertItem(targetSlot, it, fromWorld);
-    }
+    // 3. Zurueck an den Originalslot -- insertItem reparented, tweent und
+    //    prueft Matches.
+    srcShelf.insertItem(last.fromSlot, cur);
   }
 
   private onShuffle() {
@@ -2205,6 +2237,22 @@ function boot() {
   };
   window.addEventListener('resize', fitToParent);
   window.addEventListener('orientationchange', () => window.setTimeout(fitToParent, 150));
+
+  // Android-Zurueck-Button (Capacitor): offene Modals schliessen statt die
+  // App hart zu verlassen. Der AdStub schluckt jeden Input absichtlich --
+  // den Hardware-Back auch. Ohne offenes Modal beendet der Button die App
+  // explizit (moveTaskToBack gibt es ab Plugin v6 nicht mehr).
+  if (Capacitor.isNativePlatform()) {
+    void App.addListener('backButton', () => {
+      const modalKeys = ['BentoScene', 'WinModalScene', 'LoseModalScene', 'AdStubScene'];
+      const modal = game.scene.getScenes(true).find(scene => modalKeys.includes(scene.scene.key));
+      if (modal && modal.scene.key !== 'AdStubScene') {
+        modal.scene.stop();
+      } else if (!modal) {
+        void App.exitApp();
+      }
+    });
+  }
 
   // Debug-Handle fuer die Layout-Pruefung im Browser
   if (import.meta.env.DEV) (window as unknown as { __game: Phaser.Game }).__game = game;
