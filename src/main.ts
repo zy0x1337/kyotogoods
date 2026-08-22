@@ -656,6 +656,7 @@ export class Shelf extends Phaser.GameObjects.Container {
   public shelfIdx: number;
   public slots: (GoodsItem | null)[] = [null, null, null];
   public queues: string[][] = [[], [], []];
+  private ghosts: (Phaser.GameObjects.Image | Phaser.GameObjects.Graphics | null)[] = [null, null, null];
   public readonly spacing: number;
   public readonly shelfWidth: number;
   public readonly shelfHeight: number;
@@ -727,6 +728,43 @@ export class Shelf extends Phaser.GameObjects.Container {
         this.add(item);
       }
     });
+    [0, 1, 2].forEach(i => this.updateGhost(i));
+  }
+
+  /** Naechstes Queue-Item als dunkle Silhouette hinter dem Front-Item --
+   *  nimmt dem Spieler das Ratraten, was als naechstes nachrueckt. */
+  public updateGhost(i: number) {
+    this.ghosts[i]?.destroy();
+    this.ghosts[i] = null;
+
+    const nextId = this.queues[i][0];
+    if (!nextId || !this.slots[i]) return;
+
+    const s = this.itemScale;
+    const x = (i - 1) * this.spacing;
+    const y = getItemRestY(nextId, s, this.platformY) - 10 * s;
+
+    let ghost: Phaser.GameObjects.Image | Phaser.GameObjects.Graphics;
+    if (this.scene.textures.exists(`item_${nextId}`)) {
+      ghost = this.scene.add.image(x, y, `item_${nextId}`)
+        .setDisplaySize(ITEM_SIZE * s * 0.88, ITEM_SIZE * s * 0.88)
+        .setTint(0x2A2622)
+        .setAlpha(0.25);
+    } else {
+      // Procedural-Fallback: dunkle Konturbox in Grundfarbe des Items
+      const g = this.scene.add.graphics();
+      g.fillStyle(ITEMS[nextId].baseColor, 1)
+        .fillRoundedRect(-32 * s, -32 * s, 64 * s, 64 * s, 14 * s);
+      g.setPosition(x, y).setScale(0.88).setAlpha(0.25);
+      ghost = g;
+    }
+
+    // Hinter die Front-Items, aber VOR der Regal-Struktur (Shadow/Brett
+    // liegen bei addAt(0) unter dem Ghost und wuerden ihn verdecken).
+    const firstItemIdx = this.list.findIndex(child => child instanceof GoodsItem);
+    if (firstItemIdx === -1) this.add(ghost);
+    else this.addAt(ghost, firstItemIdx);
+    this.ghosts[i] = ghost;
   }
 
   public getFirstEmptySlot(): number {
@@ -807,6 +845,7 @@ export class Shelf extends Phaser.GameObjects.Container {
       this.slots[i] = null;
       this.remove(item);
       this.advanceQueue(i);
+      this.updateGhost(i);
     }
     return item;
   }
@@ -831,6 +870,7 @@ export class Shelf extends Phaser.GameObjects.Container {
         delay: 50,
         onComplete: () => this.checkMatch()
       });
+      this.updateGhost(i);
     }
   }
 
@@ -966,7 +1006,10 @@ export class Shelf extends Phaser.GameObjects.Container {
               ease: 'Back.easeIn',
               onComplete: () => {
                 item.destroy();
-                if (idx === 0) [0, 1, 2].forEach(i => this.advanceQueue(i));
+                if (idx === 0) {
+                  [0, 1, 2].forEach(i => this.advanceQueue(i));
+                  [0, 1, 2].forEach(i => this.updateGhost(i));
+                }
               }
             });
           }
