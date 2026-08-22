@@ -1,0 +1,327 @@
+{
+  "_write_helper.mjs": {
+    "mtime": 1787398810.7629852,
+    "ast_hash": "19a42239cc0bc8be03b059449c4ec616",
+    "semantic_hash": ""
+  },
+  "capacitor.config.ts": {
+    "mtime": 1787143873.8406866,
+    "ast_hash": "e73e0d8386d06c7b2e47ab65cc61974a",
+    "semantic_hash": ""
+  },
+  "package.json": {
+    "mtime": 1787400145.4610624,
+    "ast_hash": "16b0e3027a577c7c21013f3267178c53",
+    "semantic_hash": ""
+  },
+  "scripts/process_assets.js": {
+    "mtime": 1787400368.1550171,
+    "ast_hash": "08f9c73c02d9e76ddaabee36dbff5e83",
+    "semantic_hash": ""
+  },
+  "src/item_offsets.generated.ts": {
+    "mtime": 1787400407.398745,
+    "ast_hash": "0ae531adacba21a84a910912c3dfc036",
+    "semantic_hash": ""
+  },
+  "src/main.ts": {
+    "mtime": 1787400490.0230663,
+    "ast_hash": "e2f5a1957465f7cf931458cf4571490a",
+    "semantic_hash": ""
+  },
+  "tsconfig.json": {
+    "mtime": 1787158716.5980227,
+    "ast_hash": "810f74f335b443670f94366b56ec63d6",
+    "semantic_hash": ""
+  },
+  "vite.config.ts": {
+    "mtime": 1787143873.8436856,
+    "ast_hash": "f60f6eeb087bf99c77d3efd01aea5e97",
+    "semantic_hash": ""
+  },
+  "CLAUDE.md": {
+    "mtime": 1787398166.0398486,
+    "ast_hash": "1c9c2b513779f1bd00bdeb0a9bfc96a0",
+    "semantic_hash": ""
+  },
+  "docs/umsetzungsplan_retention.md": {
+    "mtime": 1787402921.8314905,
+    "ast_hash": "2c84485807c0b2bc15ee03c9eabb62bd",
+    "semantic_hash": ""
+  },
+  "index.html": {
+    "mtime": 1787150046.6567712,
+    "ast_hash": "7e278bbf5f40a23522a8817743786d75",
+    "semantic_hash": ""
+  },
+  "public/assets/items/bgl_kitchen.webp": {
+    "mtime": 1787400374.408,
+    "ast_hash": "01bb1a35ca83102fe82e1111b4dc2a29",
+    "semantic_hash": ""
+  },
+  "public/assets/items/bgl_konbini.webp": {
+    "mtime": 1787400374.941,
+    "ast_hash": "104230f9be60c0fd96cf1953c2758fc7",
+    "semantic_hash": ""
+  },
+  "public/assets/items/bgl_yatai.webp": {
+    "mtime": 1787400375.489,
+    "ast_hash": "8e0edbd8626f6523532162becb43de7d",
+    "semantic_hash": ""
+  },
+  "public/assets/items/btn_hammer.webp": {
+    "mtime": 1787400358.1984313,
+    "ast_hash": "b8b1cb26df6037ac64a21c9906305d45",
+    "semantic_hash": ""
+  },
+  "public/assets/items/btn_shuffle.webp": {
+    "mtime": 1787400358.1984313,
+    "ast_hash": "fc55837630a2ba94a6e0fcefe5dde81e",
+    "semantic_hash": ""
+  },
+  "public/assets/items/btn_undo.webp": {
+    "mtime": 1787400358.1984313,
+    "ast_hash": "94d6fd6612de42e61a59d497869e7746",
+    "semantic_hash": ""
+  },
+  "public/assets/items/dango.webp": {
+    "mtime": 1787400376.66,
+    "ast_hash": "8582d54f2448587a5c1abb805f96b7f4",
+    "semantic_hash": ""
+  },
+  "public/assets/items/dorayaki.webp": {
+    "mtime": 1787400378.1,
+    "ast_hash": "6d33a9c7f14e6ca6d8877a065486e0db",
+    "semantic_hash": ""
+  },
+  "public/assets/items/edamame.webp": {
+    "mtime": 1787400379.768,
+    "ast_hash": "f06e6a9e6866f5f8e50047a02aef6331",
+    "semantic_hash": ""
+  },
+  "public/assets/items/fx_match_burst.webp": {
+    "mtime": 1787400358.1984313,
+    "ast_hash": "779d4a720a898cd4619f088daf115884",
+    "semantic_hash": ""
+  },
+  "public/assets/items/gyoza.webp": {
+    "mtime": 1787400381.233,
+    "ast_hash": "9cd21a0b88902bcaeea1b46cef541d86",
+    "semantic_hash": ""
+  },
+  "public/assets/items/ichigo_daifuku.webp": {
+    "mtime": 1787400382.789,
+    "ast_hash": "5c14ebccd7e83676b26c194813905312",
+    "semantic_hash": ""
+  },
+  "public/assets/items/inarizushi.webp": {
+    "mtime": 1787400384.392,
+    "ast_hash": "52ac266b8dc582c2be9934bd0e528713",
+    "semantic_hash": ""
+  },
+  "public/assets/items/kakigori.webp": {
+    "mtime": 1787400385.926,
+    "ast_hash": "a49d0479811b9e5b0131106124701170",
+    "semantic_hash": ""
+  },
+  "public/assets/items/maki.webp": {
+    "mtime": 1787400387.5,
+    "ast_hash": "db42b77f0ac9e088208195bf81c33a75",
+    "semantic_hash": ""
+  },
+  "public/assets/items/matcha_latte.webp": {
+    "mtime": 1787400389.071,
+    "ast_hash": "544d937346246532ff67d33a24c7ecb8",
+    "semantic_hash": ""
+  },
+  "public/assets/items/mochi.webp": {
+    "mtime": 1787400390.542,
+    "ast_hash": "0960f1aee7a5d3f1180f18239eb80a03",
+    "semantic_hash": ""
+  },
+  "public/assets/items/nigiri.webp": {
+    "mtime": 1787400392.103,
+    "ast_hash": "f048ebb80816cd38e12416ab50d3f2de",
+    "semantic_hash": ""
+  },
+  "public/assets/items/onigiri.webp": {
+    "mtime": 1787400393.62,
+    "ast_hash": "4151d36d590211b9457d6021d75e4d73",
+    "semantic_hash": ""
+  },
+  "public/assets/items/purin.webp": {
+    "mtime": 1787400395.294,
+    "ast_hash": "a5108b5d87168e649c76af9e90a94dc5",
+    "semantic_hash": ""
+  },
+  "public/assets/items/ramen.webp": {
+    "mtime": 1787400396.859,
+    "ast_hash": "66bc51bba5972834ab5c944c4a4cd4a7",
+    "semantic_hash": ""
+  },
+  "public/assets/items/sakura_mochi.webp": {
+    "mtime": 1787400398.668,
+    "ast_hash": "06deac4fd022908022696d1baca7412f",
+    "semantic_hash": ""
+  },
+  "public/assets/items/takoyaki.webp": {
+    "mtime": 1787400400.207,
+    "ast_hash": "25814cdf1258d1c9d59397cbec3284ba",
+    "semantic_hash": ""
+  },
+  "public/assets/items/tamagoyaki.webp": {
+    "mtime": 1787400401.822,
+    "ast_hash": "4f4560821544825cbe06b35d2e8ecbd8",
+    "semantic_hash": ""
+  },
+  "public/assets/items/temaki.webp": {
+    "mtime": 1787400403.281,
+    "ast_hash": "0c7ce4293b898f3675c8897eeea36ce0",
+    "semantic_hash": ""
+  },
+  "public/assets/items/ui_card_hinoki.webp": {
+    "mtime": 1787400358.1984313,
+    "ast_hash": "043440d22a469d9af83bb00d7afffabf",
+    "semantic_hash": ""
+  },
+  "public/assets/items/ui_card_kuro.webp": {
+    "mtime": 1787400358.1984313,
+    "ast_hash": "d25a9b5d39d1b6016429490f931d34e5",
+    "semantic_hash": ""
+  },
+  "public/assets/items/ui_star.webp": {
+    "mtime": 1787400358.1984313,
+    "ast_hash": "2d12ec2bd4553d7698c3e7729e15cf00",
+    "semantic_hash": ""
+  },
+  "public/assets/items/ui_star_empty.webp": {
+    "mtime": 1787400358.1984313,
+    "ast_hash": "7fd07f004d8c90a6e5a81e10fb9383e5",
+    "semantic_hash": ""
+  },
+  "public/assets/items/wagashi.webp": {
+    "mtime": 1787400404.806,
+    "ast_hash": "6f55b58e73ddf483b3446c0fb29f4069",
+    "semantic_hash": ""
+  },
+  "public/assets/items/yakitori.webp": {
+    "mtime": 1787400406.482,
+    "ast_hash": "3a0a9eaf97d413bf94afdaf7c263d886",
+    "semantic_hash": ""
+  },
+  "raw_renders/bgl_kitchen.png": {
+    "mtime": 1787397209.8048286,
+    "ast_hash": "fec8ccf09e3453d7e5e1c5b14bcd8401",
+    "semantic_hash": ""
+  },
+  "raw_renders/bgl_konbini.png": {
+    "mtime": 1787397209.6128035,
+    "ast_hash": "f4501b03c4732ae2da99d13fb924f98d",
+    "semantic_hash": ""
+  },
+  "raw_renders/bgl_yatai.png": {
+    "mtime": 1787397209.5587356,
+    "ast_hash": "9b071e429502b2f9f744cd1fcb6b101c",
+    "semantic_hash": ""
+  },
+  "raw_renders/dango.png": {
+    "mtime": 1787397209.7214682,
+    "ast_hash": "c466c3d06cad5a0ede28c27c1f576f58",
+    "semantic_hash": ""
+  },
+  "raw_renders/dorayaki.png": {
+    "mtime": 1787397209.6932287,
+    "ast_hash": "cd4e7567ffe321f78a4952c795a40f03",
+    "semantic_hash": ""
+  },
+  "raw_renders/edamame.png": {
+    "mtime": 1787397209.4538028,
+    "ast_hash": "26187a871470ebc397ad5434723643b3",
+    "semantic_hash": ""
+  },
+  "raw_renders/gyoza.png": {
+    "mtime": 1787397921.4304276,
+    "ast_hash": "dfccb1ea01b641e4c27de1f721f3d1f9",
+    "semantic_hash": ""
+  },
+  "raw_renders/ichigo_daifuku.png": {
+    "mtime": 1787397209.5714488,
+    "ast_hash": "5ddb1a487d700e5b181a7aeb3e47c92e",
+    "semantic_hash": ""
+  },
+  "raw_renders/inarizushi.png": {
+    "mtime": 1787397209.6411338,
+    "ast_hash": "56455846ea50639e81dc0038873737c3",
+    "semantic_hash": ""
+  },
+  "raw_renders/kakigori.png": {
+    "mtime": 1787397209.7088368,
+    "ast_hash": "e79567a52b95cd8444f438a1652ad94d",
+    "semantic_hash": ""
+  },
+  "raw_renders/maki.png": {
+    "mtime": 1787397209.4725282,
+    "ast_hash": "fd93f9bf7bdbc39205fe8a4958a0a201",
+    "semantic_hash": ""
+  },
+  "raw_renders/matcha_latte.png": {
+    "mtime": 1787397209.7381556,
+    "ast_hash": "c7c6ad220511a74f77e5558c48823308",
+    "semantic_hash": ""
+  },
+  "raw_renders/mochi.png": {
+    "mtime": 1787397209.627455,
+    "ast_hash": "5ba144ca139eafd444f8aa352dc94254",
+    "semantic_hash": ""
+  },
+  "raw_renders/nigiri.png": {
+    "mtime": 1787397209.7654977,
+    "ast_hash": "239c6e717392540027747db7ddc7cd88",
+    "semantic_hash": ""
+  },
+  "raw_renders/onigiri.png": {
+    "mtime": 1787397209.7508273,
+    "ast_hash": "986198087a8406212b5670d141471d4c",
+    "semantic_hash": ""
+  },
+  "raw_renders/purin.png": {
+    "mtime": 1787397925.4772143,
+    "ast_hash": "ecaaac54445e0a936315b24026fc10d3",
+    "semantic_hash": ""
+  },
+  "raw_renders/ramen.png": {
+    "mtime": 1787397209.666526,
+    "ast_hash": "395ab92ee41b2ed9bb1a730d20474e43",
+    "semantic_hash": ""
+  },
+  "raw_renders/sakura_mochi.png": {
+    "mtime": 1787397209.4861653,
+    "ast_hash": "a1a7a025a1836ec49cff0b9c4bc5f409",
+    "semantic_hash": ""
+  },
+  "raw_renders/takoyaki.png": {
+    "mtime": 1787397209.5254352,
+    "ast_hash": "2c80e810ee6e564f985b5eeb451cbc30",
+    "semantic_hash": ""
+  },
+  "raw_renders/tamagoyaki.png": {
+    "mtime": 1787397209.6775322,
+    "ast_hash": "991963194c1d00305852d7dc7ed24809",
+    "semantic_hash": ""
+  },
+  "raw_renders/temaki.png": {
+    "mtime": 1787397209.5048282,
+    "ast_hash": "edd6c51d88de335b5fe3136aa7c2bf0f",
+    "semantic_hash": ""
+  },
+  "raw_renders/wagashi.png": {
+    "mtime": 1787397209.4337063,
+    "ast_hash": "b73a5d60eec1f6bb7bececb4e4323e78",
+    "semantic_hash": ""
+  },
+  "raw_renders/yakitori.png": {
+    "mtime": 1787397209.7785368,
+    "ast_hash": "2faad0401c652fd8d948b615df87093a",
+    "semantic_hash": ""
+  }
+}

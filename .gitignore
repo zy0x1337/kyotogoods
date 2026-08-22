@@ -4,3 +4,7 @@ dist/
 # Geraete-Screenshots, die beim Testen im Projektwurzel landen
 /localhost_*.png
 /Gemini_Generated_Image*.jpeg
+
+# Graphify: maschinespezifische Sidecars und Cache lokal halten
+graphify-out/.graphify_*
+graphify-out/cache/
