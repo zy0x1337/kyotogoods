@@ -224,8 +224,10 @@ Single round push button in cute kawaii flat illustration style, a smooth soft c
 **btn_shuffle:**
 Single round push button in cute kawaii flat illustration style, a smooth soft cream circle body with two chunky soft rose-pink arrows crossing each other in an X pattern in the center, clean dark-brown outline of uniform weight on all shapes, front-facing flat view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero shadow, sharp clean edges, 8k resolution
 
-**btn_hammer:**
+**btn_extra_shelf:** *(Extra-Shelf-Booster, ersetzt den Hammer — Session 7)*
 Single round push button in cute kawaii flat illustration style, a smooth soft cream circle body with a chunky warm honey-brown mallet symbol in the center, clean dark-brown outline of uniform weight on all shapes, front-facing flat view, centered on a portrait 9:16 canvas with generous even padding, pure solid magenta background (#FF00FF), zero shadow, sharp clean edges, 8k resolution
+
+*Versionsnotiz:* Der Render zeigt noch den Mallet aus dem alten `btn_hammer`-Prompt (Umbenennung in der Pipeline, kein Re-Render). Die Mechanik dahinter ist das Extra Shelf (einmal pro Level ein leeres Zusatzregal). Bei einem Re-Render: Symbol durch kleines Holzregal mit Faechern ersetzen.
 
 ### Match Feedback FX — Kawaii Flat
 
@@ -376,11 +378,14 @@ Checkliste im Browser (DevTools auf ein Telefon mit DPR 3 stellen — bei DPR 1 
 Den tatsächlich verwendeten Prompt in Abschnitt 3 aktualisieren, inkl. Versionsnotiz, warum die Vorgängerversion ersetzt wurde. Der Katalog ist die einzige Quelle für Re-Renders.
 
 ### Offene Punkte
-- **Alle 20 Food-Items** müssen im Kawaii-Flat-Stil gerendert werden (Reve). Empfohlene Reihenfolge: erst onigiri + ramen als Style-References, dann den Rest.
-- **Drei Hintergrund-Szenen** (bgl_kitchen, bgl_yatai, bgl_hanami) müssen gerendert werden. Kein Magenta-Hintergrund — die Szenen sind deckend.
-- **Pipeline-Anpassung** (`scripts/process_assets.js`): `bgl_`-Prefix auf reine Skalierung umstellen (kein Chroma-Keying), `ITEM_IDS` auf die 20 neuen Food-Items aktualisieren, `bgl_cabinet_*`-Sonderbehandlung und Exports (`CABINET_SHELF_RATIOS`, `BG_FRAME_RECTS`, `BG_CAVITY_RECTS`) entfernen.
-- **Code-Umbau** (`src/main.ts`): Cabinet-System entfernen, Grid-Layout implementieren, `ITEMS`-Registry und `LEVELS` auf neue Food-IDs umstellen, Parallax-Layer-System durch einzelne Hintergrund-Szene ersetzen, halbtransparentes Overlay im Grid-Bereich ergänzen.
-- **UI-Karten** (`ui_card_kuro` / `ui_card_hinoki`) werden aktuell nicht gezeichnet — der Header steht frei über der Szene. `addCardNineSlice` bleibt im Code.
-- **Booster Buttons** im neuen Kawaii-Flat-Stil rendern — runde Buttons statt der bisherigen quadratischen Kiri-e-Buttons.
-- **FX** (fx_match_burst) im neuen Stil rendern.
-- **Bento-Meta** (`bento_box` + 12 `deco_*`) rendern — das Gerüst (`src/bento.ts`, `BentoScene`) läuft solange mit Procedural-Platzhaltern; Prompts in Abschnitt 3, Verarbeitung via Prefix-Tabelle in Abschnitt 4.
+- **UI-Karten** (`ui_card_kuro` / `ui_card_hinoki`) werden geladen, aber nicht gezeichnet — Header und Booster-Tray stehen frei über der Szene (Scrim + 126 px Header-Band sorgen für Lesbarkeit). `addCardNineSlice` bleibt im Code; ein erster Einbau wurde nach Sichtcheck wieder zurückgenommen.
+- **`btn_extra_shelf`-Symbol**: aktueller Render zeigt den Mallet des alten Hammer-Prompts — bei einem Re-Render Symbol durch kleines Holzregal mit Fächern ersetzen (Prompt-Notiz in Abschnitt 3).
+
+### Erledigt (Stand Session 9)
+- Alle 20 Food-Items, alle drei Hintergrund-Szenen (`bgl_kitchen`, `bgl_yatai`, `bgl_konbini`) plus `bgl_tatami` gerendert.
+- Bento-Meta komplett: offene `bento_box` mit vier Fächern + alle 12 `deco_*`.
+- Pipeline auf Grid-Layout umgestellt (`bgl_` ohne Chroma-Keying, Cabinet-Exports entfernt).
+- Umbenennungen: Header-Level `LEVEL`, Win-Titel `OISHI! LEVEL n CLEARED`, Sammel-Ansicht `OBENTO / COLLECTION`.
+- Item-Pool-Rotation (`levels.ts`): Level-Seed mischt den kompletten 20er-Katalog vor der `poolSize`-Auswahl — nicht mehr immer dieselben Items.
+- Undo-Fix: exakte Slots aus `MoveRecord`, `advancedId` legt Nachrücker zurück in die Queue, Match-inkonsistente Einträge werden ohne Undo-Verbrauch verworfen.
+- Android-Hardware-Back via `@capacitor/app`: schliesst offene Modals, sonst App-Exit.
