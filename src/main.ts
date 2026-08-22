@@ -290,7 +290,10 @@ export const GameEvents = {
   UNDO_TRIGGERED: 'UNDO_TRIGGERED',
   UNDO_UPDATED: 'UNDO_UPDATED',
   SHUFFLE_TRIGGERED: 'SHUFFLE_TRIGGERED',
-  HAMMER_ACTIVE: 'HAMMER_ACTIVE'
+  /** Button-Tap auf den Extra-Shelf-Booster (GameScene spawnt das Regal). */
+  EXTRA_SHELF_TRIGGERED: 'EXTRA_SHELF_TRIGGERED',
+  /** Status-Sync nach Spawn oder Level-Neubau (UIScene graut den Button aus/zurueck). */
+  EXTRA_SHELF_STATE: 'EXTRA_SHELF_STATE'
 };
 
 export interface MoveRecord {
@@ -337,7 +340,8 @@ export const State = {
   won: false,
   /** Freie Undos im aktuellen Level; danach Rewarded-Ad-Aufladung (Empfehlung 2). */
   undoLeft: 3,
-  activeBooster: null as 'hammer' | null,
+  /** Extra-Shelf-Booster: einmal pro Level (Empfehlung 5, ersetzt den Hammer). */
+  extraShelfUsed: false,
   history: [] as MoveRecord[],
   reset(moves = 22, target = 4) {
     this.score = 0;
@@ -349,7 +353,7 @@ export const State = {
     this.comboTimer = 0;
     this.won = false;
     this.undoLeft = 3;
-    this.activeBooster = null;
+    this.extraShelfUsed = false;
     this.history = [];
   }
 };
@@ -956,7 +960,9 @@ export class PreloadScene extends Phaser.Scene {
     this.load.image('ui_card_hinoki', `assets/items/ui_card_hinoki.${ASSET_EXT}`);
     this.load.image('btn_undo', `assets/items/btn_undo.${ASSET_EXT}`);
     this.load.image('btn_shuffle', `assets/items/btn_shuffle.${ASSET_EXT}`);
-    this.load.image('btn_hammer', `assets/items/btn_hammer.${ASSET_EXT}`);
+    // btn_extra_shelf ist noch nicht gerendert (Reve) -- optional laden, der
+    // UIScene-Procedural-Fallback springt solange ein.
+    loadOptional('btn_extra_shelf');
     this.load.image('ui_star', `assets/items/ui_star.${ASSET_EXT}`);
     this.load.image('ui_star_empty', `assets/items/ui_star_empty.${ASSET_EXT}`);
   }
@@ -981,6 +987,7 @@ export class GridManager {
   private readonly gridTop: number;
   private readonly shelfSpacing: number;
   private readonly startY: number;
+  private readonly extraShelfY: number;
 
   constructor(scene: Phaser.Scene, level: LevelDefinition) {
     this.scene = scene;
@@ -994,9 +1001,12 @@ export class GridManager {
 
     const rows = level.layout.length;
     this.gridTop = 100 * this.itemScale;
-    const gridBottom = height - 100 * this.itemScale;
+    // 136 statt 100: unter dem Grid bleibt ein Streifen fuer den Extra-Shelf-
+    // Booster reserviert, ohne dass die letzte Reihe sichtbar zusammenrueckt.
+    const gridBottom = height - 136 * this.itemScale;
     this.shelfSpacing = (gridBottom - this.gridTop) / rows;
     this.startY = this.gridTop + this.shelfSpacing * 0.5;
+    this.extraShelfY = gridBottom + 36 * this.itemScale;
   }
 
   getRowY(row: number): number {
@@ -1009,6 +1019,11 @@ export class GridManager {
 
   getItemScale(): number {
     return this.itemScale;
+  }
+
+  /** Y-Position des Extra-Shelf-Boosters: zwischen letzter Reihe und Booster-Tray. */
+  getExtraShelfY(): number {
+    return this.extraShelfY;
   }
 
   getBgKey(): string | undefined {
@@ -1075,16 +1090,21 @@ export class GameScene extends Phaser.Scene {
 
     this.buildLevel(State.currentLevel);
 
+    // Retry/Nachfolger-Level: Button-Zustand des Boosters neu synchronisieren.
+    this.game.events.emit(GameEvents.EXTRA_SHELF_STATE);
+
     this.input.on('pointerdown', this.onPointerDown, this);
     this.events.on(GameEvents.TRIPLE_MATCHED, this.onMatched, this);
 
     this.game.events.on(GameEvents.UNDO_TRIGGERED, this.onUndo, this);
     this.game.events.on(GameEvents.SHUFFLE_TRIGGERED, this.onShuffle, this);
+    this.game.events.on(GameEvents.EXTRA_SHELF_TRIGGERED, this.spawnExtraShelf, this);
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.input.off('pointerdown', this.onPointerDown, this);
       this.game.events.off(GameEvents.UNDO_TRIGGERED, this.onUndo, this);
       this.game.events.off(GameEvents.SHUFFLE_TRIGGERED, this.onShuffle, this);
+      this.game.events.off(GameEvents.EXTRA_SHELF_TRIGGERED, this.spawnExtraShelf, this);
     });
   }
 
@@ -1099,6 +1119,33 @@ export class GameScene extends Phaser.Scene {
     // mehr Platz -- das darf man sehen und hoeren, sonst verpufft die Entlastung.
     const prevRows = LEVEL_PARAMS[lvl - 2]?.rows ?? 0;
     if (level.relief && level.layout.length > prevRows) this.playReliefIntro();
+  }
+
+  /** Extra-Shelf-Booster (Empfehlung 5, ersetzt den Hammer): ein leeres
+   *  Zusatzregal fuer den Rest des Levels. Einmal pro Level, danach graut
+   *  der Button aus. Das Regal haengt regulär in this.shelves -- Hit-Test,
+   *  Undo-History und der allClear-Check laufen unverändert mit. */
+  private spawnExtraShelf() {
+    if (State.extraShelfUsed) return;
+    State.extraShelfUsed = true;
+
+    const { width } = this.scale;
+    const emptyLayout: SlotDef[] = [
+      { front: null, queue: [] },
+      { front: null, queue: [] },
+      { front: null, queue: [] }
+    ];
+    const shelf = new Shelf(
+      this, width / 2, this.grid.getExtraShelfY(), this.shelves.length,
+      emptyLayout, this.grid.getItemScale(), this.grid.getRowWidth(), true
+    );
+
+    // Kurzer Auftritt, damit der neue Spielfeld-Streifen nicht unbemerkt bleibt.
+    shelf.setAlpha(0).setScale(0.6);
+    this.tweens.add({ targets: shelf, alpha: 1, scale: 1, duration: 320, ease: 'Back.easeOut' });
+
+    this.shelves.push(shelf);
+    this.game.events.emit(GameEvents.EXTRA_SHELF_STATE);
   }
 
   private playReliefIntro() {
@@ -1129,13 +1176,6 @@ export class GameScene extends Phaser.Scene {
       const slotIdx = this.grid.slotAt(shelf, p.x);
 
       {
-        if (State.activeBooster === 'hammer') {
-          shelf.removeItem(slotIdx);
-          State.activeBooster = null;
-          this.game.events.emit(GameEvents.HAMMER_ACTIVE, false);
-          return;
-        }
-
         if (!this.selected) {
           const item = shelf.slots[slotIdx];
           if (item) {
@@ -1360,7 +1400,7 @@ export function addCardNineSlice(
 export class UIScene extends Phaser.Scene {
   private scoreTxt!: Phaser.GameObjects.Text;
   private movesTxt!: Phaser.GameObjects.Text;
-  private hammerHighlight!: Phaser.GameObjects.Graphics;
+  private extraShelfBtn: Phaser.GameObjects.Container | null = null;
   private undoBadge: Phaser.GameObjects.Text | null = null;
 
   constructor() {
@@ -1408,23 +1448,33 @@ export class UIScene extends Phaser.Scene {
     const boosters = [
       { key: 'btn_undo', label: 'UNDO', fn: () => this.game.events.emit(GameEvents.UNDO_TRIGGERED) },
       { key: 'btn_shuffle', label: 'SHUFFLE', fn: () => this.game.events.emit(GameEvents.SHUFFLE_TRIGGERED) },
-      { key: 'btn_hammer', label: 'HAMMER', fn: () => {
-        State.activeBooster = State.activeBooster === 'hammer' ? null : 'hammer';
-        this.updateHammerState();
-      }}
+      { key: 'btn_extra_shelf', label: 'SHELF', fn: () => this.game.events.emit(GameEvents.EXTRA_SHELF_TRIGGERED) }
     ];
 
     boosters.forEach((b, idx) => {
       const btn = this.add.container(trayX + (idx - 1) * boosterSpacing, trayY);
-
-      if (b.label === 'HAMMER') {
-        this.hammerHighlight = this.add.graphics();
-        btn.add(this.hammerHighlight);
-      }
+      if (b.key === 'btn_extra_shelf') this.extraShelfBtn = btn;
 
       if (this.textures.exists(b.key)) {
         const sprite = this.add.image(0, 0, b.key).setDisplaySize(boosterSize, boosterSize);
         btn.add(sprite);
+      } else if (b.key === 'btn_extra_shelf') {
+        // Procedural-Fallback bis der Reve-Render von btn_extra_shelf vorliegt:
+        // runder Cream-Button mit gezeichnetem Regal-Icon (zwei Faecher).
+        const s = uiScale;
+        const g = this.add.graphics();
+        g.fillStyle(KYOTO.cream, 1).fillCircle(0, 0, 27 * s);
+        g.lineStyle(2 * s, KYOTO.hinoki, 0.85).strokeCircle(0, 0, 27 * s);
+        g.lineStyle(2.5 * s, KYOTO.hinoki, 1);
+        g.lineBetween(-13 * s, -14 * s, -13 * s, 8 * s);
+        g.lineBetween(13 * s, -14 * s, 13 * s, 8 * s);
+        g.lineBetween(-13 * s, -4 * s, 13 * s, -4 * s);
+        g.lineBetween(-13 * s, 8 * s, 13 * s, 8 * s);
+        g.fillStyle(KYOTO.toastGold, 1);
+        g.fillCircle(-6 * s, -9 * s, 3.5 * s);
+        g.fillCircle(4 * s, -9 * s, 3.5 * s);
+        g.fillCircle(0, 2 * s, 3.5 * s);
+        btn.add(g);
       } else {
         const bg = this.add.graphics().fillStyle(KYOTO.kuroSteel, 0.9).fillRoundedRect(-32 * uiScale, -22 * uiScale, 64 * uiScale, 44 * uiScale, 10 * uiScale);
         const txt = this.add.text(0, 0, b.label, valueStyle(10 * uiScale, '#FDFBF7')).setOrigin(0.5);
@@ -1467,26 +1517,30 @@ export class UIScene extends Phaser.Scene {
       this.undoBadge?.setText(`${State.undoLeft}`);
     };
 
+    // Extra-Shelf-Button spiegelt den Level-Zustand: nach Einsatz grau und
+    // taub, nach Retry bzw. Nachfolger-Level wieder aktiv.
+    const applyExtraShelfState = () => {
+      const btn = this.extraShelfBtn;
+      if (!btn) return;
+      if (State.extraShelfUsed) {
+        btn.setAlpha(0.35).disableInteractive();
+      } else {
+        btn.setAlpha(1).setInteractive({ useHandCursor: true });
+      }
+    };
+
     this.game.events.on(GameEvents.MOVE_EXECUTED, onMove);
     this.game.events.on(GameEvents.SCORE_UPDATED, onScore);
     this.game.events.on(GameEvents.UNDO_UPDATED, updateUndoBadge);
-    this.game.events.on(GameEvents.HAMMER_ACTIVE, () => this.updateHammerState());
+    this.game.events.on(GameEvents.EXTRA_SHELF_STATE, applyExtraShelfState);
+    applyExtraShelfState();
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.game.events.off(GameEvents.MOVE_EXECUTED, onMove);
       this.game.events.off(GameEvents.SCORE_UPDATED, onScore);
       this.game.events.off(GameEvents.UNDO_UPDATED, updateUndoBadge);
+      this.game.events.off(GameEvents.EXTRA_SHELF_STATE, applyExtraShelfState);
     });
-  }
-
-  private updateHammerState() {
-    if (!this.hammerHighlight) return;
-    this.hammerHighlight.clear();
-    if (State.activeBooster === 'hammer') {
-      const uiScale = getLayoutScale(this.scale.width);
-      this.hammerHighlight.fillStyle(KYOTO.azuki, 0.35).fillCircle(0, 0, 32 * uiScale);
-      this.hammerHighlight.lineStyle(2 * uiScale, KYOTO.azuki, 1).strokeCircle(0, 0, 32 * uiScale);
-    }
   }
 }
 
