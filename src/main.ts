@@ -403,10 +403,10 @@ class ZenAudioEngine {
     this.vibrate([20, 40, 20]);
     if (!this.ctx || this.ctx.state === 'suspended') return;
 
-    const scale = [293.66, 311.13, 392.00, 440.00, 523.25];
-    const root = Math.min(combo - 1, scale.length - 2);
+    const comboStep = Math.min(combo - 1, 7);
+    const root = 392.0 * Math.pow(2, (comboStep * 2) / 12);
 
-    [scale[root], scale[root + 1]].forEach((freq, i) => {
+    [root, root * 1.5].forEach((freq, i) => {
       if (!this.ctx) return;
       const osc = this.ctx.createOscillator();
       const g = this.ctx.createGain();
