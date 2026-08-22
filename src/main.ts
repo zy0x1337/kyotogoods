@@ -1267,7 +1267,12 @@ export class GameScene extends Phaser.Scene {
     this.game.events.emit(GameEvents.SCORE_UPDATED, { score: State.score, combo: State.combo });
 
     const allClear = this.shelves.every(s => s.slots.every(slot => slot === null) && s.queues.every(q => q.length === 0));
-    if (allClear || State.matchesMade >= State.targetMatches) {
+    // Ein Level ist erst gewonnen, wenn wirklich ALLES vom Brett ist -- nicht,
+    // sobald ein Match-Zaehler die Zielmarke erreicht hat. Beim intakten
+    // Generator (genau targetMatches-Tripletts platziert) sind beide
+    // Bedingungen identisch; der Zaehler driftet aber bei kuenftigen Features
+    // (Booster, Blocker-Sonderfaelle), das Brett selbst luegt nie.
+    if (allClear) {
       State.won = true;
       ZenAudio.playWin();
       // Bento-Journal: nur Meilenstein-Siege (L5/10/.../30) vergeben eine Deko
@@ -1303,7 +1308,7 @@ export class GameScene extends Phaser.Scene {
     this.loseCheckTimer?.remove(false);
     this.loseCheckTimer = this.time.delayedCall(650, () => {
       const allClear = this.shelves.every(s => s.slots.every(slot => slot === null) && s.queues.every(q => q.length === 0));
-      if (!State.won && State.moves <= 0 && State.matchesMade < State.targetMatches && !allClear) {
+      if (!State.won && State.moves <= 0 && !allClear) {
         this.scene.pause();
         this.scene.launch('LoseModalScene');
       }
