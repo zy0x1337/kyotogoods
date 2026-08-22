@@ -67,7 +67,7 @@ Cute Japanese kawaii flat illustration style. Clean simple rounded shapes with c
 ### Negative Prompt — Kawaii Flat (an alle Reve-Runs anhängen)
 
 ```
-3D render, 3D perspective, isometric view, realistic, photorealistic, hyper-detailed, complex shading, multiple light sources, harsh shadows, visible brushstrokes, watercolor bleed, rough edges, sketchy lines, uneven outlines, gradient background, text, watermark, logo, multiple objects, duplicate, collage, dark moody colors, neon colors, oversaturated, glossy specular highlights, anime screentone, pixel art
+Negative prompt:3D render, 3D perspective, isometric view, realistic, photorealistic, hyper-detailed, complex shading, multiple light sources, harsh shadows, visible brushstrokes, watercolor bleed, rough edges, sketchy lines, uneven outlines, gradient background, text, watermark, logo, multiple objects, duplicate, collage, dark moody colors, neon colors, oversaturated, glossy specular highlights, anime screentone, pixel art
 ```
 
 ### Silhouetten-Regel
@@ -83,7 +83,7 @@ Die 20 Silhouetten decken folgende Grundformen ab — keine zwei Items teilen di
 | Kreis | maki | Perfekter Kreis, Muster innen |
 | Tüte / Kegel | temaki | Spitze unten, offen oben |
 | Halbmond | gyoza | Gewellte Oberkante, glatte Basis |
-| Fischform | taiyaki | Kopf, Schwanzflosse, Rückenflosse |
+| Kegelstumpf / Trapez | purin | Schräge Seiten, flacher Kopf + Kirsche oben |
 | 3 Kugeln + vertikaler Stab | dango | Rund, gleichmässig vertikal gestapelt |
 | 3 Blöcke + horizontaler Spiess | yakitori | Eckig, horizontal aufgereiht |
 | Breite Schale + Stäbchen | ramen | Weite Schale, Stäbchen ragen oben raus |
@@ -120,8 +120,8 @@ Alle 20 Items sind japanisches Essen. Jedes hat eine einzigartige Silhouette und
 5. **gyoza** *(Halbmond — goldgelb):*
    A single Japanese gyoza dumpling in a crescent half-moon shape, warm golden-yellow wrapper with a neat row of small crimped pleats along the entire curved top edge, smooth flat bottom edge, slightly wider than tall, a cute kawaii face with two simple dot eyes and a tiny curved smile on the smooth front of the wrapper. Always take the project guidelines and negative prompt into account. 
 
-6. **taiyaki** *(Fischform — goldbraun):*
-   A single taiyaki fish-shaped pastry in warm golden-brown, clearly recognizable fish silhouette with a rounded head on the left showing a cute kawaii face with two simple dot eyes and a tiny curved smile, a pointed dorsal fin on top, a small pectoral fin below, and a wide fan-shaped tail fin on the right. Always take the project guidelines and negative prompt into account. 
+6. **purin** *(Trapezoid / Kegelstumpf mit Kirsche — cremegelb/karamell):*
+   A single Japanese custard pudding purin seen from the front, a classic flan shape wider at the flat base and gently tapering toward the flat top, smooth creamy custard body in soft warm yellow with a generous glossy layer of dark caramel sauce dripping slightly over the upper rim, a tiny bright red candied cherry with a short curved brown stem sitting on top, a cute kawaii face with two simple dot eyes and a tiny curved smile on the front yellow surface with soft pink cheek circles. Always take the project guidelines and negative prompt into account.
 
 7. **dango** *(vertikaler Dreier-Stapel — pink/weiss/grün):*
    Three perfectly round dango balls stacked vertically on a thin pale bamboo skewer, top ball in soft sakura pink, middle ball in chalk white, bottom ball in soft matcha green, evenly spaced with the skewer visible between them, the middle white ball showing a cute kawaii face with two simple dot eyes and a tiny curved smile. Always take the project guidelines and negative prompt into account. 

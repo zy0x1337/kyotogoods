@@ -11,51 +11,19 @@ if (!fs.existsSync(OUT_DIR)) {
 }
 
 const ITEM_IDS = [
-  'chawan_cup', 'chochin', 'dango_stick', 'daruma',
-  'furoshiki', 'incense_burner', 'kissa_toast', 'kokeshi',
-  'maneki_neko', 'matcha_roll', 'omamori', 'onigiri',
-  'koinobori', 'sake_tokkuri', 'sensu_fan', 'temari',
-  'tetsubin_kettle', 'torii_gate', 'wagashi', 'yokan_prism'
+  'onigiri', 'nigiri', 'maki', 'temaki', 'gyoza', 'purin', 'dango',
+  'yakitori', 'ramen', 'mochi', 'dorayaki', 'takoyaki', 'edamame',
+  'matcha_latte', 'tamagoyaki', 'wagashi', 'kakigori', 'ichigo_daifuku',
+  'sakura_mochi', 'inarizushi'
 ];
 
-// Parallax-Layer, die als freigestelltes Einzelobjekt platziert werden statt
-// als bildfuellende Ebene. Alle uebrigen bgl_ Layer behalten ihre Position im
-// 9:16-Frame, damit sie sich im Spiel deckungsgleich stapeln lassen.
-const BGL_SPRITES = ['bgl_cat', 'bgl_dog'];
-
-// Layer, die als bildbreites Band am unteren Rand sitzen. Sie werden auf ihren
-// Inhalt beschnitten, weil die Renders unterhalb des Motivs Weissraum lassen --
-// als Vollbild-Ebene wuerde das Band sonst in der Luft haengen.
-const BGL_BANDS = ['bgl_meadow'];
-
-// Layer, bei denen die Innenflaeche ausgestanzt wird, damit der Hintergrund
-// durchscheint. Der Render liefert das Gehaeuse mit geschlossener Putzrueckwand
-// -- ohne Ausstanzen waere die Gartenszene dahinter unsichtbar.
-const BGL_KNOCKOUT = [];
-
-// Ausgabeformat. WebP statt PNG: die Vollbild-Ebenen laufen mit der doppelten
-// Kantenlaenge (siehe FRAME_WIDTH) und waeren als PNG zusammen ueber 10 MB
-// gross -- ein Verlaufshimmel komprimiert in PNG praktisch gar nicht.
-// alphaQuality 100 haelt den Alphakanal verlustfrei: die freigestellte
-// Silhouette und die geglaetteten Kanten bleiben exakt so, wie die Pipeline sie
-// berechnet hat, verlustbehaftet ist nur die Farbe innerhalb der Flaeche.
 const OUT_EXT = 'webp';
 const ENCODE = { quality: 95, alphaQuality: 100, effort: 6 };
 
-// Zielaufloesungen. Ein Telefon mit devicePixelRatio 3 zeichnet die Szene auf
-// rund 1240 Geraetepixel Breite. Bei 720 px Texturbreite wurde jede
-// Vollbild-Ebene um Faktor 1.7 hochskaliert -- zusammen mit der in CSS-Pixeln
-// gerenderten Canvas war das die Unschaerfe im Deploy.
-const FRAME_WIDTH = 1440;   // bg_ und bgl_ Vollbild-Ebenen
-const SPRITE_HEIGHT = 1024; // bgl_ Einzelobjekte (Katze, Shiba)
-const SHELF_WIDTH = 1216;   // shelf_
-const CARD_HEIGHT = 256;    // ui_card_
-const TARGET_SIZE = 384;    // Goods, Buttons, FX
+const FRAME_WIDTH = 1440;
+const CARD_HEIGHT = 256;
+const TARGET_SIZE = 384;
 
-// Radius des Despill-/Kantenbands in cleanEdges. Der Wert ist eine Pixelbreite
-// am fertigen Bild und muss mit der Zielaufloesung mitwachsen, sonst deckt er
-// nur noch den halben Saum ab. Basis: 5 px bei 256er Sprites, 3 px bei 720er
-// Ebenen.
 const EDGE_SPRITE = 8;
 const EDGE_LAYER = 6;
 
@@ -76,11 +44,6 @@ function findAlphaBounds(data, width, height) {
   return { top, bottom };
 }
 
-// Robuste Alpha-Bounding-Box. sharp.trim() ist bei weichen Defringe-Kanten
-// unzuverlaessig, und ein einzelnes Streupixel aus dem Render (JPEG-Artefakt,
-// Rest einer Signatur) blaeht eine naive Box auf die halbe Leinwand auf. Daher:
-// pro Zeile/Spalte zaehlen und nur Reihen akzeptieren, die genug deckende Pixel
-// haben.
 function findAlphaBox(data, width, height, alphaMin = 80, region = null) {
   const rx0 = region ? region.left : 0;
   const ry0 = region ? region.top : 0;
@@ -99,7 +62,6 @@ function findAlphaBox(data, width, height, alphaMin = 80, region = null) {
     }
   }
 
-  // Eine Reihe zaehlt, wenn mindestens 0.5% ihrer Laenge deckend ist
   const minRow = Math.max(3, Math.round((rx1 - rx0 + 1) * 0.005));
   const minCol = Math.max(3, Math.round((ry1 - ry0 + 1) * 0.005));
 
@@ -111,18 +73,6 @@ function findAlphaBox(data, width, height, alphaMin = 80, region = null) {
   return { left: x0, top: y0, width: x1 - x0 + 1, height: y1 - y0 + 1 };
 }
 
-// Zerlegt die Maske in zusammenhaengende Flaechen. Nano Banana Pro legt
-// gelegentlich ein zweites Objekt mit ins Bild (Spillover vom Anchor-Render);
-// eine globale Bounding-Box umschliesst dann beide und das Asset wird
-// zusammengestaucht. Gelabelt wird auf einer 1/4-Maske -- das reicht, um die
-// Objekte zu trennen, und haelt den Flood-Fill schnell.
-//
-// strategy 'union':  alle substanziellen Flaechen zusammen. Richtig fuer Items
-//   und Buttons -- ein abgesetztes Detail (Butterwuerfel, Goldflocke) darf nicht
-//   wegfallen, Defringe-Krimskrams schon.
-// strategy 'widest':  breitestes Seitenverhaeltnis, eine einzelne Flaeche.
-//   Richtig fuer UI-Balken -- dort ist das Stoerobjekt (eine Nische, ein Regal)
-//   oft flaechiger als die gesuchte Leiste.
 function findBlobRegion(data, width, height, strategy = 'union', alphaMin = 80, step = 4) {
   const mw = Math.ceil(width / step);
   const mh = Math.ceil(height / step);
@@ -171,7 +121,6 @@ function findBlobRegion(data, width, height, strategy = 'union', alphaMin = 80, 
   if (blobs.length === 0) return null;
 
   const maxCount = Math.max(...blobs.map(b => b.count));
-  // Krimskrams unter 8% der groessten Flaeche kommt nie in Frage
   const candidates = blobs.filter(b => b.count >= maxCount * 0.08);
 
   let best;
@@ -190,7 +139,6 @@ function findBlobRegion(data, width, height, strategy = 'union', alphaMin = 80, 
     console.log(`    ${candidates.length} relevante Objekte im Render, Strategie '${strategy}'`);
   }
 
-  // Mit einem Maskenpixel Rand zurueck in volle Aufloesung
   return {
     left: Math.max(0, (best.x0 - 1) * step),
     top: Math.max(0, (best.y0 - 1) * step),
@@ -199,57 +147,6 @@ function findBlobRegion(data, width, height, strategy = 'union', alphaMin = 80, 
   };
 }
 
-// Stanzt die geschlossene Innenflaeche eines Rahmens aus. Gefuellt wird von der
-// Bildmitte her ueber unbunte, mittelhelle Pixel -- das Putzpanel. Der Holzrahmen
-// ist stark warm (Kanalspreizung > 80) und stoppt die Fuellung zuverlaessig, der
-// reinweisse Aussenbereich wird nie erreicht.
-//
-// Rueckgabe: Bounding-Box des Lochs, also die lichte Nische.
-function knockOutPanel(data, width, height) {
-  const isPanel = i => {
-    const r = data[i], g = data[i + 1], b = data[i + 2];
-    const lo = Math.min(r, g, b);
-    return Math.max(r, g, b) - lo < 30 && lo > 140 && lo < 250;
-  };
-
-  const seed = (Math.floor(height / 2) * width + Math.floor(width / 2));
-  if (!isPanel(seed * 4)) return null;
-
-  const seen = new Uint8Array(width * height);
-  const stack = new Int32Array(width * height);
-  let sp = 0;
-  stack[sp++] = seed;
-  seen[seed] = 1;
-
-  let x0 = width, y0 = height, x1 = -1, y1 = -1;
-
-  while (sp > 0) {
-    const cur = stack[--sp];
-    const cx = cur % width;
-    const cy = (cur - cx) / width;
-
-    data[cur * 4 + 3] = 0;
-    if (cx < x0) x0 = cx;
-    if (cx > x1) x1 = cx;
-    if (cy < y0) y0 = cy;
-    if (cy > y1) y1 = cy;
-
-    if (cx > 0 && !seen[cur - 1] && isPanel((cur - 1) * 4)) { seen[cur - 1] = 1; stack[sp++] = cur - 1; }
-    if (cx < width - 1 && !seen[cur + 1] && isPanel((cur + 1) * 4)) { seen[cur + 1] = 1; stack[sp++] = cur + 1; }
-    if (cy > 0 && !seen[cur - width] && isPanel((cur - width) * 4)) { seen[cur - width] = 1; stack[sp++] = cur - width; }
-    if (cy < height - 1 && !seen[cur + width] && isPanel((cur + width) * 4)) { seen[cur + width] = 1; stack[sp++] = cur + width; }
-  }
-
-  return { left: x0, top: y0, width: x1 - x0 + 1, height: y1 - y0 + 1 };
-}
-
-// Freigestellt wird gegen Weiss -- bei einem cremeweissen Objekt trifft das
-// auch dessen hellste Stellen. Bei der Katze riss das Loecher in Kopf und Fell.
-//
-// Reparatur: von den Bildraendern her durch die transparenten Pixel fluten. Was
-// dabei nicht erreicht wird, liegt im Inneren des Objekts und bekommt seine
-// Deckung zurueck. Weiche Aussenkanten bleiben unangetastet, weil sie vom Rand
-// aus erreichbar sind.
 function fillInteriorHoles(data, width, height, alphaMax = 250, maxShare = 0.02) {
   const n = width * height;
   const isHole = i => data[i * 4 + 3] <= alphaMax;
@@ -275,17 +172,10 @@ function fillInteriorHoles(data, width, height, alphaMax = 250, maxShare = 0.02)
     if (cy < height - 1) push(cur + width);
   }
 
-  // Flaeche des Motivs als Bezugsgroesse fuer die Lochpruefung unten.
   let solid = 0;
   for (let i = 0; i < n; i++) if (data[i * 4 + 3] > alphaMax) solid++;
   const limit = Math.max(64, Math.round(solid * maxShare));
 
-  // Nicht jede eingeschlossene Flaeche ist ein Keying-Schaden. Der Buegel einer
-  // Tetsubin schliesst ein echtes Durchgangsloch ein -- wird das gefuellt, steht
-  // im Spiel eine weisse Platte im Griff. Unterschieden wird nach Groesse: ein
-  // vom Keying gerissenes Loch ist klein gegen das Motiv, ein Durchgangsloch
-  // nicht. Der Buegel kam auf 25 % der Motivflaeche, die Risse im Katzenfell
-  // liegen um Groessenordnungen darunter.
   const comp = new Int32Array(n);
   let filled = 0;
   let holes = 0;
@@ -318,18 +208,7 @@ function fillInteriorHoles(data, width, height, alphaMax = 250, maxShare = 0.02)
   return { filled, holes };
 }
 
-// Erkennt, wogegen freigestellt werden muss. Standard ist Weiss. Ist der Rand
-// dagegen kraeftig bunt und einheitlich, wurde gegen eine Chroma-Flaeche
-// gerendert -- dann wird gegen diese Farbe gekeyt.
-//
-// Noetig fuer helle Motive: der Katzen-Render hat einen Studio-Hintergrund von
-// 241..251 Grau, waehrend das cremeweisse Fell bei 249..251 liegt. An der Stirn
-// sind Motiv und Hintergrund exakt dieselbe Farbe -- weder ein Schwellwert noch
-// eine Konnektivitaetsanalyse koennen das trennen. Gegen ein saettigungsstarkes
-// Chroma ist die Trennung dagegen eindeutig.
 function detectKeyColor(data, width, height) {
-  // Median ueber den ganzen Bildrand statt sechs Stichproben: einzelne Ecken
-  // koennen vom Motiv oder von der Vignette verzogen sein.
   const ch = [[], [], []];
   const take = (x, y) => {
     const i = (y * width + x) * 4;
@@ -345,11 +224,6 @@ function detectKeyColor(data, width, height) {
   return { r: 255, g: 255, b: 255, chroma: false };
 }
 
-// Sucht die Trennschwelle zwischen Hintergrund und Motiv im Histogramm der
-// Farbabstaende. Ein fester Wert passt nicht: der Abstand des Motivs zum
-// Chroma schwankt je Render stark -- bei der Katze beginnt es ab 100, bei den
-// Buttons erst ab 150, beim Regalbrett ab 125. Gesucht wird das Tal zwischen
-// dem Hintergrund-Peak bei 0 und der ersten dichten Motivregion.
 function findKeyThreshold(data, key) {
   const BIN = 5;
   const bins = new Array(Math.ceil(442 / BIN)).fill(0);
@@ -367,7 +241,6 @@ function findKeyThreshold(data, key) {
   let hi = lo;
   while (hi < bins.length && bins[hi] <= quiet) hi++;
 
-  // Kein klares Tal: konservativer Standardwert
   if (hi >= bins.length || hi - lo < 2) return { cut: 60, ramp: 50 };
 
   const dLo = lo * BIN;
@@ -383,11 +256,6 @@ function defringe(data, stripHalo = true, key = null) {
       const dist = Math.sqrt(
         (key.r - data[i]) ** 2 + (key.g - data[i + 1]) ** 2 + (key.b - data[i + 2]) ** 2);
 
-      // Despill: die Chroma-Flaeche strahlt auf helle Motive ab. Beim Katzen-
-      // Render hat das cremefarbene Fell einen Magenta-Stich bekommen.
-      // Korrigiert wird nur bei geringer Saettigung -- die azuki-rosé Pfeile der
-      // Buttons haben ebenfalls b > g, sind aber kraeftig gesaettigt und
-      // sollen ihre Farbe behalten.
       if (dist >= cut) {
         const r = data[i], g = data[i + 1], b = data[i + 2];
         const sat = Math.max(r, g, b) - Math.min(r, g, b);
@@ -400,7 +268,6 @@ function defringe(data, stripHalo = true, key = null) {
       if (dist < cut) data[i + 3] = 0;
       else if (dist < cut + ramp) {
         data[i + 3] = Math.floor(((dist - cut) / ramp) * 255);
-        // Saum entfaerben, sonst bleibt ein magenta Rand am Objekt stehen
         const lum = (data[i] + data[i + 1] + data[i + 2]) / 3;
         const t = 1 - (dist - cut) / ramp;
         data[i] = Math.round(data[i] * (1 - t) + lum * t);
@@ -421,17 +288,6 @@ function defringeWhite(data, stripHalo = true) {
     else if (dist < 38) data[i + 3] = Math.floor(((dist - 18) / 20) * 255);
   }
 
-  // Weisser Saum. Der weiche Schlagschatten der Renders ist heller als der
-  // Putz-Hintergrund im Spiel -- er liest sich dort nicht als Schatten, sondern
-  // als Glühen unter dem Objekt. Solche Pixel sind fast weiss UND nur teilweise
-  // deckend; deckende Flaechen (helle Items wie Toast oder Chawan) bleiben
-  // unangetastet, weil ihr Alpha bereits 255 ist.
-  //
-  // Die Schwelle darf nicht ueber den Defringe-Rampenwert geloest werden: ein
-  // globales Anheben wuerde die Brotflaeche des Toasts halbtransparent machen.
-  // Flache Grafik-Layer haben keinen Schlagschatten, dafuer aber absichtlich
-  // sehr helle Flaechen -- bei den Wolken loescht die Halo-Regel sonst das
-  // ganze Layer.
   if (stripHalo) {
     for (let i = 0; i < data.length; i += 4) {
       const a = data[i + 3];
@@ -443,14 +299,6 @@ function defringeWhite(data, stripHalo = true) {
   return data;
 }
 
-// Der weiche Schlagschatten der Renders liegt auf weissem Papier und kommt
-// deshalb als hellgrauer, voll deckender Streifen an -- die Alpha-Logik greift
-// dort nicht. Auf dem Putz-Hintergrund des Spiels liest sich dieser Streifen als
-// Glühen unter dem Objekt.
-//
-// Erkennungsmerkmal: unbunt (geringe Kanalspreizung) und hell. Geprueft wird das
-// nur reihenweise an den Kanten der Crop-Box, nie im Inneren -- eine
-// Pixelmaske wuerde sonst Lichter aus weisser Keramik ausstanzen.
 function isShadowPixel(data, idx) {
   if (data[idx + 3] < 8) return true;
   const r = data[idx], g = data[idx + 1], b = data[idx + 2];
@@ -458,10 +306,6 @@ function isShadowPixel(data, idx) {
   return spread < 10 && Math.min(r, g, b) > 150;
 }
 
-// Schrumpft die Box, solange eine Randreihe nicht dicht genug gedeckt ist. Der
-// Wiesen-Render lief rechts und unten weich aus; die Box umfasste diese fast
-// transparenten Reihen noch, wodurch das Band im Spiel eine Luecke zum
-// Bildrand liess.
 function trimSoftEdges(data, width, box, minCoverage = 0.6, alphaMin = 200) {
   let { left, top } = box;
   let right = box.left + box.width - 1;
@@ -510,21 +354,6 @@ function trimShadowEdges(data, width, box, threshold = 0.9) {
   return { left, top, width: right - left + 1, height: bottom - top + 1 };
 }
 
-// Defringe -> exakter Alpha-Crop. Liefert eine sharp-Pipeline auf dem reinen
-// Inhalt. Mit singleObject wird vorher auf die groesste zusammenhaengende
-// Flaeche eingegrenzt, damit ein zweites Objekt im Render nichts verschiebt.
-// Entfernt den Chroma-Spill entlang der Silhouette und glaettet die Alphakante.
-//
-// Zwei getrennte Probleme, beide sichtbar als "unsaubere Kante":
-// 1. Die Chroma-Flaeche strahlt im Render auf das Motiv ab. Das Keying trennt
-//    zwar sauber, aber der aeussere Saum des Objekts bleibt rosa -- am
-//    Chasen-Sockel, unter dem Chashaku-Loeffel, am Rand des Koro.
-// 2. Bei hartem Schwellwert entsteht stellenweise eine Treppe statt einer
-//    weichen Kante.
-//
-// Der Despill laeuft nur in einem schmalen Band entlang der Kante und nimmt
-// nach innen ab. Global angewandt wuerde er gewollt bunte Flaechen entfaerben --
-// die azuki-roten Pfeile auf btn_shuffle liegen genau im selben Farbbereich.
 function cleanEdges(data, width, height, key, radius = 5) {
   const n = width * height;
   const dist = new Int16Array(n).fill(-1);
@@ -548,9 +377,6 @@ function cleanEdges(data, width, height, key, radius = 5) {
   }
 
   if (key && key.chroma) {
-    // Der Kanal, in dem der Chroma-Hintergrund am dunkelsten ist, ist der
-    // Referenzwert -- bei Magenta das Gruen. Was in den beiden anderen Kanaelen
-    // darueber liegt, ist Spill und wird abgezogen.
     const kc = [key.r, key.g, key.b];
     const lo = kc.indexOf(Math.min(...kc));
     const [h1, h2] = [0, 1, 2].filter(c => c !== lo);
@@ -558,9 +384,6 @@ function cleanEdges(data, width, height, key, radius = 5) {
     for (let i = 0; i < n; i++) {
       const o = i * 4;
       if (data[o + 3] < 8) continue;
-      // Am Rand voll, in der Flaeche abgeschwaecht: die Chroma-Flaeche strahlt
-      // auch ins Innere ab (unter dem Chashaku-Loeffel), aber dort steht der
-      // Spill mit der Eigenfarbe des Motivs in Konkurrenz.
       const d = dist[i];
       const w = d > 0 && d <= radius ? 1 - (d - 1) / radius * 0.25 : 0.75;
       const excess = Math.min(data[o + h1], data[o + h2]) - data[o + lo];
@@ -570,8 +393,6 @@ function cleanEdges(data, width, height, key, radius = 5) {
     }
   }
 
-  // Alphakante glaetten: 3x3-Mittel, aber nur dort, wo im Umfeld sowohl
-  // deckende als auch transparente Pixel liegen. Flaechen bleiben unberuehrt.
   const alpha = new Uint8Array(n);
   for (let i = 0; i < n; i++) alpha[i] = data[i * 4 + 3];
 
@@ -593,9 +414,6 @@ function cleanEdges(data, width, height, key, radius = 5) {
   }
 }
 
-// Schreibt eine fertig skalierte Pipeline und laeuft davor einmal ueber die
-// Kante. Bewusst am Ende der Kette: bei voller Renderaufloesung waere das Band
-// entlang der Silhouette 15x breiter als noetig und entsprechend langsam.
 async function writeClean(pipeline, targetPath, key, radius = EDGE_SPRITE) {
   const { data, info } = await pipeline.ensureAlpha().raw().toBuffer({ resolveWithObject: true });
   cleanEdges(data, info.width, info.height, key, radius);
@@ -629,153 +447,6 @@ async function cropToContent(filePath, strategy = 'union', trimShadow = false, s
   return { pipeline: sharp(data, { raw }).extract(box), box, key };
 }
 
-// Misst die lichte Weite der Nische im Hintergrund-Render. Die dunkle Innenkante
-// des Hinoki-Rahmens ist auf halber Hoehe das jeweils dunkelste Pixel im linken
-// bzw. rechten Randdrittel. Ergebnis: Anteil der Bildbreite (0..1).
-async function measureCavityRatio(buf, width, height) {
-  const y = Math.floor(height * 0.5);
-  const lum = x => {
-    const i = (y * width + x) * 4;
-    return (buf[i] + buf[i + 1] + buf[i + 2]) / 3;
-  };
-  let xl = 0, minL = Infinity, xr = width - 1, minR = Infinity;
-  for (let x = 0; x < width * 0.4; x++) if (lum(x) < minL) { minL = lum(x); xl = x; }
-  for (let x = Math.floor(width * 0.6); x < width; x++) if (lum(x) < minR) { minR = lum(x); xr = x; }
-  return parseFloat(((xr - xl) / width).toFixed(4));
-}
-
-// Findet die Auflageflaeche eines Regalbretts: die Oberkante der dunklen
-// Vorderkante. Gesucht wird der staerkste Helligkeitsabfall im unteren Drittel.
-// Ergebnis: Anteil der Bildhoehe (0..1).
-//
-// Damit ist die Auflagelinie eine Eigenschaft des Assets statt einer Konstante
-// im Code -- ein Brett mit anderer Kantenhoehe funktioniert ohne Nachjustieren.
-function measurePlatformRatio(data, width, height) {
-  const rowLum = y => {
-    let sum = 0, n = 0;
-    for (let x = Math.floor(width * 0.2); x < width * 0.8; x++) {
-      const i = (y * width + x) * 4;
-      if (data[i + 3] > 200) { sum += (data[i] + data[i + 1] + data[i + 2]) / 3; n++; }
-    }
-    return n ? sum / n : null;
-  };
-
-  let bestDrop = 0, bestY = Math.floor(height * 0.88);
-  let prev = rowLum(Math.floor(height * 0.55));
-
-  for (let y = Math.floor(height * 0.55) + 1; y < height; y++) {
-    const lum = rowLum(y);
-    if (lum === null || prev === null) { prev = lum; continue; }
-    const drop = prev - lum;
-    if (drop > bestDrop) { bestDrop = drop; bestY = y; }
-    prev = lum;
-  }
-
-  return parseFloat((bestY / height).toFixed(4));
-}
-
-function measureCabinetCavity(data, width, height, outerBox) {
-  const cy = outerBox.top + Math.floor(outerBox.height / 2);
-
-  const colLum = (x) => {
-    let sum = 0, n = 0;
-    for (let dy = -5; dy <= 5; dy++) {
-      const y = cy + dy;
-      if (y < 0 || y >= height) continue;
-      const i = (y * width + x) * 4;
-      if (data[i + 3] > 200) { sum += (data[i] + data[i + 1] + data[i + 2]) / 3; n++; }
-    }
-    return n > 0 ? sum / n : 0;
-  };
-
-  const oLeft = outerBox.left;
-  const oRight = outerBox.left + outerBox.width - 1;
-  const oTop = outerBox.top;
-  const oBottom = outerBox.top + outerBox.height - 1;
-
-  const centerLum = colLum(Math.floor((oLeft + oRight) / 2));
-  const threshold = centerLum * 0.9;
-
-  let innerLeft = oLeft;
-  for (let x = oLeft; x < Math.floor((oLeft + oRight) / 2); x++) {
-    if (colLum(x) >= threshold) { innerLeft = x; break; }
-  }
-  let innerRight = oRight;
-  for (let x = oRight; x > Math.floor((oLeft + oRight) / 2); x--) {
-    if (colLum(x) >= threshold) { innerRight = x; break; }
-  }
-
-  const cx = Math.floor((innerLeft + innerRight) / 2);
-  const rowLum = (y) => {
-    let sum = 0, n = 0;
-    for (let dx = -5; dx <= 5; dx++) {
-      const x = cx + dx;
-      if (x < innerLeft || x > innerRight) continue;
-      const i = (y * width + x) * 4;
-      if (data[i + 3] > 200) { sum += (data[i] + data[i + 1] + data[i + 2]) / 3; n++; }
-    }
-    return n > 0 ? sum / n : 0;
-  };
-  const centerRowLum = rowLum(cy);
-  const rowThreshold = centerRowLum * 0.85;
-
-  let innerTop = oTop;
-  for (let y = oTop; y < cy; y++) { if (rowLum(y) >= rowThreshold) { innerTop = y; break; } }
-  let innerBottom = oBottom;
-  for (let y = oBottom; y > cy; y--) { if (rowLum(y) >= rowThreshold) { innerBottom = y; break; } }
-
-  return { innerLeft, innerTop, innerRight, innerBottom };
-}
-
-function measureCabinetShelves(data, width, height, cavity) {
-  const { innerLeft, innerTop, innerRight, innerBottom } = cavity;
-  const scanX0 = innerLeft + Math.floor((innerRight - innerLeft) * 0.15);
-  const scanX1 = innerRight - Math.floor((innerRight - innerLeft) * 0.15);
-
-  const rowLum = new Float64Array(height);
-  for (let y = innerTop; y <= innerBottom; y++) {
-    let sum = 0, n = 0;
-    for (let x = scanX0; x <= scanX1; x++) {
-      const i = (y * width + x) * 4;
-      if (data[i + 3] > 200) { sum += (data[i] + data[i + 1] + data[i + 2]) / 3; n++; }
-    }
-    rowLum[y] = n > 0 ? sum / n : 0;
-  }
-
-  const smooth = new Float64Array(height);
-  for (let y = innerTop; y <= innerBottom; y++) {
-    let s = 0, c = 0;
-    for (let dy = -3; dy <= 3; dy++) {
-      const yy = y + dy;
-      if (yy >= innerTop && yy <= innerBottom && rowLum[yy] > 0) { s += rowLum[yy]; c++; }
-    }
-    smooth[y] = c > 0 ? s / c : 0;
-  }
-
-  const grad = new Float64Array(height);
-  for (let y = innerTop + 1; y <= innerBottom; y++) {
-    grad[y] = smooth[y - 1] - smooth[y];
-  }
-
-  const cavityH = innerBottom - innerTop;
-  const minSpacing = Math.floor(cavityH * 0.06);
-  const minGrad = 3;
-  const peaks = [];
-
-  for (let y = innerTop + 3; y <= innerBottom - 3; y++) {
-    if (grad[y] < minGrad) continue;
-    let isMax = true;
-    for (let dy = -minSpacing; dy <= minSpacing; dy++) {
-      if (dy === 0) continue;
-      const yy = y + dy;
-      if (yy >= innerTop && yy <= innerBottom && grad[yy] > grad[y]) { isMax = false; break; }
-    }
-    if (isMax) peaks.push(parseFloat((y / height).toFixed(4)));
-  }
-
-  return peaks;
-}
-
 async function processImages() {
   if (!fs.existsSync(RAW_DIR)) return;
   const files = fs.readdirSync(RAW_DIR).filter(f => {
@@ -784,11 +455,6 @@ async function processImages() {
   });
 
   const offsets = {};
-  const cavities = {};
-  const cavityRects = {};
-  const frameRects = {};
-  const shelfPlatforms = {};
-  const cabinetShelfRatios = {};
   const produced = new Set();
 
   for (const file of files) {
@@ -798,154 +464,18 @@ async function processImages() {
 
     console.log(`Processing: ${file}`);
 
-    // FALL 1: Hintergrund-Vollbild (Seitenverhaeltnis erhalten, Breite FRAME_WIDTH)
-    if (baseName.startsWith('bg_')) {
+    // FALL 1: Hintergrund-Szenen (bgl_). Deckende Vollbilder, kein Chroma-Keying.
+    // Nur skalieren auf FRAME_WIDTH, Seitenverhaeltnis erhalten.
+    if (baseName.startsWith('bgl_')) {
       await sharp(filePath)
         .resize(FRAME_WIDTH, null, { fit: 'inside' })
         .webp(ENCODE)
         .toFile(targetPath);
-      const { data: bgData, info: bgInfo } = await sharp(targetPath).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
-      cavities[baseName] = await measureCavityRatio(bgData, bgInfo.width, bgInfo.height);
-      console.log(`  ${baseName}: cavityRatio=${cavities[baseName]}`);
+      console.log(`  ${baseName}: skaliert auf Breite ${FRAME_WIDTH}`);
       continue;
     }
 
-    // FALL 1b: Parallax-Layer (freigestellt, Breite FRAME_WIDTH, Hoehe proportional).
-    // Position im Frame bleibt erhalten -> Layer koennen 1:1 uebereinander liegen.
-    if (baseName.startsWith('bgl_')) {
-      // Einzelobjekt-Layer: freistellen und auf den Inhalt beschneiden, damit
-      // sie im Spiel frei positioniert werden koennen.
-      if (BGL_SPRITES.includes(baseName)) {
-        // Schattenrand mit abschneiden: die Figuren stehen im Spiel auf der
-        // Wiese, ein gebackener Papierschatten darunter liest sich dort als
-        // heller Fleck. Die Koerper sind durchgehend warm getoent, das
-        // Kanten-Trimming kann sie nicht anknabbern.
-        const { pipeline, box, key } = await cropToContent(filePath, 'union', true);
-        const targetH = SPRITE_HEIGHT;
-        const targetW = Math.max(32, Math.round(box.width * (targetH / box.height)));
-        await writeClean(pipeline.resize(targetW, targetH, { fit: 'fill' }), targetPath, key);
-        console.log(`  ${baseName}: sprite ${box.width}x${box.height} -> ${targetW}x${targetH}`);
-        continue;
-      }
-
-      // Band-Layer: auf den Inhalt beschnitten, volle Breite, unten buendig.
-      if (BGL_BANDS.includes(baseName)) {
-        const { pipeline, box, key } = await cropToContent(filePath, 'union', false, 0.9);
-        const targetW = FRAME_WIDTH;
-        const targetH = Math.max(16, Math.round(box.height * (targetW / box.width)));
-        await writeClean(pipeline.resize(targetW, targetH, { fit: 'fill' }), targetPath, key, EDGE_LAYER);
-        console.log(`  ${baseName}: band ${box.width}x${box.height} -> ${targetW}x${targetH}`);
-        continue;
-      }
-
-      // Combined Cabinet: Rahmen + Bretter als Einheit, kein knockOutPanel.
-      if (baseName.startsWith('bgl_cabinet_')) {
-        const { data, info } = await sharp(filePath).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
-        const key = detectKeyColor(data, info.width, info.height);
-        if (key.chroma) console.log(`    Chroma rgb(${key.r},${key.g},${key.b}), Schwelle ${findKeyThreshold(data, key).cut.toFixed(0)}`);
-        defringe(data, false, key);
-
-        const { filled } = fillInteriorHoles(data, info.width, info.height);
-        if (filled > 0) console.log(`    ${filled} Innenpixel wiederhergestellt`);
-
-        await sharp(data, { raw: { width: info.width, height: info.height, channels: 4 } })
-          .resize(FRAME_WIDTH, null, { fit: 'inside' })
-          .webp(ENCODE)
-          .toFile(targetPath);
-
-        const { data: od, info: oi } = await sharp(targetPath).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
-        const outer = findAlphaBox(od, oi.width, oi.height, 40);
-        if (outer) {
-          frameRects[baseName] = {
-            x: parseFloat(((outer.left + outer.width / 2) / oi.width).toFixed(4)),
-            y: parseFloat((outer.top / oi.height).toFixed(4)),
-            w: parseFloat((outer.width / oi.width).toFixed(4)),
-            h: parseFloat((outer.height / oi.height).toFixed(4))
-          };
-          console.log(`  ${baseName}: Kontur ${outer.width}x${outer.height}`);
-
-          const cavity = measureCabinetCavity(od, oi.width, oi.height, outer);
-          cavityRects[baseName] = {
-            x: parseFloat(((cavity.innerLeft + cavity.innerRight) / 2 / oi.width).toFixed(4)),
-            y: parseFloat((cavity.innerTop / oi.height).toFixed(4)),
-            w: parseFloat(((cavity.innerRight - cavity.innerLeft + 1) / oi.width).toFixed(4)),
-            h: parseFloat(((cavity.innerBottom - cavity.innerTop + 1) / oi.height).toFixed(4))
-          };
-          console.log(`  ${baseName}: Kavitaet ${cavity.innerRight - cavity.innerLeft + 1}x${cavity.innerBottom - cavity.innerTop + 1}`);
-
-          const shelves = measureCabinetShelves(od, oi.width, oi.height, cavity);
-          cabinetShelfRatios[baseName] = shelves;
-          console.log(`  ${baseName}: ${shelves.length} Bretter bei ${shelves.map(s => s.toFixed(4)).join(', ')}`);
-        }
-        continue;
-      }
-
-      // Bildfuellende Ebene: nur freistellen, Position im Frame bleibt erhalten.
-      const { data, info } = await sharp(filePath).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
-      const key = detectKeyColor(data, info.width, info.height);
-      if (key.chroma) console.log(`    Chroma rgb(${key.r},${key.g},${key.b}), Schwelle ${findKeyThreshold(data, key).cut.toFixed(0)}`);
-      defringe(data, false, key);
-
-      // Rahmen mit geschlossener Rueckwand: Innenflaeche ausstanzen. Das Loch ist
-      // danach die exakte lichte Nische -- praeziser als die Helligkeits-Heuristik
-      // von measureCavityRatio, weil es direkt aus dem Alphakanal kommt.
-      if (BGL_KNOCKOUT.includes(baseName)) {
-        const hole = knockOutPanel(data, info.width, info.height);
-        if (hole) {
-          cavityRects[baseName] = {
-            x: parseFloat(((hole.left + hole.width / 2) / info.width).toFixed(4)),
-            y: parseFloat((hole.top / info.height).toFixed(4)),
-            w: parseFloat((hole.width / info.width).toFixed(4)),
-            h: parseFloat((hole.height / info.height).toFixed(4))
-          };
-          cavities[baseName] = cavityRects[baseName].w;
-          console.log(`  ${baseName}: Nische ausgestanzt, ${hole.width}x${hole.height} (ratio ${cavities[baseName]})`);
-        } else {
-          console.warn(`  ${baseName}: Innenflaeche nicht erkannt -- Rueckwand bleibt geschlossen`);
-        }
-      }
-
-      await sharp(data, { raw: { width: info.width, height: info.height, channels: 4 } })
-        .resize(FRAME_WIDTH, null, { fit: 'inside' })
-        .webp(ENCODE)
-        .toFile(targetPath);
-
-      // Aeussere Kontur des Gehaeuses. Das Spiel skaliert danach, damit das
-      // Moebel vollstaendig zwischen Header und Booster-Reihe steht statt vom
-      // Cover-Scaling oben und unten angeschnitten zu werden.
-      if (BGL_KNOCKOUT.includes(baseName)) {
-        const { data: od, info: oi } = await sharp(targetPath).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
-        const outer = findAlphaBox(od, oi.width, oi.height, 40);
-        if (outer) {
-          frameRects[baseName] = {
-            x: parseFloat(((outer.left + outer.width / 2) / oi.width).toFixed(4)),
-            y: parseFloat((outer.top / oi.height).toFixed(4)),
-            w: parseFloat((outer.width / oi.width).toFixed(4)),
-            h: parseFloat((outer.height / oi.height).toFixed(4))
-          };
-          console.log(`  ${baseName}: Kontur ${outer.width}x${outer.height}`);
-        }
-      }
-      continue;
-    }
-
-    // FALL 2: Regal-Leiste (exakter Alpha-Crop, dann auf SHELF_WIDTH gestreckt)
-    if (baseName.startsWith('shelf_')) {
-      // Nicht mehr auf ein festes Format ziehen: die Hoehe folgt der Breite im
-      // Seitenverhaeltnis des Renders, sonst wird die Maserung gestaucht.
-      const { pipeline, box, key } = await cropToContent(filePath, 'widest', true);
-      const targetW = SHELF_WIDTH;
-      const targetH = Math.max(32, Math.round(box.height * (targetW / box.width)));
-      const { data: sd, info: si } = await writeClean(
-        pipeline.resize(targetW, targetH, { fit: 'fill' }), targetPath, key, EDGE_LAYER);
-      shelfPlatforms[baseName] = measurePlatformRatio(sd, si.width, si.height);
-      console.log(`  ${baseName}: ${targetW}x${targetH}, Auflage bei ${shelfPlatforms[baseName]}`);
-      continue;
-    }
-
-    // FALL 3: UI-Karten. Randlos auf den sichtbaren Inhalt beschnitten, damit
-    // NineSlice im Spiel exakt an der Kante der Karte ansetzt. Hoehe auf CARD_HEIGHT
-    // normalisiert, Breite proportional (kein Verzerren des Rahmens).
+    // FALL 2: UI-Karten (NineSlice). Randlos auf sichtbaren Inhalt beschnitten.
     if (baseName.startsWith('ui_card_')) {
       const { pipeline, box, key } = await cropToContent(filePath, 'widest', true);
       const targetH = CARD_HEIGHT;
@@ -955,7 +485,7 @@ async function processImages() {
       continue;
     }
 
-    // FALL 4: Match-FX (exakter Alpha-Crop, quadratischer Sprite)
+    // FALL 3: Match-FX (quadratisch)
     if (baseName.startsWith('fx_')) {
       const { pipeline, key } = await cropToContent(filePath);
       await writeClean(
@@ -964,7 +494,7 @@ async function processImages() {
       continue;
     }
 
-    // FALL 4b: Booster-Buttons & Icons (exakter Alpha-Crop, quadratisch zentriert)
+    // FALL 4: Booster-Buttons & Icons (quadratisch zentriert)
     if (baseName.startsWith('btn_') || baseName.startsWith('ui_')) {
       const { pipeline, key } = await cropToContent(filePath);
       await writeClean(
@@ -973,11 +503,9 @@ async function processImages() {
       continue;
     }
 
-    // FALL 5: Goods & UI-Icons (Freistellen, TARGET_SIZE, Bottom-Offset berechnen)
+    // FALL 5: Food-Items (Freistellen, TARGET_SIZE, Bottom-Offset berechnen)
     if (!ITEM_IDS.includes(baseName)) continue;
 
-    // Defringing + exakter Alpha-Crop + Resize auf TARGET_SIZE. Die finale Textur ist
-    // die einzige verlaessliche Quelle fuer die sichtbare Unterkante im Spiel.
     const { pipeline, key } = await cropToContent(filePath);
     const processed = pipeline
       .resize(TARGET_SIZE, TARGET_SIZE, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } });
@@ -988,7 +516,7 @@ async function processImages() {
       : DEFAULT_OFFSET;
 
     offsets[baseName] = offsetDesign;
-    console.log(`  ${baseName}: finalBottom=${bounds.bottom}px → ${offsetDesign}px design`);
+    console.log(`  ${baseName}: finalBottom=${bounds.bottom}px -> ${offsetDesign}px design`);
   }
 
   // Fehlende Items auf Default setzen
@@ -1004,11 +532,7 @@ async function processImages() {
     .map(id => `  ${id}: ${offsets[id]}`)
     .join(',\n');
 
-  // Manifest: was liegt am Ende wirklich in OUT_DIR? Der Client laedt optionale
-  // Assets (bgl_ Layer, hoehere BG-Tiers) nur, wenn sie hier stehen -- sonst
-  // liefert der Dev-Server das HTML-Fallback und der Loader stolpert darueber.
-  // Altbestand aus einem frueheren Ausgabeformat entfernen -- sonst laegen
-  // dieselben Assets zweimal in public/ und der Build schleppte sie mit.
+  // Altbestand aus frueheren Ausgabeformaten entfernen
   for (const f of fs.readdirSync(OUT_DIR)) {
     const ext = path.extname(f).toLowerCase();
     if (ext !== `.${OUT_EXT}` && ['.png', '.jpg', '.jpeg', '.webp'].includes(ext)) {
@@ -1021,58 +545,13 @@ async function processImages() {
     if (path.extname(f).toLowerCase() === `.${OUT_EXT}`) produced.add(path.parse(f).name);
   }
 
-  const rectLines = Object.keys(cavityRects).sort()
-    .map(id => `  ${id}: { x: ${cavityRects[id].x}, y: ${cavityRects[id].y}, w: ${cavityRects[id].w}, h: ${cavityRects[id].h} }`)
-    .join(',\n');
-
-  const frameLines = Object.keys(frameRects).sort()
-    .map(id => `  ${id}: { x: ${frameRects[id].x}, y: ${frameRects[id].y}, w: ${frameRects[id].w}, h: ${frameRects[id].h} }`)
-    .join(',\n');
-
-  const platformLines = Object.keys(shelfPlatforms).sort()
-    .map(id => `  ${id}: ${shelfPlatforms[id]}`)
-    .join(',\n');
-
-  const cabinetLines = Object.keys(cabinetShelfRatios).sort()
-    .map(id => `  ${id}: [${cabinetShelfRatios[id].join(', ')}]`)
-    .join(',\n');
-
   const assetLines = [...produced].sort()
     .map(id => `  '${id}'`)
-    .join(',\n');
-
-  const cavityLines = Object.keys(cavities).sort()
-    .map(id => `  ${id}: ${cavities[id]}`)
     .join(',\n');
 
   const tsContent = `// Auto-generated by scripts/process_assets.js — do not edit manually
 export const ITEM_BOTTOM_OFFSETS: Record<string, number> = {
 ${lines}
-};
-
-// Lichte Weite der Nische je Hintergrund, gemessen an der fertigen Textur (Anteil der Bildbreite).
-export const BG_CAVITY_RATIOS: Record<string, number> = {
-${cavityLines}
-};
-
-// Lichte Nische als Rechteck in Bildanteilen: x ist die Mitte, y die Oberkante.
-export const BG_CAVITY_RECTS: Record<string, { x: number; y: number; w: number; h: number }> = {
-${rectLines}
-};
-
-// Aeussere Kontur eines freistehenden Rahmens in Bildanteilen.
-export const BG_FRAME_RECTS: Record<string, { x: number; y: number; w: number; h: number }> = {
-${frameLines}
-};
-
-// Auflageflaeche eines Regalbretts als Anteil seiner Bildhoehe.
-export const SHELF_PLATFORM_RATIOS: Record<string, number> = {
-${platformLines}
-};
-
-// Y-Verhaeltnisse der Brettoberflaechen je Cabinet-Variante (0..1 relativ zur Bildhoehe).
-export const CABINET_SHELF_RATIOS: Record<string, number[]> = {
-${cabinetLines}
 };
 
 // Dateiendung der erzeugten Texturen. Der Loader haengt sie an den Asset-Key an.

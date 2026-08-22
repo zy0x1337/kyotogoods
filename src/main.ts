@@ -1,7 +1,7 @@
 import '@fontsource/m-plus-rounded-1c/latin-500.css';
 import '@fontsource/m-plus-rounded-1c/latin-800.css';
 import Phaser from 'phaser';
-import { ITEM_BOTTOM_OFFSETS, BG_CAVITY_RECTS, BG_FRAME_RECTS, SHELF_PLATFORM_RATIOS, CABINET_SHELF_RATIOS, AVAILABLE_ASSETS, ASSET_EXT } from './item_offsets.generated';
+import { ITEM_BOTTOM_OFFSETS, AVAILABLE_ASSETS, ASSET_EXT } from './item_offsets.generated';
 
 // ==========================================
 // 1. CMF DESIGN SYSTEM & ITEM REGISTRY
@@ -36,7 +36,6 @@ function valueStyle(size: number, color: string): Phaser.Types.GameObjects.Text.
 }
 
 const DESIGN_WIDTH = 420;
-const DESIGN_HEIGHT = 760;
 
 // Geraete-Pixelverhaeltnis. Phaser rendert im Scale-Modus RESIZE in
 // CSS-Pixeln: die Canvas bekommt exakt so viele Pixel, wie sie CSS-Pixel breit
@@ -60,73 +59,15 @@ export const DPR = Math.min(Math.max(window.devicePixelRatio || 1, 1), MAX_DPR);
 const ITEM_OFFSET_BASE = 72;
 const ITEM_SIZE = 58;
 const ITEM_OFFSET_SCALE = ITEM_SIZE / ITEM_OFFSET_BASE;
-const SHELF_PLATFORM_TOP_Y = 38;
 const DEFAULT_ITEM_BOTTOM_OFFSET = 36;
-const BG_CAVITY_RATIO = 0.6458;
 
-// Anteil der lichten Nischenweite, den ein Regalbrett einnimmt.
-//
-// Am Asset gemessen: das ausgestanzte Loch endet an der inneren Schattenkante
-// des Putzpanels, das sichtbare Holz beginnt 6 von 402 px weiter aussen -- also
-// Faktor 1.015. Damit stossen die Messingstifte an den Brettenden genau an den
-// Rahmen, statt darunter zu verschwinden. Dafuer sind die Stifte ja da.
-const SHELF_CAVITY_FILL = 1.015;
+// Hintergrund-Szenen je Level-Gruppe. Levels 1-2 = kitchen, 3-4 = yatai, 5-6 = konbini.
+const LEVEL_BG_KEYS = ['bgl_kitchen', 'bgl_kitchen', 'bgl_yatai', 'bgl_yatai', 'bgl_konbini', 'bgl_konbini'];
 
-// Cabinet-Varianten nach Zeilenanzahl. Bretter und Rueckwand sind Teil des
-// Renders -- kein separates shelf_wood oder Shoji-Panel mehr noetig.
-const CABINET_TIERS: Record<number, string> = {
-  4: 'bgl_cabinet_4row',
-  5: 'bgl_cabinet_5row',
-  6: 'bgl_cabinet_6row',
-};
-
-// Parallax-Layer des Hintergrunds. Jeder Layer ist ein eigenes freigestelltes
-// PNG (Prefix bgl_) und wird nur gezeichnet, wenn er im Asset-Manifest steht.
-//
-// mode 'cover':  bildfuellende Ebene. Wurde im 9:16-Frame an ihrer endgueltigen
-//   Position gerendert und wird wie der Hintergrund cover-skaliert -- die Layer
-//   liegen dadurch deckungsgleich uebereinander.
-// mode 'band':   auf den Inhalt beschnittenes Band, volle Breite, unten buendig.
-// mode 'sprite': freigestelltes Einzelobjekt, ueber xRatio/yRatio platziert.
-type BgMotion = 'none' | 'sway' | 'drift' | 'bob';
-type BgLayerMode = 'cover' | 'band' | 'sprite';
-
-interface BgLayer {
-  key: string;
-  mode: BgLayerMode;
-  depth: number;
-  motion: BgMotion;
-  amount?: number;
-  period?: number;
-  /** sprite: Mittelpunkt in Anteilen der Canvas-Groesse, y ist die Standlinie */
-  xRatio?: number;
-  yRatio?: number;
-  /** sprite: Breite als Anteil der Canvas-Breite */
-  widthRatio?: number;
-  /** sprite: horizontal spiegeln, damit die Figur zur Szene blickt */
-  flipX?: boolean;
-}
-
-function getCabinetKey(rows: number): string | undefined {
-  const key = CABINET_TIERS[rows];
+function getLevelBgKey(level: number): string | undefined {
+  const key = LEVEL_BG_KEYS[level - 1] ?? LEVEL_BG_KEYS[0];
   return key && AVAILABLE_ASSETS.has(key) ? key : undefined;
 }
-
-const BG_LAYERS: BgLayer[] = [
-  { key: 'bgl_sky',      mode: 'cover',  depth: -60, motion: 'none' },
-  { key: 'bgl_clouds',   mode: 'cover',  depth: -58, motion: 'drift', amount: 0.06, period: 38000 },
-  { key: 'bgl_hills',    mode: 'cover',  depth: -56, motion: 'none' },
-  { key: 'bgl_meadow',   mode: 'band',   depth: -54, motion: 'none' },
-  // Das Gehaeuse belegt rund x 0.17..0.85 -- die Tiere stehen in den schmalen
-  // Wiesenstreifen links und rechts davon, sonst verschwinden sie dahinter.
-  { key: 'bgl_cat',      mode: 'sprite', depth: -52, motion: 'bob', amount: 4, period: 2600,
-    xRatio: 0.085, yRatio: 0.965, widthRatio: 0.14, flipX: true },
-  { key: 'bgl_dog',      mode: 'sprite', depth: -52, motion: 'bob', amount: 5, period: 3100,
-    xRatio: 0.87, yRatio: 0.965, widthRatio: 0.17 },
-  // Laternen haengen an Schnueren, die an der Oberkante beginnen -- das Schwingen
-  // dreht die Ebene deshalb um ihren oberen Rand, nicht um die Bildmitte.
-  { key: 'bgl_lanterns', mode: 'cover',  depth: -50, motion: 'sway', amount: 1.2, period: 5200 },
-];
 
 
 // width kommt in Geraetepixeln herein, der Deckel gilt aber in CSS-Pixeln --
@@ -135,24 +76,10 @@ function getLayoutScale(width: number): number {
   return Math.min(width / (DESIGN_WIDTH * DPR), 1.15) * DPR;
 }
 
-// Feinjustierung einzelner Goods gegenueber der Einheitsgroesse. Der Render
-// bestimmt, wie viel Leinwand ein Objekt einnimmt -- der Chawan fiel dadurch
-// deutlich groesser aus als die uebrigen Items.
-const ITEM_SIZE_FACTORS: Record<string, number> = {
-  chawan_cup: 0.8
-};
-
-function getItemSizeFactor(itemId: string): number {
-  return ITEM_SIZE_FACTORS[itemId] ?? 1;
-}
-
-// Ruhelage eines Goods auf dem Brett. platformY ist die Auflageflaeche in
-// Container-Koordinaten des Regals, gemessen am Asset statt fest verdrahtet.
+// Ruhelage eines Items im Grid-Slot. platformY ist die Unterkante des Slots.
 function getItemRestY(itemId: string, itemScale: number, platformY: number): number {
   const bottomOffset = ITEM_BOTTOM_OFFSETS[itemId] ?? DEFAULT_ITEM_BOTTOM_OFFSET;
-  // Der Offset gilt fuer die volle Anzeigegroesse und muss mitschrumpfen,
-  // sonst schwebt ein verkleinertes Item ueber dem Brett.
-  return platformY - bottomOffset * ITEM_OFFSET_SCALE * getItemSizeFactor(itemId) * itemScale;
+  return platformY - bottomOffset * ITEM_OFFSET_SCALE * itemScale;
 }
 
 export interface ItemDef {
@@ -161,30 +88,30 @@ export interface ItemDef {
   baseColor: number;
   accentColor: number;
   detailColor: number;
-  shape: 'bowl' | 'kettle' | 'whisk' | 'cube' | 'prism' | 'sphere' | 'cylinder' | 'cone' | 'bell' | 'plate';
+  shape: 'rounded_triangle' | 'flat_oval' | 'circle' | 'cone' | 'crescent' | 'trapezoid' | 'stack' | 'skewer' | 'bowl' | 'dome' | 'double_disc' | 'boat' | 'pod' | 'tall_cup' | 'rectangle' | 'flower' | 'mound' | 'ball_stem' | 'ball_leaf' | 'pouch';
 }
 
 export const ITEMS: Record<string, ItemDef> = {
-  'chawan_cup':        { id: 'chawan_cup',        name: 'Chawan Cup',       baseColor: 0xEAE5D9, accentColor: KYOTO.matcha,    detailColor: 0xBAA788, shape: 'bowl' },
-  'tetsubin_kettle':   { id: 'tetsubin_kettle',   name: 'Tetsubin Kettle',  baseColor: KYOTO.kuroSteel, accentColor: KYOTO.brass, detailColor: 0x3A3D40, shape: 'kettle' },
-  'kissa_toast':       { id: 'kissa_toast',       name: 'Kissa Toast',      baseColor: KYOTO.toastGold, accentColor: 0xF4D06F, detailColor: 0x8F572C, shape: 'cube' },
-  'dango_stick':       { id: 'dango_stick',       name: 'Dango Skewer',     baseColor: KYOTO.dangoPink, accentColor: KYOTO.cream, detailColor: KYOTO.matcha, shape: 'sphere' },
-  'yokan_prism':       { id: 'yokan_prism',       name: 'Yokan Prism',      baseColor: KYOTO.azuki,  accentColor: 0x481E21,    detailColor: KYOTO.brass,  shape: 'prism' },
-  'matcha_roll':       { id: 'matcha_roll',       name: 'Matcha Roll',      baseColor: KYOTO.matcha, accentColor: KYOTO.cream,  detailColor: 0x2D452B, shape: 'cylinder' },
-  'incense_burner':    { id: 'incense_burner',    name: 'Incense Burner',   baseColor: KYOTO.kuroSteel, accentColor: KYOTO.brass, detailColor: 0x111214, shape: 'cone' },
-  'daruma':            { id: 'daruma',            name: 'Daruma',           baseColor: 0xE74C3C, accentColor: KYOTO.brass,     detailColor: KYOTO.kuroSteel, shape: 'sphere' },
-  'kokeshi':           { id: 'kokeshi',           name: 'Kokeshi',          baseColor: KYOTO.hinoki, accentColor: KYOTO.azuki,  detailColor: KYOTO.cream, shape: 'cone' },
-  'sensu_fan':         { id: 'sensu_fan',         name: 'Sensu Fan',        baseColor: 0x2C3E87, accentColor: KYOTO.brass,     detailColor: KYOTO.azuki, shape: 'plate' },
-  'furoshiki':         { id: 'furoshiki',         name: 'Furoshiki',        baseColor: 0x2C3E87, accentColor: KYOTO.cream,     detailColor: 0x1A237E, shape: 'cube' },
-  'chochin':           { id: 'chochin',           name: 'Chochin',          baseColor: 0xFFF5E6, accentColor: KYOTO.azuki,     detailColor: KYOTO.hinoki, shape: 'cylinder' },
-  'temari':            { id: 'temari',            name: 'Temari',           baseColor: KYOTO.matcha, accentColor: 0x2C3E87,    detailColor: KYOTO.brass, shape: 'sphere' },
-  'wagashi':           { id: 'wagashi',           name: 'Wagashi',          baseColor: 0xD7BDE2, accentColor: KYOTO.matcha,    detailColor: KYOTO.kuroSteel, shape: 'bowl' },
-  'omamori':           { id: 'omamori',           name: 'Omamori',          baseColor: KYOTO.azuki, accentColor: KYOTO.brass,  detailColor: 0x8E44AD, shape: 'cube' },
-  'maneki_neko':       { id: 'maneki_neko',       name: 'Maneki Neko',      baseColor: KYOTO.cream, accentColor: KYOTO.toastGold, detailColor: KYOTO.kuroSteel, shape: 'sphere' },
-  'sake_tokkuri':      { id: 'sake_tokkuri',      name: 'Sake Tokkuri',     baseColor: KYOTO.sageGreen, accentColor: KYOTO.cream, detailColor: 0x4A6B47, shape: 'kettle' },
-  'onigiri':           { id: 'onigiri',           name: 'Onigiri',          baseColor: KYOTO.cream, accentColor: KYOTO.kuroSteel, detailColor: KYOTO.azuki, shape: 'cone' },
-  'torii_gate':        { id: 'torii_gate',        name: 'Torii Gate',       baseColor: 0xE74C3C, accentColor: KYOTO.kuroSteel, detailColor: KYOTO.brass, shape: 'cube' },
-  'koinobori':         { id: 'koinobori',         name: 'Koinobori',        baseColor: 0x2C3E87, accentColor: KYOTO.brass,     detailColor: KYOTO.cream, shape: 'cylinder' },
+  'onigiri':         { id: 'onigiri',         name: 'Onigiri',         baseColor: KYOTO.cream,     accentColor: 0x2D2D2D, detailColor: 0xE74C3C, shape: 'rounded_triangle' },
+  'nigiri':          { id: 'nigiri',          name: 'Nigiri',          baseColor: KYOTO.cream,     accentColor: 0xFA8072, detailColor: 0xF5F5F5, shape: 'flat_oval' },
+  'maki':            { id: 'maki',            name: 'Maki',            baseColor: 0x2D5A3D,       accentColor: KYOTO.cream, detailColor: 0xFA8072, shape: 'circle' },
+  'temaki':          { id: 'temaki',          name: 'Temaki',          baseColor: 0x2D5A3D,       accentColor: 0xFA8072, detailColor: KYOTO.cream, shape: 'cone' },
+  'gyoza':           { id: 'gyoza',           name: 'Gyoza',           baseColor: 0xE8B84B,       accentColor: 0xD4A03A, detailColor: 0xC4912E, shape: 'crescent' },
+  'purin':           { id: 'purin',           name: 'Purin',           baseColor: 0xF5DEB3,       accentColor: 0x8B6914, detailColor: 0xE74C3C, shape: 'trapezoid' },
+  'dango':           { id: 'dango',           name: 'Dango',           baseColor: KYOTO.dangoPink, accentColor: KYOTO.cream, detailColor: KYOTO.matcha, shape: 'stack' },
+  'yakitori':        { id: 'yakitori',        name: 'Yakitori',        baseColor: 0xC68B59,       accentColor: 0xA0694B, detailColor: 0xD2B48C, shape: 'skewer' },
+  'ramen':           { id: 'ramen',           name: 'Ramen',           baseColor: 0xC68B59,       accentColor: KYOTO.cream, detailColor: 0x2D5A3D, shape: 'bowl' },
+  'mochi':           { id: 'mochi',           name: 'Mochi',           baseColor: 0xFFB6C1,       accentColor: 0xFFA0B0, detailColor: 0xFFFFFF, shape: 'dome' },
+  'dorayaki':        { id: 'dorayaki',        name: 'Dorayaki',        baseColor: 0xC68B59,       accentColor: 0x8B4513, detailColor: 0x6E373B, shape: 'double_disc' },
+  'takoyaki':        { id: 'takoyaki',        name: 'Takoyaki',        baseColor: 0xC68B59,       accentColor: 0x8B6914, detailColor: 0x2D5A3D, shape: 'boat' },
+  'edamame':         { id: 'edamame',         name: 'Edamame',         baseColor: 0x7CB342,       accentColor: 0x558B2F, detailColor: 0x8BC34A, shape: 'pod' },
+  'matcha_latte':    { id: 'matcha_latte',    name: 'Matcha Latte',    baseColor: KYOTO.matcha,    accentColor: KYOTO.cream, detailColor: 0xF5F5F5, shape: 'tall_cup' },
+  'tamagoyaki':      { id: 'tamagoyaki',      name: 'Tamagoyaki',      baseColor: 0xFFD700,       accentColor: 0xFFC107, detailColor: 0xFFB300, shape: 'rectangle' },
+  'wagashi':         { id: 'wagashi',         name: 'Wagashi',         baseColor: 0xD7BDE2,       accentColor: KYOTO.matcha, detailColor: 0x333333, shape: 'flower' },
+  'kakigori':        { id: 'kakigori',        name: 'Kakigori',        baseColor: 0x87CEEB,       accentColor: 0x4A90D9, detailColor: 0xE74C3C, shape: 'mound' },
+  'ichigo_daifuku':  { id: 'ichigo_daifuku',  name: 'Ichigo Daifuku',  baseColor: KYOTO.cream,     accentColor: 0xE74C3C, detailColor: 0x2D5A3D, shape: 'ball_stem' },
+  'sakura_mochi':    { id: 'sakura_mochi',    name: 'Sakura Mochi',    baseColor: 0xFFB6C1,       accentColor: 0x2D5A3D, detailColor: 0xFFA0B0, shape: 'ball_leaf' },
+  'inarizushi':      { id: 'inarizushi',      name: 'Inarizushi',      baseColor: 0xDAA520,       accentColor: KYOTO.cream, detailColor: 0xB8860B, shape: 'pouch' },
 };
 
 type SlotData = { front: string | null; queue: string[] };
@@ -196,98 +123,98 @@ interface LevelDefinition {
 }
 
 const LEVELS: LevelDefinition[] = [
-  // Level 1 – 4 Regale, 4 Matches, Tutorial
+  // Level 1 � 4 Reihen, 4 Matches, Tutorial
   {
     moves: 8,
     targetMatches: 4,
     layout: [
       [
-        { front: 'chawan_cup', queue: [] },
-        { front: 'chawan_cup', queue: [] },
-        { front: null, queue: ['daruma'] }
+        { front: 'onigiri', queue: [] },
+        { front: 'onigiri', queue: [] },
+        { front: null, queue: ['gyoza'] }
       ],
       [
-        { front: 'chawan_cup', queue: ['tetsubin_kettle'] },
-        { front: 'tetsubin_kettle', queue: [] },
+        { front: 'onigiri', queue: ['ramen'] },
+        { front: 'ramen', queue: [] },
         { front: null, queue: [] }
       ],
       [
-        { front: 'tetsubin_kettle', queue: [] },
-        { front: 'daruma', queue: [] },
-        { front: null, queue: ['kissa_toast'] }
+        { front: 'ramen', queue: [] },
+        { front: 'gyoza', queue: [] },
+        { front: null, queue: ['mochi'] }
       ],
       [
-        { front: 'daruma', queue: [] },
-        { front: 'kissa_toast', queue: [] },
-        { front: 'kissa_toast', queue: [] }
+        { front: 'gyoza', queue: [] },
+        { front: 'mochi', queue: [] },
+        { front: 'mochi', queue: [] }
       ]
     ]
   },
-  // Level 2 – 5 Regale, 5 Matches
+  // Level 2 � 5 Reihen, 5 Matches
   {
     moves: 11,
     targetMatches: 5,
     layout: [
       [
-        { front: 'dango_stick', queue: [] },
-        { front: 'dango_stick', queue: [] },
-        { front: null, queue: ['yokan_prism'] }
+        { front: 'dango', queue: [] },
+        { front: 'dango', queue: [] },
+        { front: null, queue: ['nigiri'] }
       ],
       [
-        { front: 'dango_stick', queue: ['kokeshi'] },
-        { front: 'yokan_prism', queue: [] },
+        { front: 'dango', queue: ['maki'] },
+        { front: 'nigiri', queue: [] },
         { front: null, queue: [] }
       ],
       [
-        { front: 'yokan_prism', queue: [] },
-        { front: 'kokeshi', queue: [] },
-        { front: null, queue: ['sensu_fan'] }
+        { front: 'nigiri', queue: [] },
+        { front: 'maki', queue: [] },
+        { front: null, queue: ['temaki'] }
       ],
       [
-        { front: 'kokeshi', queue: ['matcha_roll'] },
-        { front: 'sensu_fan', queue: [] },
+        { front: 'maki', queue: ['matcha_latte'] },
+        { front: 'temaki', queue: [] },
         { front: null, queue: [] }
       ],
       [
-        { front: 'sensu_fan', queue: [] },
-        { front: 'matcha_roll', queue: [] },
-        { front: 'matcha_roll', queue: [] }
+        { front: 'temaki', queue: [] },
+        { front: 'matcha_latte', queue: [] },
+        { front: 'matcha_latte', queue: [] }
       ]
     ]
   },
-  // Level 3 – 5 Regale, 6 Matches
+  // Level 3 � 5 Reihen, 6 Matches
   {
     moves: 13,
     targetMatches: 6,
     layout: [
       [
-        { front: 'chawan_cup', queue: [] },
-        { front: 'chawan_cup', queue: [] },
-        { front: null, queue: ['daruma'] }
+        { front: 'onigiri', queue: [] },
+        { front: 'onigiri', queue: [] },
+        { front: null, queue: ['gyoza'] }
       ],
       [
-        { front: 'chawan_cup', queue: ['tetsubin_kettle'] },
-        { front: 'tetsubin_kettle', queue: [] },
-        { front: 'temari', queue: [] }
+        { front: 'onigiri', queue: ['ramen'] },
+        { front: 'ramen', queue: [] },
+        { front: 'purin', queue: [] }
       ],
       [
-        { front: 'tetsubin_kettle', queue: [] },
-        { front: 'daruma', queue: [] },
-        { front: null, queue: ['furoshiki', 'temari'] }
+        { front: 'ramen', queue: [] },
+        { front: 'gyoza', queue: [] },
+        { front: null, queue: ['edamame', 'purin'] }
       ],
       [
-        { front: 'daruma', queue: [] },
-        { front: 'furoshiki', queue: [] },
-        { front: null, queue: ['chochin'] }
+        { front: 'gyoza', queue: [] },
+        { front: 'edamame', queue: [] },
+        { front: null, queue: ['tamagoyaki'] }
       ],
       [
-        { front: 'furoshiki', queue: ['temari'] },
-        { front: 'chochin', queue: [] },
-        { front: 'chochin', queue: [] }
+        { front: 'edamame', queue: ['purin'] },
+        { front: 'tamagoyaki', queue: [] },
+        { front: 'tamagoyaki', queue: [] }
       ]
     ]
   },
-  // Level 4 – 5 Regale, 7 Matches
+  // Level 4 � 5 Reihen, 7 Matches
   {
     moves: 15,
     targetMatches: 7,
@@ -295,101 +222,101 @@ const LEVELS: LevelDefinition[] = [
       [
         { front: 'wagashi', queue: [] },
         { front: 'wagashi', queue: [] },
-        { front: null, queue: ['omamori', 'sensu_fan'] }
+        { front: null, queue: ['dorayaki', 'temaki'] }
       ],
       [
-        { front: 'wagashi', queue: ['incense_burner'] },
-        { front: 'omamori', queue: [] },
-        { front: 'kissa_toast', queue: ['sensu_fan'] }
+        { front: 'wagashi', queue: ['yakitori'] },
+        { front: 'dorayaki', queue: [] },
+        { front: 'mochi', queue: ['temaki'] }
       ],
       [
-        { front: 'omamori', queue: [] },
-        { front: 'incense_burner', queue: [] },
-        { front: null, queue: ['maneki_neko', 'kissa_toast', 'yokan_prism'] }
+        { front: 'dorayaki', queue: [] },
+        { front: 'yakitori', queue: [] },
+        { front: null, queue: ['kakigori', 'mochi', 'nigiri'] }
       ],
       [
-        { front: 'incense_burner', queue: [] },
-        { front: 'maneki_neko', queue: [] },
-        { front: null, queue: ['yokan_prism'] }
+        { front: 'yakitori', queue: [] },
+        { front: 'kakigori', queue: [] },
+        { front: null, queue: ['nigiri'] }
       ],
       [
-        { front: 'maneki_neko', queue: ['yokan_prism'] },
-        { front: 'kissa_toast', queue: [] },
-        { front: 'sensu_fan', queue: [] }
+        { front: 'kakigori', queue: ['nigiri'] },
+        { front: 'mochi', queue: [] },
+        { front: 'temaki', queue: [] }
       ]
     ]
   },
-  // Level 5 – 6 Regale, 8 Matches
+  // Level 5 � 6 Reihen, 8 Matches
   {
     moves: 16,
     targetMatches: 8,
     layout: [
       [
-        { front: 'sake_tokkuri', queue: [] },
-        { front: 'sake_tokkuri', queue: [] },
-        { front: null, queue: ['onigiri'] }
+        { front: 'ichigo_daifuku', queue: [] },
+        { front: 'ichigo_daifuku', queue: [] },
+        { front: null, queue: ['inarizushi'] }
       ],
       [
-        { front: 'sake_tokkuri', queue: ['torii_gate'] },
-        { front: 'onigiri', queue: [] },
-        { front: 'dango_stick', queue: [] }
+        { front: 'ichigo_daifuku', queue: ['sakura_mochi'] },
+        { front: 'inarizushi', queue: [] },
+        { front: 'dango', queue: [] }
       ],
       [
-        { front: 'onigiri', queue: [] },
-        { front: 'torii_gate', queue: [] },
-        { front: null, queue: ['daruma', 'dango_stick'] }
+        { front: 'inarizushi', queue: [] },
+        { front: 'sakura_mochi', queue: [] },
+        { front: null, queue: ['gyoza', 'dango'] }
       ],
       [
-        { front: 'torii_gate', queue: [] },
-        { front: 'daruma', queue: [] },
-        { front: null, queue: ['kokeshi', 'kokeshi'] }
+        { front: 'sakura_mochi', queue: [] },
+        { front: 'gyoza', queue: [] },
+        { front: null, queue: ['maki', 'maki'] }
       ],
       [
-        { front: 'daruma', queue: ['kokeshi', 'matcha_roll'] },
-        { front: 'matcha_roll', queue: [] },
-        { front: 'matcha_roll', queue: [] }
+        { front: 'gyoza', queue: ['maki', 'matcha_latte'] },
+        { front: 'matcha_latte', queue: [] },
+        { front: 'matcha_latte', queue: [] }
       ],
       [
-        { front: 'dango_stick', queue: ['furoshiki'] },
-        { front: 'furoshiki', queue: [] },
-        { front: 'furoshiki', queue: [] }
+        { front: 'dango', queue: ['edamame'] },
+        { front: 'edamame', queue: [] },
+        { front: 'edamame', queue: [] }
       ]
     ]
   },
-  // Level 6 – 6 Regale, 10 Matches
+  // Level 6 � 6 Reihen, 10 Matches
   {
     moves: 18,
     targetMatches: 10,
     layout: [
       [
-        { front: 'chochin', queue: [] },
-        { front: 'chochin', queue: [] },
-        { front: 'temari', queue: ['sake_tokkuri', 'onigiri'] }
+        { front: 'tamagoyaki', queue: [] },
+        { front: 'tamagoyaki', queue: [] },
+        { front: 'purin', queue: ['ichigo_daifuku', 'inarizushi'] }
       ],
       [
-        { front: 'temari', queue: [] },
-        { front: 'temari', queue: [] },
-        { front: 'wagashi', queue: ['sake_tokkuri', 'torii_gate'] }
+        { front: 'purin', queue: [] },
+        { front: 'purin', queue: [] },
+        { front: 'wagashi', queue: ['ichigo_daifuku', 'sakura_mochi'] }
       ],
       [
         { front: 'wagashi', queue: [] },
         { front: 'wagashi', queue: [] },
-        { front: 'omamori', queue: ['onigiri', 'daruma'] }
+        { front: 'dorayaki', queue: ['inarizushi', 'gyoza'] }
       ],
       [
-        { front: 'omamori', queue: [] },
-        { front: 'omamori', queue: [] },
-        { front: 'incense_burner', queue: ['torii_gate', 'daruma'] }
+        { front: 'dorayaki', queue: [] },
+        { front: 'dorayaki', queue: [] },
+        { front: 'yakitori', queue: ['sakura_mochi', 'gyoza'] }
       ],
       [
-        { front: 'incense_burner', queue: [] },
-        { front: 'incense_burner', queue: [] },
-        { front: 'maneki_neko', queue: ['sake_tokkuri', 'torii_gate'] }
+        { front: 'yakitori', queue: [] },
+        { front: 'yakitori', queue: [] },
+        { front: 'kakigori', queue: ['ichigo_daifuku', 'sakura_mochi'] }
       ],
       [
-        { front: 'maneki_neko', queue: [] },
-        { front: 'maneki_neko', queue: [] },
-        { front: null, queue: ['chochin', 'onigiri', 'daruma'] }
+        { front: 'kakigori', queue: [] },
+        { front: 'kakigori', queue: [] },
+        { front: null, queue: ['tamagoyaki', 'inarizushi', 'gyoza'] }
       ]
     ]
   }
@@ -593,7 +520,7 @@ export class GoodsItem extends Phaser.GameObjects.Container {
     const s = this.itemScale;
 
     if (this.scene.textures.exists(`item_${this.itemId}`)) {
-      const size = ITEM_SIZE * s * getItemSizeFactor(this.itemId);
+      const size = ITEM_SIZE * s;
       const img = this.scene.add.image(0, 0, `item_${this.itemId}`).setDisplaySize(size, size);
       this.add(img);
       return;
@@ -606,46 +533,97 @@ export class GoodsItem extends Phaser.GameObjects.Container {
     g.fillStyle(d.baseColor, 1.0).fillRoundedRect(-32, -32, 64, 64, 14);
     g.fillStyle(d.accentColor, 1.0);
 
-    if (d.shape === 'bowl') {
-      g.fillCircle(0, 0, 18);
+    if (d.shape === 'rounded_triangle') {
+      g.fillTriangle(-16, 14, 0, -16, 16, 14);
       g.fillStyle(d.detailColor, 1);
-      g.fillCircle(0, 0, 12);
-    } else if (d.shape === 'kettle') {
-      g.fillRect(-18, -10, 36, 22);
-      g.lineStyle(3, d.detailColor, 1);
-      g.strokeCircle(0, -12, 10);
-    } else if (d.shape === 'cube') {
-      g.fillRect(-14, -14, 28, 28);
+      g.fillCircle(0, 6, 5);
+    } else if (d.shape === 'flat_oval') {
+      g.fillEllipse(0, 2, 30, 14);
       g.fillStyle(d.detailColor, 1);
-      g.fillRect(-4, -4, 8, 8);
-    } else if (d.shape === 'whisk') {
-      g.fillTriangle(0, -18, -14, 16, 14, 16);
-      g.fillStyle(d.detailColor, 1);
-      g.fillRect(-4, -6, 8, 10);
-    } else if (d.shape === 'sphere') {
-      g.fillCircle(-10, 0, 8);
+      g.fillEllipse(0, -4, 20, 8);
+    } else if (d.shape === 'circle') {
+      g.fillCircle(0, 0, 16);
       g.fillStyle(d.detailColor, 1);
       g.fillCircle(0, 0, 8);
-      g.fillStyle(d.baseColor, 1);
-      g.fillCircle(10, 0, 8);
-    } else if (d.shape === 'prism') {
-      g.fillTriangle(-18, 14, 0, -18, 18, 14);
     } else if (d.shape === 'cone') {
-      g.fillTriangle(-16, 16, 0, -16, 16, 16);
+      g.fillTriangle(-14, 14, 0, -16, 14, 14);
       g.fillStyle(d.detailColor, 1);
-      g.fillCircle(0, 16, 5);
-    } else if (d.shape === 'plate') {
-      g.fillRoundedRect(-22, -10, 44, 20, 4);
+      g.fillRect(-2, -8, 4, 14);
+    } else if (d.shape === 'crescent') {
+      g.fillEllipse(0, 0, 28, 18);
       g.fillStyle(d.detailColor, 1);
-      g.fillRect(-4, -4, 8, 8);
-    } else if (d.shape === 'bell') {
-      // Glocke steht auf einem Ring, haengt nicht -- die Goods stehen im Regal.
-      g.fillCircle(0, -2, 14);
-      g.fillRect(-14, -2, 28, 12);
+      g.fillRect(-12, -2, 24, 4);
+    } else if (d.shape === 'trapezoid') {
+      g.fillRect(-14, -10, 28, 20);
       g.fillStyle(d.detailColor, 1);
-      g.fillRoundedRect(-16, 10, 32, 8, 4);
+      g.fillCircle(0, -6, 4);
+    } else if (d.shape === 'stack') {
+      g.fillCircle(0, -10, 8);
+      g.fillStyle(d.baseColor, 1);
+      g.fillCircle(0, 0, 8);
+      g.fillStyle(d.detailColor, 1);
+      g.fillCircle(0, 10, 8);
+    } else if (d.shape === 'skewer') {
+      g.fillRect(-20, -3, 40, 6);
+      g.fillStyle(d.detailColor, 1);
+      g.fillRect(-24, -1, 4, 2);
+    } else if (d.shape === 'bowl') {
+      g.fillEllipse(0, 4, 30, 16);
+      g.fillStyle(d.detailColor, 1);
+      g.fillEllipse(0, -2, 20, 10);
+    } else if (d.shape === 'dome') {
+      g.fillCircle(0, 2, 16);
+      g.fillRect(-16, 2, 32, 8);
+      g.fillStyle(d.detailColor, 1);
+      g.fillCircle(0, -4, 4);
+    } else if (d.shape === 'double_disc') {
+      g.fillCircle(0, -6, 14);
+      g.fillStyle(d.detailColor, 1);
+      g.fillCircle(0, 6, 14);
+    } else if (d.shape === 'boat') {
+      g.fillRoundedRect(-18, -6, 36, 16, 6);
+      g.fillStyle(d.detailColor, 1);
+      g.fillCircle(-6, 0, 4);
+      g.fillCircle(6, 0, 4);
+    } else if (d.shape === 'pod') {
+      g.fillEllipse(0, 0, 28, 12);
+      g.fillStyle(d.detailColor, 1);
+      g.fillCircle(-6, 0, 4);
+      g.fillCircle(6, 0, 4);
+    } else if (d.shape === 'tall_cup') {
+      g.fillRect(-10, -18, 20, 30);
+      g.fillStyle(d.detailColor, 1);
+      g.fillRect(-12, -20, 24, 4);
+    } else if (d.shape === 'rectangle') {
+      g.fillRect(-14, -12, 28, 24);
+      g.fillStyle(d.detailColor, 1);
+      g.fillRect(-10, -4, 20, 2);
+      g.fillRect(-10, 2, 20, 2);
+    } else if (d.shape === 'flower') {
+      for (let i = 0; i < 5; i++) {
+        const angle = (i / 5) * Math.PI * 2 - Math.PI / 2;
+        g.fillCircle(Math.cos(angle) * 10, Math.sin(angle) * 10, 7);
+      }
+      g.fillStyle(d.detailColor, 1);
+      g.fillCircle(0, 0, 5);
+    } else if (d.shape === 'mound') {
+      g.fillEllipse(0, 4, 28, 14);
+      g.fillStyle(d.detailColor, 1);
+      g.fillCircle(0, -6, 4);
+    } else if (d.shape === 'ball_stem') {
+      g.fillCircle(0, 2, 14);
+      g.fillStyle(d.detailColor, 1);
+      g.fillRect(-2, -14, 4, 10);
+    } else if (d.shape === 'ball_leaf') {
+      g.fillCircle(0, 2, 14);
+      g.fillStyle(d.detailColor, 1);
+      g.fillEllipse(10, -8, 10, 6);
+    } else if (d.shape === 'pouch') {
+      g.fillEllipse(0, 0, 24, 20);
+      g.fillStyle(d.detailColor, 1);
+      g.fillRect(-8, -12, 16, 4);
     } else {
-      g.fillRoundedRect(-14, -18, 28, 36, 8);
+      g.fillRoundedRect(-14, -14, 28, 28, 8);
       g.fillStyle(d.detailColor, 1);
       g.fillCircle(0, 0, 6);
     }
@@ -694,12 +672,8 @@ export class Shelf extends Phaser.GameObjects.Container {
       this.shelfHeight = 0;
       this.platformY = 0;
     } else {
-      const tex = scene.textures.exists('shelf_wood') ? scene.textures.get('shelf_wood').getSourceImage() : null;
-      this.shelfHeight = tex ? shelfWidth * (tex.height / tex.width) : 92 * itemScale;
-      const platformRatio = SHELF_PLATFORM_RATIOS['shelf_wood'];
-      this.platformY = platformRatio !== undefined
-        ? -this.shelfHeight / 2 + platformRatio * this.shelfHeight
-        : SHELF_PLATFORM_TOP_Y * itemScale;
+      this.shelfHeight = 92 * itemScale;
+      this.platformY = 38 * itemScale;
     }
 
     this.hitTop = this.platformY - 82 * itemScale;
@@ -1022,9 +996,6 @@ export class PreloadScene extends Phaser.Scene {
   }
 
   preload() {
-    // Optionale Assets werden nur angefragt, wenn sie im generierten Manifest
-    // stehen. Der Vite-Dev-Server liefert fuer fehlende Dateien das HTML-Fallback
-    // mit Status 200 -- der Loader wuerde daran haengenbleiben.
     const loadOptional = (key: string) => {
       if (AVAILABLE_ASSETS.has(key)) this.load.image(key, `assets/items/${key}.${ASSET_EXT}`);
     };
@@ -1033,17 +1004,15 @@ export class PreloadScene extends Phaser.Scene {
       console.warn(`[assets] konnte ${file.key} nicht laden`);
     });
 
-    // 1. Goods. Auch die laufen ueber das Manifest: fehlt ein Render, faellt das
-    // Item auf seine Vektorgrafik zurueck, statt den Loader an einer 404 haengen
-    // zu lassen (der Dev-Server antwortet darauf mit HTML und Status 200).
+    // 1. Food-Items
     Object.keys(ITEMS).forEach(id => {
       if (AVAILABLE_ASSETS.has(id)) this.load.image(`item_${id}`, `assets/items/${id}.${ASSET_EXT}`);
     });
 
-    // 2. Cabinet-Varianten & Parallax-Layer
-    Object.values(CABINET_TIERS).forEach(key => loadOptional(key));
-    BG_LAYERS.forEach(l => loadOptional(l.key));
-    loadOptional('shelf_wood');
+    // 2. Hintergrund-Szenen (bgl_kitchen, bgl_yatai, bgl_konbini)
+    LEVEL_BG_KEYS.forEach(key => loadOptional(key));
+
+    // 3. UI, Buttons, FX
     this.load.image('fx_match_burst', `assets/items/fx_match_burst.${ASSET_EXT}`);
     this.load.image('ui_card_kuro', `assets/items/ui_card_kuro.${ASSET_EXT}`);
     this.load.image('ui_card_hinoki', `assets/items/ui_card_hinoki.${ASSET_EXT}`);
@@ -1063,11 +1032,6 @@ export class PreloadScene extends Phaser.Scene {
 export class GameScene extends Phaser.Scene {
   private shelves: Shelf[] = [];
   private selected: { shelfIdx: number; slotIdx: number; item: GoodsItem } | null = null;
-  private cavityWidth = 0;
-  private cavityCenterX = 0;
-  private cavityTop = 0;
-  private cavityHeight = 0;
-  private cabinetShelfYs: number[] = [];
 
   constructor() {
     super('GameScene');
@@ -1078,81 +1042,24 @@ export class GameScene extends Phaser.Scene {
     const uiScale = getLayoutScale(width);
     this.shelves = [];
     this.selected = null;
-    this.cabinetShelfYs = [];
 
-    const level = LEVELS[State.currentLevel - 1] ?? LEVELS[0];
-    const rows = level.layout.length;
-    const cabinetKey = getCabinetKey(rows);
-    const useCabinet = cabinetKey !== undefined && this.textures.exists(cabinetKey);
-    const bgKey = useCabinet ? cabinetKey! : undefined;
-
-    this.cavityWidth = width * BG_CAVITY_RATIO;
-    this.cavityCenterX = width / 2;
-
-    if (useCabinet) {
-      this.createBgLayers(width, height);
-    }
-
+    // Hintergrund-Szene je Level-Gruppe (cover-skaliert)
+    const bgKey = getLevelBgKey(State.currentLevel);
     if (bgKey && this.textures.exists(bgKey)) {
-      const source = this.textures.get(bgKey).getSourceImage();
-      const rect = BG_CAVITY_RECTS[bgKey];
-      const frame = BG_FRAME_RECTS[bgKey];
-
-      let imgX = width / 2;
-      let imgY = height / 2;
-      let k: number;
-
-      if (frame) {
-        const bandTop = 78 * uiScale;
-        const bandBottom = height - 74 * uiScale;
-
-        k = Math.min(
-          (bandBottom - bandTop) / (frame.h * source.height),
-          (width * 0.92) / (frame.w * source.width)
-        );
-        imgX = width / 2 - (frame.x - 0.5) * source.width * k;
-        imgY = bandBottom - (frame.y + frame.h - 0.5) * source.height * k;
-      } else {
-        k = Math.max(width / source.width, height / source.height);
-      }
-
-      if (rect) {
-        this.cavityCenterX = imgX + (rect.x - 0.5) * source.width * k;
-        this.cavityWidth = rect.w * source.width * k;
-        this.cavityTop = imgY + (rect.y - 0.5) * source.height * k;
-        this.cavityHeight = rect.h * source.height * k;
-      } else {
-        this.cavityCenterX = width / 2;
-        this.cavityWidth = source.width * k * BG_CAVITY_RATIO;
-        this.cavityTop = 0;
-        this.cavityHeight = 0;
-      }
-
-      if (frame) {
-        const footY = imgY + (frame.y + frame.h - 0.5) * source.height * k;
-        const footW = frame.w * source.width * k;
-        const shadow = this.add.graphics().setDepth(-11);
-        for (let i = 6; i > 0; i--) {
-          shadow.fillStyle(0x3A4A32, 0.05).fillEllipse(width / 2, footY, footW * (0.6 + i * 0.06), 26 * uiScale * (i / 6));
-        }
-      }
-
-      this.add.image(imgX, imgY, bgKey).setScale(k).setDepth(-10);
-
-      const shelfRatios = CABINET_SHELF_RATIOS[bgKey];
-      if (shelfRatios) {
-        for (let i = 0; i < rows && i + 1 < shelfRatios.length; i++) {
-          this.cabinetShelfYs.push(imgY + (shelfRatios[i + 1] - 0.5) * source.height * k);
-        }
-      }
-
-      const glow = this.add.graphics().setDepth(-9);
-      const glowR = this.cavityWidth * 0.55;
-      const cy = this.cavityHeight > 0 ? this.cavityTop + this.cavityHeight * 0.12 : height * 0.22;
-      for (let r = glowR; r > 0; r -= glowR / 12) {
-        glow.fillStyle(0xFFF8E8, 0.045 * (r / glowR)).fillCircle(this.cavityCenterX, cy, r);
-      }
+      const src = this.textures.get(bgKey).getSourceImage();
+      const k = Math.max(width / src.width, height / src.height);
+      this.add.image(width / 2, height / 2, bgKey).setScale(k).setDepth(-10);
+    } else {
+      // Fallback: sanfter Farbverlauf
+      const bg = this.add.graphics().setDepth(-10);
+      bg.fillGradientStyle(0xF3EFEA, 0xF3EFEA, 0xE8E0D4, 0xE8E0D4, 1);
+      bg.fillRect(0, 0, width, height);
     }
+
+    // Halbtransparentes Overlay im Grid-Bereich fuer Item-Lesbarkeit
+    const overlay = this.add.graphics().setDepth(-5);
+    overlay.fillStyle(0xFDFBF7, 0.28);
+    overlay.fillRect(0, 80 * uiScale, width, height - 160 * uiScale);
 
     this.buildLevel(State.currentLevel);
 
@@ -1162,7 +1069,6 @@ export class GameScene extends Phaser.Scene {
     this.game.events.on(GameEvents.UNDO_TRIGGERED, this.onUndo, this);
     this.game.events.on(GameEvents.SHUFFLE_TRIGGERED, this.onShuffle, this);
 
-    // Sauberer Event-Cleanup zur Vermeidung von Leaks bei Restarts
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.input.off('pointerdown', this.onPointerDown, this);
       this.game.events.off(GameEvents.UNDO_TRIGGERED, this.onUndo, this);
@@ -1170,106 +1076,25 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
-  // Zeichnet die optionalen Parallax-Layer und startet ihre Leerlauf-Animation.
-  private createBgLayers(width: number, height: number) {
-    BG_LAYERS.forEach(layer => {
-      if (!this.textures.exists(layer.key)) return;
-
-      const src = this.textures.get(layer.key).getSourceImage();
-      const amount = layer.amount ?? 0;
-      const period = layer.period ?? 3000;
-      const swaying = layer.motion === 'sway';
-
-      let img: Phaser.GameObjects.Image;
-
-      if (layer.mode === 'cover') {
-        const scale = Math.max(width / src.width, height / src.height);
-        // Beim Schwingen liegt der Drehpunkt an der Oberkante, sonst mittig
-        img = this.add.image(width / 2, swaying ? 0 : height / 2, layer.key)
-          .setOrigin(0.5, swaying ? 0 : 0.5)
-          .setScale(scale)
-          .setDepth(layer.depth);
-      } else if (layer.mode === 'band') {
-        // Zwei Pixel ueber den unteren Rand hinaus und minimal breiter als die
-        // Leinwand: der Rand des Renders laeuft weich aus, ohne diesen
-        // Ueberstand blitzt am Bildrand eine Fuge durch.
-        img = this.add.image(width / 2, height + 2, layer.key)
-          .setOrigin(0.5, 1)
-          .setScale((width + 4) / src.width)
-          .setDepth(layer.depth);
-      } else {
-        const targetW = width * (layer.widthRatio ?? 0.2);
-        img = this.add.image(width * (layer.xRatio ?? 0.5), height * (layer.yRatio ?? 1), layer.key)
-          .setOrigin(0.5, 1)
-          .setScale(targetW / src.width)
-          .setDepth(layer.depth)
-          .setFlipX(layer.flipX === true);
-      }
-
-      const baseX = img.x;
-      const baseY = img.y;
-
-      switch (layer.motion) {
-        case 'sway':
-          this.tweens.add({
-            targets: img,
-            angle: { from: -amount, to: amount },
-            duration: period,
-            ease: 'Sine.easeInOut',
-            yoyo: true,
-            repeat: -1
-          });
-          break;
-        case 'drift':
-          this.tweens.add({
-            targets: img,
-            x: { from: baseX - width * amount, to: baseX + width * amount },
-            duration: period,
-            ease: 'Sine.easeInOut',
-            yoyo: true,
-            repeat: -1
-          });
-          break;
-        case 'bob':
-          this.tweens.add({
-            targets: img,
-            y: { from: baseY, to: baseY - amount },
-            duration: period,
-            ease: 'Sine.easeInOut',
-            yoyo: true,
-            repeat: -1
-          });
-          break;
-      }
-    });
-  }
-
   private buildLevel(lvl: number) {
     const level = LEVELS[lvl - 1] ?? LEVELS[0];
     State.reset(level.moves, level.targetMatches);
 
-    const itemScale = getLayoutScale(this.scale.width);
-    const verticalScale = this.scale.height / DESIGN_HEIGHT;
+    const { width, height } = this.scale;
+    const itemScale = getLayoutScale(width);
     const rows = level.layout.length;
-    const shelfWidth = Math.round(this.cavityWidth * SHELF_CAVITY_FILL);
+    const shelfWidth = Math.round(width * 0.78);
 
-    if (this.cabinetShelfYs.length >= rows) {
-      level.layout.forEach((data, i) => {
-        this.shelves.push(new Shelf(this, this.cavityCenterX, this.cabinetShelfYs[i], i, data, itemScale, shelfWidth, true));
-      });
-    } else if (this.cavityHeight > 0) {
-      const shelfSpacing = this.cavityHeight / (rows + 0.5);
-      const startY = this.cavityTop + shelfSpacing * 0.75;
-      level.layout.forEach((data, i) => {
-        this.shelves.push(new Shelf(this, this.cavityCenterX, startY + i * shelfSpacing, i, data, itemScale, shelfWidth));
-      });
-    } else {
-      const startY = (rows >= 6 ? 160 : rows === 5 ? 180 : 195) * verticalScale;
-      const shelfSpacing = (rows >= 6 ? 94 : rows === 5 ? 108 : 125) * verticalScale;
-      level.layout.forEach((data, i) => {
-        this.shelves.push(new Shelf(this, this.cavityCenterX, startY + i * shelfSpacing, i, data, itemScale, shelfWidth));
-      });
-    }
+    // Grid-Positionen rein rechnerisch aus Canvas-Groesse und Reihenanzahl
+    const gridTop = 100 * itemScale;
+    const gridBottom = height - 100 * itemScale;
+    const gridHeight = gridBottom - gridTop;
+    const shelfSpacing = gridHeight / rows;
+    const startY = gridTop + shelfSpacing * 0.5;
+
+    level.layout.forEach((data, i) => {
+      this.shelves.push(new Shelf(this, width / 2, startY + i * shelfSpacing, i, data, itemScale, shelfWidth, true));
+    });
   }
 
   private onPointerDown(p: Phaser.Input.Pointer) {
