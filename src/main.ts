@@ -600,16 +600,24 @@ export class Shelf extends Phaser.GameObjects.Container {
     this.ghosts[i] = null;
 
     const nextId = this.queues[i][0];
-    if (!nextId || !this.slots[i]) return;
+    const front = this.slots[i];
+    if (!nextId || !front) return;
 
     const s = this.itemScale;
+    // An der Oberkante des Front-Items verankert, nicht an der Ruhehoehe des
+    // naechsten Items: die Bottom-Offsets streuen von 12 bis 36 design px --
+    // kleines Offset hinten plus grosses davor liesse die komplette
+    // Silhouette hinter dem Front-Item verschwinden. So ragt der Ghost
+    // garantiert ueber die Frontkante hinaus und schaut nur unten knapp
+    // dahinter hervor.
+    const ghostSize = ITEM_SIZE * s * 0.8;
     const x = (i - 1) * this.spacing;
-    const y = getItemRestY(nextId, s, this.platformY) - 10 * s;
+    const y = front.restY - ITEM_SIZE * s * 0.45 - ghostSize * 0.3;
 
     let ghost: Phaser.GameObjects.Image | Phaser.GameObjects.Graphics;
     if (this.scene.textures.exists(`item_${nextId}`)) {
       ghost = this.scene.add.image(x, y, `item_${nextId}`)
-        .setDisplaySize(ITEM_SIZE * s * 0.88, ITEM_SIZE * s * 0.88)
+        .setDisplaySize(ghostSize, ghostSize)
         .setTint(0x2A2622)
         .setAlpha(0.25);
     } else {
@@ -617,7 +625,7 @@ export class Shelf extends Phaser.GameObjects.Container {
       const g = this.scene.add.graphics();
       g.fillStyle(ITEMS[nextId].baseColor, 1)
         .fillRoundedRect(-32 * s, -32 * s, 64 * s, 64 * s, 14 * s);
-      g.setPosition(x, y).setScale(0.88).setAlpha(0.25);
+      g.setPosition(x, y).setScale(0.8).setAlpha(0.25);
       ghost = g;
     }
 
