@@ -233,6 +233,53 @@ Format: Portrait 9:16 mobile Canvas, zentrierter quadratischer Effekt mit Paddin
 **fx_match_burst:**
 Cute kawaii flat celebration burst effect, a centered radial starburst of warm golden-yellow rays radiating outward from the middle, small pastel confetti shapes in soft pink and mint-green and lavender scattered between the rays, tiny gold five-pointed star sparkles dotted around, three subtle concentric circles in soft gold, clean flat shapes with uniform dark-brown outlines, no objects, no text, no numbers, no characters, crisp isolated front-facing graphic, portrait 9:16 mobile canvas, generous padding around the centered square effect, pure solid magenta background (#FF00FF), sharp clean edges, 8k resolution
 
+### Bento-Meta Prompts — Kawaii Flat (Session 8)
+
+Die Bento-Sammlung startet bewusst mit Procedural-Platzhaltern (`makeDecoView` / `BentoScene` in `src/main.ts`, Registry `src/bento.ts`); die Renders hier ersetzen sie nach und nach. Alle Assets laden **optional** über `AVAILABLE_ASSETS` — fehlen sie, bleibt das Gerüst voll funktionsfähig. Kein `ITEM_IDS`-Eintrag nötig: das Prefix `deco_` verarbeitet sie wie `btn_`/`ui_` (512×512 zentriert).
+
+Format: Portrait 9:16 Canvas, Objekt mittig, genau ein Objekt. Magenta-Hintergrund.
+
+⚠️ **WICHTIG:** Beim Rendern in Reve jeden Prompt mit der **Negative Prompt (Kawaii Flat)** anhängen und die **Reve Project Guidelines** befolgen.
+
+**bento_box** *(geschlossene Lackbox mit Goldclasp):*
+A single traditional Japanese lacquered bento box with its lid closed, seen straight from the front, a softly rounded rectangular body wider than tall in deep glossy black-brown lacquer, a thin warm gold trim line running along the lid edge, one small round gold clasp centered on the front face of the lid, clean dark-brown outline of uniform weight, front-facing flat view, compact proportions with generous even padding on all sides, pure solid magenta background (#FF00FF), zero shadow, sharp clean silhouette edges, 8k resolution
+
+**deco_tamagoyaki_roll:** *(gelbe Walze, Spiralschnitt sichtbar)*
+A single piece of Japanese tamagoyaki rolled omelette lying diagonally, bright warm yellow roll showing a neat spiral swirl at the cut end facing the viewer, soft rounded edges, a cute kawaii face with two simple dot eyes and a tiny curved smile on the side of the roll, clean dark-brown outline of uniform weight, front-facing flat view, pure solid magenta background (#FF00FF), zero shadow, sharp clean edges, 8k resolution
+
+**deco_karaage:** *(goldbraunes Nugget)*
+A single piece of Japanese karaage fried chicken, one plump irregularly rounded nugget in warm golden brown with a few lighter crispy bumps on the surface, a cute kawaii face with two simple dot eyes and a tiny curved smile in the center, clean dark-brown outline of uniform weight, front-facing flat view, pure solid magenta background (#FF00FF), zero shadow, sharp clean edges, 8k resolution
+
+**deco_cherry_tomato:** *(rote Kugel, Sternkelch)*
+A single glossy red cherry tomato, a plump round ball with one bright lighter highlight spot on the upper left, a small green star-shaped calyx with a tiny short stem on top, a cute kawaii face with two simple dot eyes and a tiny curved smile on the front, clean dark-brown outline of uniform weight, pure solid magenta background (#FF00FF), zero shadow, sharp clean edges, 8k resolution
+
+**deco_broccoli:** *(Röschen auf hellem Stiel)*
+A single broccoli floret standing upright, a fluffy rounded dark-green crown built from soft cloud-like bumps on a short pale green stem, a cute kawaii face with two simple dot eyes and a tiny curved smile on the crown, clean dark-brown outline of uniform weight, front-facing flat view, pure solid magenta background (#FF00FF), zero shadow, sharp clean edges, 8k resolution
+
+**deco_octo_wiener:** *(Würstchen mit sechs Beinen)*
+A single octopus-cut sausage wiener standing upright, warm orange-pink body with six short curled legs fanning out evenly at the bottom, a cute kawaii face with two simple dot eyes and a tiny open smile on the head, clean dark-brown outline of uniform weight, front-facing flat view, pure solid magenta background (#FF00FF), zero shadow, sharp clean edges, 8k resolution
+
+**deco_rabbit_apple:** *(Hasen-Apfelschnitt)*
+A single apple slice cut into a bunny rabbit shape, pale cream-white flesh forming a rounded body with two long pointed ears at the top, a thin red apple skin edge tracing the ears and back, a cute kawaii face with two simple dot eyes and a tiny curved smile, clean dark-brown outline of uniform weight, front-facing flat view, pure solid magenta background (#FF00FF), zero shadow, sharp clean edges, 8k resolution
+
+**deco_sakura_baran:** *(Trennerblatt mit Blüte)*
+A single decorative baran divider leaf, an upright gently waving green sheet with softly serrated top edge, a small pastel pink sakura blossom shape near its lower left corner, clean dark-brown outline of uniform weight, crisp flat graphic with no food attached, front-facing flat view, pure solid magenta background (#FF00FF), zero shadow, sharp clean edges, 8k resolution
+
+**deco_pickles:** *(drei Stäbchen, rotes Band)*
+A small bundle of three yellow-green pickled cucumber sticks standing together, slightly uneven cut ends at the top, tied around the middle with a thin red band, a cute kawaii face with two simple dot eyes and a tiny curved smile on the front stick, clean dark-brown outline of uniform weight, pure solid magenta background (#FF00FF), zero shadow, sharp clean edges, 8k resolution
+
+**deco_sauce_fish:** *(fischförmiger Saucenspender)*
+A single fish-shaped soy sauce dispenser bottle lying flat, translucent amber-brown body shaped like a tiny plump fish with a short spout at one end and a small round cap hole on top, one simple dark dot eye, clean dark-brown outline of uniform weight, side view, pure solid magenta background (#FF00FF), zero shadow, sharp clean edges, 8k resolution
+
+**deco_baking_cup:** *(gerilltes Papierförmchen, leer)*
+A single fluted paper baking cup standing upright and empty, soft sakura pink with vertical pleats all around and a subtly darker rim, no cupcake or filling inside, just the pleated paper cup, a cute kawaii face with two simple dot eyes and a tiny curved smile on the front, clean dark-brown outline of uniform weight, front-facing flat view, pure solid magenta background (#FF00FF), zero shadow, sharp clean edges, 8k resolution
+
+**deco_nori_band:** *(Noriband als Ring)*
+A single rolled strip of dark nori seaweed standing upright as a belt loop, a deep charcoal green cylinder with a visible spiral seam where the sheet rolls over itself, matte flat surface without gloss, clean dark-brown outline of uniform weight, front-facing flat view, pure solid magenta background (#FF00FF), zero shadow, sharp clean edges, 8k resolution
+
+**deco_kewpie_mayo:** *(weiße Flasche, roter Deckel)*
+A single squeeze mayonnaise bottle standing upright, a soft milky white rounded body with a small red cap and pointed nozzle tip tilted to one side, a tiny simple red star mark printed on the front of the bottle, clean dark-brown outline of uniform weight, front-facing flat view, pure solid magenta background (#FF00FF), zero shadow, sharp clean edges, 8k resolution
+
 ---
 
 ## 4. Prompt- & Asset-Workflow
@@ -255,9 +302,10 @@ Der Dateiname steuert die gesamte Verarbeitung — es gibt keine Konfiguration a
 |---|---|---|
 | `bgl_` | Skalierung auf 1440 px Breite, **kein Chroma-Keying**, deckend | Hintergrundbild |
 | `ui_card_` | Defringe, exakter Alpha-Crop, Höhe auf 256 normalisiert, Breite proportional | NineSlice-Karte |
-| `btn_` / `ui_` | Defringe, exakter Alpha-Crop, 384×384 zentriert | Buttons & Icons |
-| `fx_` | Defringe, exakter Alpha-Crop, 384×384 zentriert | Match-Effekt |
-| Item-ID | Defringe, exakter Alpha-Crop, 384×384, Bottom-Offset gemessen | `ITEM_BOTTOM_OFFSETS` |
+| `btn_` / `ui_` | Defringe, exakter Alpha-Crop, 512×512 zentriert | Buttons & Icons |
+| `fx_` | Defringe, exakter Alpha-Crop, 512×512 zentriert | Match-Effekt |
+| `deco_` / `bento_box` | Defringe, exakter Alpha-Crop, 512×512 zentriert | Bento-Meta (Box & Deko) |
+| Item-ID | Defringe, exakter Alpha-Crop, 512×512, Bottom-Offset gemessen | `ITEM_BOTTOM_OFFSETS` |
 
 Die Zielgrössen stehen als Konstanten oben in `scripts/process_assets.js` und sind an der Canvasbreite bei `devicePixelRatio` 3 bemessen (rund 1240 px, siehe Abschnitt 1a).
 
@@ -330,3 +378,4 @@ Den tatsächlich verwendeten Prompt in Abschnitt 3 aktualisieren, inkl. Versions
 - **UI-Karten** (`ui_card_kuro` / `ui_card_hinoki`) werden aktuell nicht gezeichnet — der Header steht frei über der Szene. `addCardNineSlice` bleibt im Code.
 - **Booster Buttons** im neuen Kawaii-Flat-Stil rendern — runde Buttons statt der bisherigen quadratischen Kiri-e-Buttons.
 - **FX** (fx_match_burst) im neuen Stil rendern.
+- **Bento-Meta** (`bento_box` + 12 `deco_*`) rendern — das Gerüst (`src/bento.ts`, `BentoScene`) läuft solange mit Procedural-Platzhaltern; Prompts in Abschnitt 3, Verarbeitung via Prefix-Tabelle in Abschnitt 4.

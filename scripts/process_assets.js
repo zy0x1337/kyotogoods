@@ -499,8 +499,9 @@ async function processImages() {
       continue;
     }
 
-    // FALL 4: Booster-Buttons & Icons (quadratisch zentriert)
-    if (baseName.startsWith('btn_') || baseName.startsWith('ui_')) {
+    // FALL 4: Booster-Buttons, Icons und Bento-Meta-Assets (quadratisch zentriert)
+    if (baseName.startsWith('btn_') || baseName.startsWith('ui_')
+      || baseName.startsWith('deco_') || baseName === 'bento_box') {
       const { pipeline, key } = await cropToContent(filePath);
       await writeClean(
         pipeline.resize(TARGET_SIZE, TARGET_SIZE, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } }),
@@ -548,8 +549,10 @@ async function processImages() {
 
   // Altbestand frueherer Item-/BG-Sets entfernen: Food-Items, die nicht (mehr)
   // in ITEM_IDS stehen, und bgl_-Szenen ohne passenden Raw-Render. btn_/fx_/ui_
-  // bleiben unangetastet, solange sie noch keinen aktuellen Raw-Render haben --
-  // das sind gueltige, in Benutzung befindliche Assets aus einem frueheren Stil.
+  // sowie die Bento-Meta-Assets (deco_/bento_box) bleiben unangetastet, solange
+  // sie noch keinen aktuellen Raw-Render haben -- das sind gueltige, in
+  // Benutzung befindliche Assets aus einem frueheren Stil bzw. Procedural-
+  // gestuetzte Meta-Assets.
   const expectedBglNames = new Set(
     files.filter(f => path.parse(f).name.startsWith('bgl_')).map(f => path.parse(f).name)
   );
@@ -558,6 +561,7 @@ async function processImages() {
     const baseName = path.parse(f).name;
     const isStaleItem = !baseName.startsWith('bgl_') && !baseName.startsWith('btn_')
       && !baseName.startsWith('fx_') && !baseName.startsWith('ui_')
+      && !baseName.startsWith('deco_') && baseName !== 'bento_box'
       && !ITEM_IDS.includes(baseName);
     const isStaleBg = baseName.startsWith('bgl_') && !expectedBglNames.has(baseName);
     if (isStaleItem || isStaleBg) {

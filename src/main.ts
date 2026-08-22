@@ -4,6 +4,8 @@ import Phaser from 'phaser';
 import { ITEM_BOTTOM_OFFSETS, AVAILABLE_ASSETS, ASSET_EXT } from './item_offsets.generated';
 import { generateLevel, isBossLevel, LEVEL_COUNT, LEVEL_PARAMS } from './levels';
 import type { LevelDefinition, SlotDef } from './levels';
+import { BOX_COUNT, DECOS, DECO_IDS, loadBento, milestoneForBox, registerWin } from './bento';
+import type { BentoAward, BentoSave } from './bento';
 
 // ==========================================
 // 1. CMF DESIGN SYSTEM & ITEM REGISTRY
@@ -963,6 +965,10 @@ export class PreloadScene extends Phaser.Scene {
     // btn_extra_shelf ist noch nicht gerendert (Reve) -- optional laden, der
     // UIScene-Procedural-Fallback springt solange ein.
     loadOptional('btn_extra_shelf');
+    // Bento-Meta (Session 8): Box und Dekos optional -- bis die Reve-Renders
+    // vorliegen, zeichnen WinModal und BentoScene Procedural-Platzhalter.
+    loadOptional('bento_box');
+    DECO_IDS.forEach(id => loadOptional(id));
     this.load.image('ui_star', `assets/items/ui_star.${ASSET_EXT}`);
     this.load.image('ui_star_empty', `assets/items/ui_star_empty.${ASSET_EXT}`);
   }
@@ -1264,9 +1270,13 @@ export class GameScene extends Phaser.Scene {
     if (allClear || State.matchesMade >= State.targetMatches) {
       State.won = true;
       ZenAudio.playWin();
+      // Bento-Journal: nur Meilenstein-Siege (L5/10/.../30) vergeben eine Deko
+      // und schalten die Box frei. Das Ergebnis wandert per Launch-Data ins
+      // WinModal (dasselbe Muster wie requestRewardedAd).
+      const award = registerWin(State.currentLevel);
       this.time.delayedCall(500, () => {
         this.scene.pause();
-        this.scene.launch('WinModalScene');
+        this.scene.launch('WinModalScene', { award });
       });
       return;
     }
@@ -1397,6 +1407,37 @@ export function addCardNineSlice(
   return ns;
 }
 
+/** Deko-Anzeige fuer Bento-Journal und BentoScene: Textur falls geladen,
+ *  sonst Procedural-Platzhalter -- RoundedRect in Grundfarbe mit Kawaii-
+ *  Mini-Face (zwei Punktaugen, Laechelbogen). Der Container liegt bei (0,0),
+ *  Positionierung und Parent uebernimmt der Aufrufer. */
+function makeDecoView(scene: Phaser.Scene, decoId: string, size: number): Phaser.GameObjects.Container {
+  const view = scene.add.container(0, 0);
+
+  if (scene.textures.exists(decoId)) {
+    view.add(scene.add.image(0, 0, decoId).setDisplaySize(size, size));
+    return view;
+  }
+
+  const u = size / 48;
+  const def = DECOS[decoId];
+  const g = scene.add.graphics();
+  g.fillStyle(def ? def.baseColor : KYOTO.hinoki, 1)
+    .fillRoundedRect(-24 * u, -24 * u, 48 * u, 48 * u, 12 * u);
+  if (def) {
+    g.lineStyle(2 * u, def.accentColor, 1).strokeRoundedRect(-24 * u, -24 * u, 48 * u, 48 * u, 12 * u);
+  }
+  // Kawaii-Mini-Face: zwei Punktaugen und ein Laechelbogen.
+  g.fillStyle(KYOTO.kuroSteel, 1);
+  g.fillCircle(-8 * u, -4 * u, 2.6 * u);
+  g.fillCircle(8 * u, -4 * u, 2.6 * u);
+  g.lineStyle(2 * u, KYOTO.kuroSteel, 1).beginPath();
+  g.arc(0, 2 * u, 7 * u, Phaser.Math.DegToRad(20), Phaser.Math.DegToRad(160));
+  g.strokePath();
+  view.add(g);
+  return view;
+}
+
 export class UIScene extends Phaser.Scene {
   private scoreTxt!: Phaser.GameObjects.Text;
   private movesTxt!: Phaser.GameObjects.Text;
@@ -1436,8 +1477,39 @@ export class UIScene extends Phaser.Scene {
     // Aussenspalten so breit wie noetig, damit die Bloecke nicht am Rand kleben
     const colW = 78 * uiScale;
     this.scoreTxt = stack(pad + colW / 2, 'SCORE', '0');
-    stack(width / 2, 'TEA BAR', `${State.currentLevel}`);
+    const teaValue = stack(width / 2, 'TEA BAR', `${State.currentLevel}`);
     this.movesTxt = stack(width - pad - colW / 2, 'MOVES', `${State.moves}`);
+
+    // Bento-Einstieg (Session 8): der TEA-BAR-Stack ist tappable. Eine
+    // unsichtbare Zone ueber dem Stack statt Interactive-Texts -- Texte mit
+    // Schatten-Halo haben unvorhersehbare Hitbox-Groessen.
+    const bentoZone = this.add.zone(
+      width / 2,
+      (labelY + valueY) / 2,
+      colW * 1.35,
+      (valueY - labelY) + 34 * uiScale
+    ).setInteractive({ useHandCursor: true });
+    bentoZone.on('pointerdown', () => {
+      this.tweens.add({ targets: [teaValue], scale: 1.15, yoyo: true, duration: 90 });
+      this.scene.pause('GameScene');
+      this.scene.launch('BentoScene');
+    });
+
+    // Kleines Bento-Glyph rechts neben dem Label als Entdeckbarkeits-Hinweis.
+    const glyph = this.add.graphics();
+    const gs = uiScale;
+    glyph.fillStyle(KYOTO.kuroSteel, 0.85).fillRoundedRect(-9 * gs, -7 * gs, 18 * gs, 14 * gs, 3 * gs);
+    glyph.lineStyle(1.5 * gs, KYOTO.brass, 1).strokeRoundedRect(-9 * gs, -7 * gs, 18 * gs, 14 * gs, 3 * gs);
+    glyph.lineStyle(1.5 * gs, KYOTO.brass, 1).lineBetween(0, -7 * gs, 0, 7 * gs);
+    glyph.setPosition(width / 2 + colW * 0.72, labelY);
+    this.tweens.add({
+      targets: glyph,
+      alpha: 0.5,
+      duration: 900,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut'
+    });
 
     // Booster-Reihe, ebenfalls ohne Tray-Karte
     const boosterSize = 52 * uiScale;
@@ -1556,50 +1628,75 @@ export class WinModalScene extends Phaser.Scene {
     const s = getLayoutScale(width);
     this.add.graphics().fillStyle(0x000000, 0.45).fillRect(0, 0, width, height);
 
+    // Bento-Journal (Session 8): Meilenstein-Siege reichen ihre Award-Deko per
+    // Launch-Data herein; alle anderen Siege zeigen die Karte ohne Reveal-Zeile.
+    const data = this.scene.settings.data as { award?: BentoAward } | undefined;
+    const award = data?.award ?? null;
+
     const card = this.add.container(width / 2, height / 2);
     const cardW = 280 * s;
-    const cardH = 260 * s;
+    // Mit Deko-Reveal waechst die Karte nach unten -- Titel/Sterne/Score
+    // ruecken nach oben, der Button weiter nach unten.
+    const cardH = award ? 330 * s : 260 * s;
     const bg = this.add.graphics().fillStyle(KYOTO.cream, 1).fillRoundedRect(-cardW / 2, -cardH / 2, cardW, cardH, 16 * s);
     bg.lineStyle(2 * s, KYOTO.hinoki, 0.7).strokeRoundedRect(-cardW / 2, -cardH / 2, cardW, cardH, 16 * s);
 
-    // Der Boss-Level schliesst den Bogen ab -- die Meta-Belohnung folgt in Session 8.
     const boss = isBossLevel(State.currentLevel);
     const titleText = boss ? 'BENTO UNLOCKED!' : `TEA BAR ${State.currentLevel} CLEARED`;
-    const title = this.add.text(0, -85 * s, titleText, valueStyle(18 * s, boss ? '#4A6B47' : '#1E2022')).setOrigin(0.5);
+    const yTitle = (award ? -120 : -85) * s;
+    const title = this.add.text(0, yTitle, titleText, valueStyle(18 * s, boss ? '#4A6B47' : '#1E2022')).setOrigin(0.5);
 
     // 3-Sterne Bewertung
     const movesRatio = State.moves / State.initialMoves;
     const starCount = movesRatio >= 0.5 ? 3 : movesRatio >= 0.2 ? 2 : 1;
+    const yStars = (award ? -75 : -40) * s;
 
     [-40, 0, 40].forEach((xOffset, idx) => {
       const hasStar = idx < starCount;
       const key = hasStar ? 'ui_star' : 'ui_star_empty';
 
       if (this.textures.exists(key)) {
-        const star = this.add.image(xOffset * s, -40 * s, key).setDisplaySize(32 * s, 32 * s);
+        const star = this.add.image(xOffset * s, yStars, key).setDisplaySize(32 * s, 32 * s);
         card.add(star);
       } else {
-        const g = this.add.graphics().fillStyle(hasStar ? KYOTO.brass : 0xCCCCCC, 1).fillCircle(xOffset * s, -40 * s, 12 * s);
+        const g = this.add.graphics().fillStyle(hasStar ? KYOTO.brass : 0xCCCCCC, 1).fillCircle(xOffset * s, yStars, 12 * s);
         card.add(g);
       }
     });
 
-    const scoreLabel = this.add.text(0, -6 * s, 'SCORE', labelStyle(10 * s, '#8C7A5E')).setOrigin(0.5);
-    const score = this.add.text(0, 14 * s, `${State.score}`, valueStyle(24 * s, '#4A6B47')).setOrigin(0.5);
+    const yScoreLabel = (award ? -36 : -6) * s;
+    const yScore = (award ? -16 : 14) * s;
+    const scoreLabel = this.add.text(0, yScoreLabel, 'SCORE', labelStyle(10 * s, '#8C7A5E')).setOrigin(0.5);
+    const score = this.add.text(0, yScore, `${State.score}`, valueStyle(24 * s, '#4A6B47')).setOrigin(0.5);
 
-    const btn = this.add.container(0, 65 * s);
+    let decoView: Phaser.GameObjects.Container | null = null;
+    let decoTxt: Phaser.GameObjects.Text | null = null;
+    if (award) {
+      decoView = makeDecoView(this, award.decoId, 46 * s).setPosition(0, 34 * s);
+      decoTxt = this.add.text(0, 68 * s, 'NEUE DEKO!', valueStyle(13 * s, '#4A6B47')).setOrigin(0.5);
+    }
+
+    const yBtn = (award ? 118 : 65) * s;
+    const btn = this.add.container(0, yBtn);
     const btnBg = this.add.graphics().fillStyle(KYOTO.matcha, 1).fillRoundedRect(-65 * s, -20 * s, 130 * s, 40 * s, 10 * s);
     const btnTxt = this.add.text(0, 0, boss ? 'PLAY AGAIN' : 'NEXT BAR', valueStyle(14 * s, '#FFFFFF')).setOrigin(0.5);
 
     btn.add([btnBg, btnTxt]).setSize(130 * s, 40 * s).setInteractive({ useHandCursor: true });
     btn.on('pointerdown', () => {
+      const wasBoss = isBossLevel(State.currentLevel);
       State.currentLevel = State.currentLevel >= LEVEL_COUNT ? 1 : State.currentLevel + 1;
       saveLevel(State.currentLevel);
       this.scene.stop('WinModalScene');
       this.scene.get('GameScene').scene.restart();
+      // Boss-Abschluss poppt die Sammlung automatisch auf -- das frische
+      // Level 1 liegt pausiert darunter und laeuft beim Schliessen weiter.
+      if (wasBoss) this.scene.launch('BentoScene');
     });
 
-    card.add([bg, title, scoreLabel, score, btn]).setScale(0);
+    const children: Phaser.GameObjects.GameObject[] = [bg, title, scoreLabel, score];
+    if (decoView && decoTxt) children.push(decoView, decoTxt);
+    children.push(btn);
+    card.add(children).setScale(0);
     this.tweens.add({ targets: card, scale: 1, duration: 250, ease: 'Back.easeOut' });
   }
 }
@@ -1714,6 +1811,222 @@ export class LoseModalScene extends Phaser.Scene {
 }
 
 // ==========================================
+// 5c. BENTO COLLECTION (SESSION 8)
+// ==========================================
+/** Sammel-Ansicht ueber 6 Bento-Boxen (Meilenstein-Level 5/10/.../30).
+ *  Overlay wie die Modals: pausiert GameScene beim Oeffnen, Freigabe passiert
+ *  gebuendelt im SHUTDOWN-Handler -- egal ob Close-X oder Aussentap.
+ *  Texturen bento_box/deco_* laden optional; bis die Reve-Renders vorliegen,
+ *  zeichnen Lackbox, Faecher und Kawaii-Mini-Faces procedural. */
+export class BentoScene extends Phaser.Scene {
+  private pageIndex = 0;
+  private pages: Phaser.GameObjects.Container[] = [];
+  private dots: Phaser.GameObjects.Arc[] = [];
+  private pageStep = 0;
+  private sliding = false;
+
+  constructor() {
+    super('BentoScene');
+  }
+
+  create() {
+    const { width, height } = this.scale;
+    const s = getLayoutScale(width);
+    this.pageIndex = 0;
+    this.pages = [];
+    this.dots = [];
+    this.sliding = false;
+
+    this.scene.pause('GameScene');
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scene.resume('GameScene'));
+
+    const state = loadBento();
+
+    // Dim + interaktive Vollbild-Zone: jeder Tap, der nicht auf Panel-Elemente
+    // trifft, schliesst die Ansicht (dieselbe Technik wie AdStubScene).
+    this.add.graphics().fillStyle(0x000000, 0.55).fillRect(0, 0, width, height);
+    this.add.zone(width / 2, height / 2, width, height)
+      .setInteractive()
+      .on('pointerdown', () => this.close());
+
+    // Panel
+    const panelW = Math.min(width - 28 * s, 380 * s);
+    const panelH = height * 0.68;
+    const panelX = width / 2;
+    const panelY = height / 2;
+    const bg = this.add.graphics();
+    bg.fillStyle(KYOTO.cream, 1).fillRoundedRect(panelX - panelW / 2, panelY - panelH / 2, panelW, panelH, 18 * s);
+    bg.lineStyle(2 * s, KYOTO.hinoki, 0.8).strokeRoundedRect(panelX - panelW / 2, panelY - panelH / 2, panelW, panelH, 18 * s);
+
+    this.add.text(panelX, panelY - panelH / 2 + 24 * s, 'TEA ROOM', labelStyle(11 * s, '#8C7A5E')).setOrigin(0.5);
+    this.add.text(panelX, panelY - panelH / 2 + 50 * s, 'BENTO', valueStyle(22 * s, '#1E2022')).setOrigin(0.5);
+
+    // Karussell hinter einer Geometrie-Maske: Seiten verschwinden sauber am
+    // Panelrand, statt ins Titelband hineinzuragen.
+    const viewTop = panelY - panelH / 2 + 72 * s;
+    const viewBottom = panelY + panelH / 2 - 56 * s;
+    const viewH = viewBottom - viewTop;
+    this.pageStep = panelW;
+    const maskG = this.make.graphics();
+    maskG.fillStyle(0xFFFFFF, 1).fillRect(panelX - panelW / 2, viewTop, panelW, viewH);
+    const mask = maskG.createGeometryMask();
+
+    const contentY = (viewTop + viewBottom) / 2 - 14 * s;
+    for (let i = 0; i < BOX_COUNT; i++) {
+      const page = this.add.container(panelX + i * this.pageStep, contentY);
+      page.setMask(mask);
+      this.buildBoxPage(page, i, state, Math.min(panelW * 0.72, viewH * 0.72), s);
+      this.pages.push(page);
+    }
+
+    // Startseite: zuletzt freigeschaltete Box, sonst die erste.
+    const startPage = Math.max(0, state.milestonesWon.length - 1);
+    if (startPage > 0) this.pages.forEach(p => { p.x -= startPage * this.pageStep; });
+    this.pageIndex = startPage;
+
+    this.buildArrows(panelX, contentY, panelW, s);
+    this.buildDots(panelX, panelY + panelH / 2 - 28 * s, s);
+    this.updateDots();
+    this.buildCloseButton(panelX + panelW / 2, panelY - panelH / 2, s);
+  }
+
+  /** Eine Karussell-Seite: geoeffnete Box mit Faechern bzw. Silhouette plus Caption. */
+  private buildBoxPage(c: Phaser.GameObjects.Container, boxIdx: number, state: BentoSave, boxSize: number, s: number) {
+    const milestone = milestoneForBox(boxIdx);
+    const unlocked = state.milestonesWon.includes(milestone);
+
+    const w = boxSize;
+    const h = boxSize * 0.74;
+    const u = boxSize / 240;
+
+    if (unlocked && this.textures.exists('bento_box')) {
+      c.add(this.add.image(0, 0, 'bento_box').setDisplaySize(w, h));
+    } else if (unlocked) {
+      // Procedural-Lackbox: dunkler Korpus, Messing-Rahmen, Innenboden.
+      const g = this.add.graphics();
+      g.fillStyle(KYOTO.kuroSteel, 1).fillRoundedRect(-w / 2, -h / 2, w, h, 14 * u);
+      g.lineStyle(3 * u, KYOTO.brass, 0.9).strokeRoundedRect(-w / 2, -h / 2, w, h, 14 * u);
+      g.fillStyle(0x2A2D30, 1).fillRoundedRect(-w / 2 + 8 * u, -h / 2 + 8 * u, w - 16 * u, h - 16 * u, 10 * u);
+      c.add(g);
+    } else {
+      // Gesperrte Box: Silhouette ohne Details plus Messing-Schloss.
+      const g = this.add.graphics();
+      g.fillStyle(KYOTO.kuroSteel, 0.42).fillRoundedRect(-w / 2, -h / 2, w, h, 14 * u);
+      g.lineStyle(4 * u, KYOTO.brass, 0.55).beginPath();
+      g.arc(0, -6 * u, 12 * u, Math.PI, 0);
+      g.strokePath();
+      g.fillStyle(KYOTO.brass, 0.7).fillRoundedRect(-16 * u, -6 * u, 32 * u, 26 * u, 5 * u);
+      g.fillStyle(KYOTO.kuroSteel, 0.6).fillCircle(0, 7 * u, 4 * u);
+      c.add(g);
+      c.add(this.add.text(0, h / 2 + 26 * s, `REACH LEVEL ${milestone}`, labelStyle(12 * s, '#8C7A5E')).setOrigin(0.5));
+      return;
+    }
+
+    // Vier Faecher als dunkle Insets; Slot 0 oben links traegt die Award-Deko.
+    const inset = this.add.graphics();
+    const slotW = w * 0.36;
+    const slotH = h * 0.34;
+    const slots: [number, number][] = [[-1, -1], [1, -1], [-1, 1], [1, 1]];
+    slots.forEach(([sx, sy]) => {
+      inset.fillStyle(0x000000, 0.30)
+        .fillRoundedRect(sx * w * 0.21 - slotW / 2, sy * h * 0.17 - slotH / 2, slotW, slotH, 8 * u);
+    });
+    c.add(inset);
+
+    const decoId = state.placed[boxIdx];
+    if (decoId) {
+      const deco = makeDecoView(this, decoId, w * 0.26).setPosition(-w * 0.21, -h * 0.17);
+      deco.setScale(0);
+      c.add(deco);
+      this.tweens.add({ targets: deco, scale: 1, duration: 320, delay: 150, ease: 'Back.easeOut' });
+    }
+
+    c.add(this.add.text(0, h / 2 + 26 * s, `BOX ${boxIdx + 1} · UNLOCKED`, valueStyle(12 * s, '#4A6B47')).setOrigin(0.5));
+  }
+
+  private buildArrows(cx: number, cy: number, panelW: number, s: number) {
+    ([-1, 1] as const).forEach(dir => {
+      const ax = cx + dir * (panelW / 2 - 26 * s);
+      const chev = this.add.graphics();
+      chev.lineStyle(4 * s, KYOTO.hinoki, 0.95).beginPath();
+      chev.moveTo(-dir * 6 * s, -15 * s);
+      chev.lineTo(dir * 6 * s, 0);
+      chev.lineTo(-dir * 6 * s, 15 * s);
+      chev.strokePath();
+      chev.setPosition(ax, cy);
+
+      const hit = this.add.zone(ax, cy, 56 * s, 90 * s).setInteractive({ useHandCursor: true });
+      hit.on('pointerdown', () => {
+        if (!this.sliding) this.slide(dir);
+      });
+    });
+  }
+
+  private buildDots(cx: number, cy: number, s: number) {
+    const spacing = 18 * s;
+    for (let i = 0; i < BOX_COUNT; i++) {
+      const x = cx + (i - (BOX_COUNT - 1) / 2) * spacing;
+      this.dots.push(this.add.circle(x, cy, 5 * s, KYOTO.hinoki, 0.45));
+
+      const hit = this.add.zone(x, cy, spacing, 30 * s).setInteractive({ useHandCursor: true });
+      hit.on('pointerdown', () => {
+        if (!this.sliding && this.pageIndex !== i) this.jumpTo(i);
+      });
+    }
+  }
+
+  /** Eine Seite weiter (dir=1) bzw. zurueck (dir=-1), wrappt an den Enden. */
+  private slide(dir: -1 | 1) {
+    this.jumpTo((this.pageIndex + dir + BOX_COUNT) % BOX_COUNT);
+  }
+
+  private jumpTo(target: number) {
+    const delta = target - this.pageIndex;
+    this.sliding = true;
+    this.pageIndex = target;
+    this.updateDots();
+
+    this.pages.forEach((page, idx) => {
+      this.tweens.add({
+        targets: page,
+        x: page.x - delta * this.pageStep,
+        duration: 300,
+        ease: 'Quad.easeOut',
+        onComplete: idx === 0 ? () => { this.sliding = false; } : undefined
+      });
+    });
+  }
+
+  private updateDots() {
+    this.dots.forEach((dot, i) => {
+      dot.setFillStyle(i === this.pageIndex ? KYOTO.brass : KYOTO.hinoki, i === this.pageIndex ? 1 : 0.45);
+      dot.setScale(i === this.pageIndex ? 1.25 : 1);
+    });
+  }
+
+  private buildCloseButton(px: number, py: number, s: number) {
+    const cx = px - 24 * s;
+    const cy = py + 24 * s;
+
+    const g = this.add.graphics();
+    g.fillStyle(KYOTO.kuroSteel, 0.9).fillCircle(0, 0, 13 * s);
+    g.lineStyle(2.5 * s, KYOTO.cream, 1);
+    g.lineBetween(-5 * s, -5 * s, 5 * s, 5 * s);
+    g.lineBetween(5 * s, -5 * s, -5 * s, 5 * s);
+    g.setPosition(cx, cy);
+
+    const hit = this.add.zone(cx, cy, 42 * s, 42 * s).setInteractive({ useHandCursor: true });
+    hit.on('pointerdown', () => this.close());
+  }
+
+  /** Aussentap und Close-X laufen hier zusammen; das Resume macht der
+   *  SHUTDOWN-Handler aus create(). */
+  private close() {
+    this.scene.stop();
+  }
+}
+
+// ==========================================
 // 6. ENGINE BOOTSTRAP
 // ==========================================
 // Canvas-Groesse in Geraetepixeln. Die Anzeigegroesse ist das Container-Rechteck
@@ -1750,7 +2063,7 @@ function boot() {
       zoom: 1 / DPR,
       autoCenter: Phaser.Scale.CENTER_BOTH
     },
-    scene: [PreloadScene, GameScene, UIScene, WinModalScene, LoseModalScene, AdStubScene]
+    scene: [PreloadScene, GameScene, UIScene, WinModalScene, LoseModalScene, AdStubScene, BentoScene]
   });
 
   // Im Modus NONE folgt die Canvas dem Container nicht von selbst. Drehung und
