@@ -541,6 +541,26 @@ async function processImages() {
     }
   }
 
+  // Altbestand frueherer Item-/BG-Sets entfernen: Food-Items, die nicht (mehr)
+  // in ITEM_IDS stehen, und bgl_-Szenen ohne passenden Raw-Render. btn_/fx_/ui_
+  // bleiben unangetastet, solange sie noch keinen aktuellen Raw-Render haben --
+  // das sind gueltige, in Benutzung befindliche Assets aus einem frueheren Stil.
+  const expectedBglNames = new Set(
+    files.filter(f => path.parse(f).name.startsWith('bgl_')).map(f => path.parse(f).name)
+  );
+  for (const f of fs.readdirSync(OUT_DIR)) {
+    if (path.extname(f).toLowerCase() !== `.${OUT_EXT}`) continue;
+    const baseName = path.parse(f).name;
+    const isStaleItem = !baseName.startsWith('bgl_') && !baseName.startsWith('btn_')
+      && !baseName.startsWith('fx_') && !baseName.startsWith('ui_')
+      && !ITEM_IDS.includes(baseName);
+    const isStaleBg = baseName.startsWith('bgl_') && !expectedBglNames.has(baseName);
+    if (isStaleItem || isStaleBg) {
+      fs.unlinkSync(path.join(OUT_DIR, f));
+      console.log(`  entfernt (Altbestand): ${f}`);
+    }
+  }
+
   for (const f of fs.readdirSync(OUT_DIR)) {
     if (path.extname(f).toLowerCase() === `.${OUT_EXT}`) produced.add(path.parse(f).name);
   }

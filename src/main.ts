@@ -508,7 +508,7 @@ export class GoodsItem extends Phaser.GameObjects.Container {
   constructor(scene: Phaser.Scene, x: number, y: number, itemId: string, itemScale = 1, restY = y) {
     super(scene, x, y);
     this.itemId = itemId;
-    this.itemDef = ITEMS[itemId] || ITEMS['chawan_cup'];
+    this.itemDef = ITEMS[itemId] || ITEMS['onigiri'];
     this.itemScale = itemScale;
     this.restY = restY;
     this.setSize(76 * itemScale, 76 * itemScale);
@@ -700,25 +700,14 @@ export class Shelf extends Phaser.GameObjects.Container {
     }
     this.add(shadow);
 
-    if (this.scene.textures.exists('shelf_wood')) {
-      // Gleichmaessig skaliertes Bild statt NineSlice. Die Enden des Bretts
-      // tragen die Messingstifte, und NineSlice zeichnet seine Endkappen in
-      // Texturgroesse -- bei einem Brett, das auf 45 % skaliert wird, waeren die
-      // Stifte doppelt so gross wie das Holz daneben. h folgt ohnehin dem
-      // Seitenverhaeltnis, es wird also nichts verzerrt.
-      const shelfImg = this.scene.add.image(0, 0, 'shelf_wood').setDisplaySize(w, h);
-      shelfImg.setOrigin(0.5);
-      this.add(shelfImg);
-    } else {
-      const g = this.scene.add.graphics();
-      g.fillStyle(KYOTO.hinoki, 1.0).fillRoundedRect(-w / 2, -h / 2, w, h, 10 * s);
-      [-this.spacing, 0, this.spacing].forEach(x => {
-        g.fillStyle(KYOTO.slotIndent, 0.4).fillRoundedRect(x - 38 * s, -h / 2 + 8 * s, 76 * s, h - 16 * s, 8 * s);
-      });
-      g.fillStyle(KYOTO.kuroSteel, 1.0).fillRoundedRect(-w / 2 - 4 * s, h / 2 - 8 * s, w + 8 * s, 12 * s, 3 * s);
-      g.fillStyle(KYOTO.brass, 1.0).fillCircle(-w / 2 + 6 * s, h / 2 - 2 * s, 2.5 * s).fillCircle(w / 2 - 6 * s, h / 2 - 2 * s, 2.5 * s);
-      this.add(g);
-    }
+    const g = this.scene.add.graphics();
+    g.fillStyle(KYOTO.hinoki, 1.0).fillRoundedRect(-w / 2, -h / 2, w, h, 10 * s);
+    [-this.spacing, 0, this.spacing].forEach(x => {
+      g.fillStyle(KYOTO.slotIndent, 0.4).fillRoundedRect(x - 38 * s, -h / 2 + 8 * s, 76 * s, h - 16 * s, 8 * s);
+    });
+    g.fillStyle(KYOTO.kuroSteel, 1.0).fillRoundedRect(-w / 2 - 4 * s, h / 2 - 8 * s, w + 8 * s, 12 * s, 3 * s);
+    g.fillStyle(KYOTO.brass, 1.0).fillCircle(-w / 2 + 6 * s, h / 2 - 2 * s, 2.5 * s).fillCircle(w / 2 - 6 * s, h / 2 - 2 * s, 2.5 * s);
+    this.add(g);
   }
 
   private initSlots(data: { front: string | null; queue: string[] }[]) {
@@ -1029,7 +1018,78 @@ export class PreloadScene extends Phaser.Scene {
   }
 }
 
+// ==========================================
+// 4a. GRID MANAGER
+// ==========================================
+/** Kapselt die Grid-Geometrie (Reihenpositionen, Skalierung, Hintergrund-Key)
+ *  und den Bau der Shelves. GameScene und der Hit-Test in onPointerDown
+ *  kennen nur noch diese API, keine eigene Layout-Arithmetik mehr. */
+export class GridManager {
+  private readonly scene: Phaser.Scene;
+  private readonly level: LevelDefinition;
+  public readonly itemScale: number;
+  public readonly shelfWidth: number;
+  private readonly gridTop: number;
+  private readonly shelfSpacing: number;
+  private readonly startY: number;
+
+  constructor(scene: Phaser.Scene, level: LevelDefinition) {
+    this.scene = scene;
+    this.level = level;
+
+    const { width, height } = scene.scale;
+    this.itemScale = getLayoutScale(width);
+    this.shelfWidth = Math.round(width * 0.78);
+
+    const rows = level.layout.length;
+    this.gridTop = 100 * this.itemScale;
+    const gridBottom = height - 100 * this.itemScale;
+    this.shelfSpacing = (gridBottom - this.gridTop) / rows;
+    this.startY = this.gridTop + this.shelfSpacing * 0.5;
+  }
+
+  getRowY(row: number): number {
+    return this.startY + row * this.shelfSpacing;
+  }
+
+  getRowWidth(): number {
+    return this.shelfWidth;
+  }
+
+  getItemScale(): number {
+    return this.itemScale;
+  }
+
+  getBgKey(): string | undefined {
+    return getLevelBgKey(State.currentLevel);
+  }
+
+  /** Baut alle Shelves des Levels an ihren Grid-Positionen. */
+  buildAll(): Shelf[] {
+    const { width } = this.scene.scale;
+    return this.level.layout.map((data, i) =>
+      new Shelf(this.scene, width / 2, this.getRowY(i), i, data, this.itemScale, this.shelfWidth, true)
+    );
+  }
+
+  /** Findet das Shelf unter einem Pointer-Weltkoordinatenpaar, falls vorhanden. */
+  shelfAt(shelves: Shelf[], x: number, y: number): Shelf | undefined {
+    return shelves.find(shelf => {
+      const halfW = shelf.shelfWidth / 2;
+      return x >= shelf.x - halfW && x <= shelf.x + halfW &&
+        y >= shelf.y + shelf.hitTop && y <= shelf.y + shelf.hitBottom;
+    });
+  }
+
+  /** Ermittelt den Slot-Index (0-2) innerhalb eines Shelves aus Welt-X. */
+  slotAt(shelf: Shelf, x: number): number {
+    const localX = x - shelf.x;
+    return localX < -shelf.spacing / 2 ? 0 : localX > shelf.spacing / 2 ? 2 : 1;
+  }
+}
+
 export class GameScene extends Phaser.Scene {
+  private grid!: GridManager;
   private shelves: Shelf[] = [];
   private selected: { shelfIdx: number; slotIdx: number; item: GoodsItem } | null = null;
 
@@ -1080,37 +1140,20 @@ export class GameScene extends Phaser.Scene {
     const level = LEVELS[lvl - 1] ?? LEVELS[0];
     State.reset(level.moves, level.targetMatches);
 
-    const { width, height } = this.scale;
-    const itemScale = getLayoutScale(width);
-    const rows = level.layout.length;
-    const shelfWidth = Math.round(width * 0.78);
-
-    // Grid-Positionen rein rechnerisch aus Canvas-Groesse und Reihenanzahl
-    const gridTop = 100 * itemScale;
-    const gridBottom = height - 100 * itemScale;
-    const gridHeight = gridBottom - gridTop;
-    const shelfSpacing = gridHeight / rows;
-    const startY = gridTop + shelfSpacing * 0.5;
-
-    level.layout.forEach((data, i) => {
-      this.shelves.push(new Shelf(this, width / 2, startY + i * shelfSpacing, i, data, itemScale, shelfWidth, true));
-    });
+    this.grid = new GridManager(this, level);
+    this.shelves = this.grid.buildAll();
   }
 
   private onPointerDown(p: Phaser.Input.Pointer) {
     ZenAudio.playTap();
 
     // Mathematisch isolierte Hitbox-Prüfung
-    for (let i = 0; i < this.shelves.length; i++) {
-      const shelf = this.shelves[i];
-      const halfW = shelf.shelfWidth / 2;
+    const shelf = this.grid.shelfAt(this.shelves, p.x, p.y);
+    if (shelf) {
+      const i = this.shelves.indexOf(shelf);
+      const slotIdx = this.grid.slotAt(shelf, p.x);
 
-      if (p.x >= shelf.x - halfW && p.x <= shelf.x + halfW &&
-          p.y >= shelf.y + shelf.hitTop && p.y <= shelf.y + shelf.hitBottom) {
-
-        const localX = p.x - shelf.x;
-        const slotIdx = localX < -shelf.spacing / 2 ? 0 : localX > shelf.spacing / 2 ? 2 : 1;
-
+      {
         if (State.activeBooster === 'hammer') {
           shelf.removeItem(slotIdx);
           State.activeBooster = null;
