@@ -460,6 +460,7 @@ export const GameEvents = {
   SCORE_UPDATED: 'SCORE_UPDATED',
   TRIPLE_MATCHED: 'TRIPLE_MATCHED',
   UNDO_TRIGGERED: 'UNDO_TRIGGERED',
+  UNDO_UPDATED: 'UNDO_UPDATED',
   SHUFFLE_TRIGGERED: 'SHUFFLE_TRIGGERED',
   HAMMER_ACTIVE: 'HAMMER_ACTIVE'
 };
@@ -483,6 +484,8 @@ export const State = {
   comboTimer: 0,
   /** true, sobald das Level gewonnen ist -- schliesst den Lose-Check aus. */
   won: false,
+  /** Freie Undos im aktuellen Level; danach Rewarded-Ad-Aufladung (Empfehlung 2). */
+  undoLeft: 3,
   activeBooster: null as 'hammer' | null,
   history: [] as MoveRecord[],
   reset(moves = 22, target = 4) {
@@ -494,6 +497,7 @@ export const State = {
     this.combo = 1;
     this.comboTimer = 0;
     this.won = false;
+    this.undoLeft = 3;
     this.activeBooster = null;
     this.history = [];
   }
@@ -1281,8 +1285,21 @@ export class GameScene extends Phaser.Scene {
   }
 
   private onUndo() {
+    // Undo-Oekonomie: 3 freie Undos pro Level, danach Aufladung per Rewarded Ad.
+    // Kein direktes Undo mehr -- der Reward gewaehrt genau 1 weitere Nutzung.
+    if (State.undoLeft <= 0) {
+      requestRewardedAd(this, () => {
+        State.undoLeft = 1;
+        this.game.events.emit(GameEvents.UNDO_UPDATED);
+      });
+      return;
+    }
+
     const last = State.history.pop();
     if (!last) return;
+
+    State.undoLeft--;
+    this.game.events.emit(GameEvents.UNDO_UPDATED);
 
     const fromShelf = this.shelves[last.toShelf];
     const toShelf = this.shelves[last.fromShelf];
@@ -1368,6 +1385,7 @@ export class UIScene extends Phaser.Scene {
   private scoreTxt!: Phaser.GameObjects.Text;
   private movesTxt!: Phaser.GameObjects.Text;
   private hammerHighlight!: Phaser.GameObjects.Graphics;
+  private undoBadge: Phaser.GameObjects.Text | null = null;
 
   constructor() {
     super({ key: 'UIScene', active: true });
@@ -1437,6 +1455,17 @@ export class UIScene extends Phaser.Scene {
         btn.add([bg, txt]);
       }
 
+      // Undo-Restkonto als Badge oben rechts. Zeigt auch die 0 nach der
+      // dritten Nutzung -- der naechste Tap fuert in den Ad-Flow.
+      if (b.label === 'UNDO') {
+        const badgeBg = this.add.graphics();
+        badgeBg.fillStyle(KYOTO.azuki, 1).fillCircle(17 * uiScale, -17 * uiScale, 11 * uiScale);
+        badgeBg.lineStyle(1.5 * uiScale, KYOTO.cream, 0.9).strokeCircle(17 * uiScale, -17 * uiScale, 11 * uiScale);
+        btn.add(badgeBg);
+        this.undoBadge = this.add.text(17 * uiScale, -17 * uiScale, `${State.undoLeft}`, valueStyle(12 * uiScale, '#FFFFFF')).setOrigin(0.5);
+        btn.add(this.undoBadge);
+      }
+
       btn.setSize(60 * uiScale, 60 * uiScale).setInteractive({ useHandCursor: true });
       btn.on('pointerdown', () => {
         this.tweens.add({ targets: btn, scale: 0.88, yoyo: true, duration: 70, onComplete: b.fn });
@@ -1458,13 +1487,19 @@ export class UIScene extends Phaser.Scene {
       this.tweens.add({ targets: this.scoreTxt, scale: 1.18, yoyo: true, duration: 130, ease: 'Sine.easeOut' });
     };
 
+    const updateUndoBadge = () => {
+      this.undoBadge?.setText(`${State.undoLeft}`);
+    };
+
     this.game.events.on(GameEvents.MOVE_EXECUTED, onMove);
     this.game.events.on(GameEvents.SCORE_UPDATED, onScore);
+    this.game.events.on(GameEvents.UNDO_UPDATED, updateUndoBadge);
     this.game.events.on(GameEvents.HAMMER_ACTIVE, () => this.updateHammerState());
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.game.events.off(GameEvents.MOVE_EXECUTED, onMove);
       this.game.events.off(GameEvents.SCORE_UPDATED, onScore);
+      this.game.events.off(GameEvents.UNDO_UPDATED, updateUndoBadge);
     });
   }
 
