@@ -982,8 +982,52 @@ export class PreloadScene extends Phaser.Scene {
   }
 
   create() {
+    // Mip-Bleed-Gegenmassnahme, bevor irgendetwas gerendert hat (siehe
+    // scrubTransparentRGB) -- danach erst die Szenen starten.
+    this.textures.getTextureKeys().forEach(key => this.scrubTransparentRGB(key));
+
     this.scene.start('GameScene');
     this.scene.start('UIScene');
+  }
+
+  /** Lossy WebP dekodiert unter voll transparenten Pixeln beliebiges Rest-RGB
+   *  mit zurueck -- die Farbebenen werden unabhaengig vom Alpha komprimiert,
+   *  ein Nullen vor dem Encoden ueberlebt den Codec nicht. Beim GPU-Mipmap-
+   *  Aufbau (LINEAR_MIPMAP_LINEAR seit dem POT-Umstieg) mittelt der Treiber
+   *  diese Reste beim Heruntersamplen in die Silhouettenkante und malt genau
+   *  die schmalen grauen Striche um die Items, die im Render nie existierten.
+   *  Deshalb zieht diese Funktion jede Textur nach dem Laden einmal ueber eine
+   *  Canvas und nullt das RGB unter a=0 -- bevor der erste GL-Upload passiert. */
+  private scrubTransparentRGB(key: string) {
+    const tex = this.textures.get(key);
+    const img = tex.getSourceImage();
+    if (!(img instanceof HTMLImageElement) || !img.complete || !img.naturalWidth) return;
+
+    const w = img.naturalWidth;
+    const h = img.naturalHeight;
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.drawImage(img, 0, 0);
+
+    const frame = ctx.getImageData(0, 0, w, h);
+    const d = frame.data;
+    let touched = false;
+    for (let i = 0; i < d.length; i += 4) {
+      if (d[i + 3] === 0 && (d[i] !== 0 || d[i + 1] !== 0 || d[i + 2] !== 0)) {
+        d[i] = 0;
+        d[i + 1] = 0;
+        d[i + 2] = 0;
+        touched = true;
+      }
+    }
+    if (!touched) return;
+
+    ctx.putImageData(frame, 0, 0);
+    this.textures.remove(key);
+    this.textures.addCanvas(key, canvas);
   }
 }
 
