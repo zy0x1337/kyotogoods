@@ -481,6 +481,8 @@ export const State = {
   targetMatches: 4,
   combo: 1,
   comboTimer: 0,
+  /** true, sobald das Level gewonnen ist -- schliesst den Lose-Check aus. */
+  won: false,
   activeBooster: null as 'hammer' | null,
   history: [] as MoveRecord[],
   reset(moves = 22, target = 4) {
@@ -491,6 +493,7 @@ export const State = {
     this.targetMatches = target;
     this.combo = 1;
     this.comboTimer = 0;
+    this.won = false;
     this.activeBooster = null;
     this.history = [];
   }
@@ -1092,6 +1095,7 @@ export class GameScene extends Phaser.Scene {
   private grid!: GridManager;
   private shelves: Shelf[] = [];
   private selected: { shelfIdx: number; slotIdx: number; item: GoodsItem } | null = null;
+  private loseCheckTimer: Phaser.Time.TimerEvent | null = null;
 
   constructor() {
     super('GameScene');
@@ -1192,6 +1196,7 @@ export class GameScene extends Phaser.Scene {
                 itemId: moved.itemId
               });
               this.game.events.emit(GameEvents.MOVE_EXECUTED, State.moves);
+              this.scheduleLoseCheck();
             }
           }
           this.selected = null;
@@ -1245,12 +1250,34 @@ export class GameScene extends Phaser.Scene {
 
     const allClear = this.shelves.every(s => s.slots.every(slot => slot === null) && s.queues.every(q => q.length === 0));
     if (allClear || State.matchesMade >= State.targetMatches) {
+      State.won = true;
       ZenAudio.playWin();
       this.time.delayedCall(500, () => {
         this.scene.pause();
         this.scene.launch('WinModalScene');
       });
+      return;
     }
+
+    // Ein Match bei 0 Restzuegen kann in der Queue noch ein Kettenmatch
+    // ausloesen. Jedes Match schiebt den Lose-Check daher erneut nach hinten:
+    // eine Match-Kette braucht pro Glied max. ~530 ms, das Fenster ist 650 ms.
+    if (State.moves <= 0) this.scheduleLoseCheck();
+  }
+
+  /** Verzoerter Fail-State-Check: laufende Match-Tweens (Wurfparabel,
+   *  Queue-Nachruecken) feuern erst nach bis zu ~700 ms -- ein sofortiger
+   *  Check wuerde den letzten Zug zu Unrecht als verlorenen werten. */
+  private scheduleLoseCheck() {
+    if (State.won) return;
+    this.loseCheckTimer?.remove(false);
+    this.loseCheckTimer = this.time.delayedCall(650, () => {
+      const allClear = this.shelves.every(s => s.slots.every(slot => slot === null) && s.queues.every(q => q.length === 0));
+      if (!State.won && State.moves <= 0 && State.matchesMade < State.targetMatches && !allClear) {
+        this.scene.pause();
+        this.scene.launch('LoseModalScene');
+      }
+    });
   }
 
   private onUndo() {
@@ -1509,6 +1536,114 @@ export class WinModalScene extends Phaser.Scene {
 }
 
 // ==========================================
+// 5b. REWARDED AD STUB & LOSE MODAL
+// ==========================================
+/** Rewarded Ads laufen zunaechst als Stub. Ein spaeterer AdMob-Umbau
+ *  betrifft ausschliesslich diese eine Funktion -- alle Aufrufer bleiben unberuehrt. */
+export function requestRewardedAd(scene: Phaser.Scene, onReward: () => void) {
+  scene.scene.launch('AdStubScene', { onReward });
+}
+
+export class AdStubScene extends Phaser.Scene {
+  constructor() {
+    super('AdStubScene');
+  }
+
+  create() {
+    const { width, height } = this.scale;
+    const s = getLayoutScale(width);
+    const data = this.scene.settings.data as { onReward?: () => void } | undefined;
+    const onReward = data?.onReward ?? (() => {});
+
+    this.add.graphics().fillStyle(KYOTO.kuroSteel, 0.94).fillRect(0, 0, width, height);
+
+    // Interaktive Vollbild-Zone schluckt jeden Tap auf dem Overlay.
+    // Szenen-Listener darunter sind ohnehin stillgestellt: LoseModal pausiert
+    // GameScene, bevor der Stub startet.
+    this.add.zone(width / 2, height / 2, width, height)
+      .setInteractive()
+      .on('pointerdown', () => { /* bewusst geschluckt */ });
+
+    const DURATION = 1200;
+    const card = this.add.container(width / 2, height / 2);
+
+    const box = this.add.graphics();
+    box.fillStyle(0x2A2D30, 1).fillRoundedRect(-110 * s, -70 * s, 220 * s, 140 * s, 16 * s);
+    box.lineStyle(2 * s, KYOTO.brass, 0.9).strokeRoundedRect(-110 * s, -70 * s, 220 * s, 140 * s, 16 * s);
+
+    const title = this.add.text(0, -38 * s, 'AD (STUB)', valueStyle(20 * s, '#FDFBF7')).setOrigin(0.5);
+    const sub = this.add.text(0, -8 * s, 'REWARD IN', labelStyle(11 * s, '#C49A5A')).setOrigin(0.5);
+    const countdown = this.add.text(0, 22 * s, `${(DURATION / 1000).toFixed(1)}s`, valueStyle(24 * s, '#FDFBF7')).setOrigin(0.5);
+
+    card.add([box, title, sub, countdown]).setScale(0);
+    this.tweens.add({ targets: card, scale: 1, duration: 200, ease: 'Back.easeOut' });
+
+    const startedAt = this.time.now;
+    this.time.addEvent({
+      delay: 50,
+      repeat: Math.ceil(DURATION / 50),
+      callback: () => {
+        const left = Math.max(0, DURATION - (this.time.now - startedAt));
+        countdown.setText(`${(left / 1000).toFixed(1)}s`);
+      }
+    });
+
+    this.time.delayedCall(DURATION + 200, () => {
+      this.scene.stop();
+      onReward();
+    });
+  }
+}
+
+export class LoseModalScene extends Phaser.Scene {
+  constructor() {
+    super('LoseModalScene');
+  }
+
+  create() {
+    const { width, height } = this.scale;
+    const s = getLayoutScale(width);
+    this.add.graphics().fillStyle(0x000000, 0.45).fillRect(0, 0, width, height);
+
+    const card = this.add.container(width / 2, height / 2);
+    const cardW = 280 * s;
+    const cardH = 260 * s;
+    const bg = this.add.graphics().fillStyle(KYOTO.cream, 1).fillRoundedRect(-cardW / 2, -cardH / 2, cardW, cardH, 16 * s);
+    bg.lineStyle(2 * s, KYOTO.hinoki, 0.7).strokeRoundedRect(-cardW / 2, -cardH / 2, cardW, cardH, 16 * s);
+
+    const title = this.add.text(0, -85 * s, 'OUT OF MOVES', valueStyle(18 * s, '#6E373B')).setOrigin(0.5);
+    const progress = this.add.text(0, -52 * s, `${State.matchesMade}/${State.targetMatches} MATCHES`, labelStyle(11 * s, '#8C7A5E')).setOrigin(0.5);
+
+    const adBtn = this.makeButton(0, 8 * s, '+5 MOVES (AD)', KYOTO.toastGold, () => {
+      requestRewardedAd(this, () => {
+        State.moves += 5;
+        this.scene.stop();
+        this.scene.resume('GameScene');
+        this.game.events.emit(GameEvents.MOVE_EXECUTED, State.moves);
+      });
+    });
+
+    const retryBtn = this.makeButton(0, 68 * s, 'RETRY', KYOTO.matcha, () => {
+      this.scene.stop();
+      this.scene.get('GameScene').scene.restart();
+    });
+
+    card.add([bg, title, progress, adBtn, retryBtn]).setScale(0);
+    this.tweens.add({ targets: card, scale: 1, duration: 250, ease: 'Back.easeOut' });
+  }
+
+  private makeButton(x: number, y: number, label: string, color: number, onClick: () => void): Phaser.GameObjects.Container {
+    const s = getLayoutScale(this.scale.width);
+    const btn = this.add.container(x, y);
+    const bg = this.add.graphics().fillStyle(color, 1).fillRoundedRect(-95 * s, -20 * s, 190 * s, 40 * s, 10 * s);
+    const txt = this.add.text(0, 0, label, valueStyle(14 * s, '#FFFFFF')).setOrigin(0.5);
+    btn.add([bg, txt]).setSize(190 * s, 40 * s).setInteractive({ useHandCursor: true });
+    btn.on('pointerdown', onClick);
+    return btn;
+  }
+}
+
+// ==========================================
 // 6. ENGINE BOOTSTRAP
 // ==========================================
 // Canvas-Groesse in Geraetepixeln. Die Anzeigegroesse ist das Container-Rechteck
@@ -1537,7 +1672,7 @@ function boot() {
       zoom: 1 / DPR,
       autoCenter: Phaser.Scale.CENTER_BOTH
     },
-    scene: [PreloadScene, GameScene, UIScene, WinModalScene]
+    scene: [PreloadScene, GameScene, UIScene, WinModalScene, LoseModalScene, AdStubScene]
   });
 
   // Im Modus NONE folgt die Canvas dem Container nicht von selbst. Drehung und
